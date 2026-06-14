@@ -1,0 +1,10 @@
+.git
+.gitignore
+.gitattributes
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+vpngate_data/
+*.log
+.env

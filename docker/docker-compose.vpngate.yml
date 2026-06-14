@@ -1,0 +1,33 @@
+services:
+  vpngate:
+    build:
+      context: ../
+      dockerfile: docker/vpngate/Dockerfile
+    container_name: aimili-vpngate
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    sysctls:
+      net.ipv4.conf.all.rp_filter: "2"
+      net.ipv4.conf.default.rp_filter: "2"
+    environment:
+      AIMILI_SERVICE_MODE: vpngate
+      VPNGATE_DATA_DIR: /data
+      UI_HOST: 0.0.0.0
+      UI_PORT: "8787"
+      LOCAL_PROXY_HOST: 0.0.0.0
+      LOCAL_PROXY_PORT: "7928"
+      FETCH_INTERVAL_SECONDS: "960"
+      CHECK_INTERVAL_SECONDS: "960"
+      TARGET_VALID_NODES: "3"
+      # # 可选：首次启动自定义管理页面账号和密码，不设置则默认随机生成并在日志中打印
+      # UI_USERNAME: "admin"
+      # UI_PASSWORD: "my_secure_password"
+      # SECRET_PATH: "mysecretpath"
+    ports:
+      - "8787:8787"
+      - "7928:7928"
+    volumes:
+      - ../vpngate_data:/data

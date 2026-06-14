@@ -1,0 +1,37 @@
+services:
+  aimili:
+    build:
+      context: .
+      dockerfile: docker/full/Dockerfile
+    image: aimili-vpn-panel:latest
+    container_name: aimili-vpn-panel
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    sysctls:
+      net.ipv4.ip_forward: "1"
+      net.ipv4.conf.all.rp_filter: "2"
+      net.ipv4.conf.default.rp_filter: "2"
+    environment:
+      AIMILI_SERVICE_MODE: full
+      VPNGATE_DATA_DIR: /data
+      UI_HOST: 0.0.0.0
+      UI_PORT: ${UI_PORT:-8787}
+      LOCAL_PROXY_HOST: 0.0.0.0
+      LOCAL_PROXY_PORT: ${LOCAL_PROXY_PORT:-7928}
+      FETCH_INTERVAL_SECONDS: ${FETCH_INTERVAL_SECONDS:-960}
+      CHECK_INTERVAL_SECONDS: ${CHECK_INTERVAL_SECONDS:-960}
+      TARGET_VALID_NODES: ${TARGET_VALID_NODES:-3}
+      SECRET_PATH: ${SECRET_PATH:-}
+      UI_USERNAME: ${UI_USERNAME:-}
+      UI_PASSWORD: ${UI_PASSWORD:-}
+    ports:
+      - "${UI_PORT:-8787}:${UI_PORT:-8787}"
+      - "${LOCAL_PROXY_PORT:-7928}:${LOCAL_PROXY_PORT:-7928}"
+      # Add Xray inbound ports here when you create public nodes in the panel.
+      # Example for the default VLESS inbound:
+      # - "10086:10086"
+    volumes:
+      - ./vpngate_data:/data
