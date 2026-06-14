@@ -10,16 +10,23 @@ AimiliVPN now provides two Docker modes:
 Use the Docker installer on a Linux VPS:
 
 ```bash
-sudo bash install-docker.sh
+curl -fsSL https://raw.githubusercontent.com/Aimilibot/Xray-Aimili/main/install-docker.sh | bash
 ```
 
 The installer will:
 
 - install Docker Engine and the Docker Compose plugin when missing;
+- stop the previous AimiliVPN Docker stack and remove `/opt/aimilivpn-docker` by default, so the new install starts clean;
 - deploy the project to `/opt/aimilivpn-docker`;
 - create `/opt/aimilivpn-docker/.env`;
 - start the stack with `docker compose up -d --build`;
 - print the panel URL, username, and password.
+
+To keep an existing Docker install directory instead of cleaning it first:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Aimilibot/Xray-Aimili/main/install-docker.sh | AIMILI_CLEAN_INSTALL=0 bash
+```
 
 Manual start from the project directory:
 

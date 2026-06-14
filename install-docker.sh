@@ -7,14 +7,34 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;36m'
 PLAIN='\033[0m'
 
-DEFAULT_USER="baoweise-bot"
-DEFAULT_REPO="aimili-vpngate"
-DEFAULT_DEPLOY_BRANCH="bate"
+DEFAULT_USER="Aimilibot"
+DEFAULT_REPO="Xray-Aimili"
+DEFAULT_DEPLOY_BRANCH="main"
 INSTALL_DIR="${AIMILI_DOCKER_INSTALL_DIR:-/opt/aimilivpn-docker}"
 GITHUB_USER="${1:-${DEFAULT_USER}}"
 GITHUB_REPO="${2:-${DEFAULT_REPO}}"
 DEPLOY_BRANCH="${AIMILI_DEPLOY_BRANCH:-${3:-$DEFAULT_DEPLOY_BRANCH}}"
 GITHUB_URL="https://github.com/${GITHUB_USER}/${GITHUB_REPO}.git"
+CLEAN_INSTALL="${AIMILI_CLEAN_INSTALL:-1}"
+
+TTY_DEVICE=""
+if [ -r /dev/tty ] && [ -w /dev/tty ]; then
+    TTY_DEVICE="/dev/tty"
+fi
+
+prompt_read() {
+    local prompt="$1"
+    local __resultvar="$2"
+    local value=""
+    if [ -n "$TTY_DEVICE" ]; then
+        read -r -p "$prompt" value < "$TTY_DEVICE" || true
+    elif [ -t 0 ]; then
+        read -r -p "$prompt" value || true
+    else
+        value=""
+    fi
+    printf -v "$__resultvar" '%s' "$value"
+}
 
 if [ "$(id -u)" != "0" ]; then
     echo -e "${RED}错误: 必须以 root 权限运行此脚本。请使用: sudo bash $0${PLAIN}"
@@ -60,21 +80,23 @@ cat <<EOF
 3. 生成 Docker .env 和持久化数据目录。
 4. 启动完整面板容器，包含 Web 面板、Xray、VPNGate/OpenVPN、本地代理和 WARP/自定义出站能力。
 
-本脚本不会清理宿主机已有 Xray，不会删除宿主机 systemd 服务，不会删除旧面板目录。
+本脚本不会清理宿主机已有 Xray，不会删除宿主机 systemd 服务。
+默认会清理 ${INSTALL_DIR} 内的旧 Docker 面板残留，确保重新安装干净。
 
 EOF
 
-while true; do
-    if ! read -r -p "请输入 y 同意并继续安装，输入 n 退出 [y/N]: " USER_ACCEPT; then
-        echo -e "\n${RED}未读取到用户输入，已取消安装。${PLAIN}"
-        exit 1
-    fi
-    case "$USER_ACCEPT" in
-        [Yy]) break ;;
-        [Nn]|"") echo -e "${YELLOW}已取消安装。${PLAIN}"; exit 0 ;;
-        *) echo -e "${RED}请输入 y 或 n。${PLAIN}" ;;
-    esac
-done
+if [ -z "$TTY_DEVICE" ] && [ ! -t 0 ]; then
+    echo -e "${YELLOW}检测到管道安装模式，自动使用默认配置继续安装。${PLAIN}"
+else
+    while true; do
+        prompt_read "请输入 y 同意并继续安装，输入 n 退出 [Y/n]: " USER_ACCEPT
+        case "$USER_ACCEPT" in
+            [Yy]|"") break ;;
+            [Nn]) echo -e "${YELLOW}已取消安装。${PLAIN}"; exit 0 ;;
+            *) echo -e "${RED}请输入 y 或 n。${PLAIN}" ;;
+        esac
+    done
+fi
 
 install_base_packages() {
     echo -e "\n${YELLOW}[1/5] 正在安装基础依赖...${PLAIN}"
@@ -151,8 +173,31 @@ ensure_tun_device() {
     fi
 }
 
+cleanup_existing_install() {
+    if [ "$CLEAN_INSTALL" != "1" ]; then
+        echo -e "\n${YELLOW}[4/6] 已跳过旧 Docker 面板目录清理。${PLAIN}"
+        return
+    fi
+
+    echo -e "\n${YELLOW}[4/6] 正在清理旧 Docker 面板残留...${PLAIN}"
+    if [ -d "$INSTALL_DIR" ]; then
+        if [ -f "${INSTALL_DIR}/docker-compose.yml" ] && command -v docker >/dev/null 2>&1; then
+            (
+                cd "$INSTALL_DIR"
+                docker compose down --remove-orphans >/dev/null 2>&1 || true
+            )
+        fi
+        docker rm -f aimilivpn-full >/dev/null 2>&1 || true
+        rm -rf "$INSTALL_DIR"
+        echo -e "${GREEN}  -> 已删除旧目录 ${INSTALL_DIR}。${PLAIN}"
+    else
+        docker rm -f aimilivpn-full >/dev/null 2>&1 || true
+        echo -e "${GREEN}  -> 未发现旧目录，继续全新安装。${PLAIN}"
+    fi
+}
+
 deploy_source() {
-    echo -e "\n${YELLOW}[4/5] 正在部署源码到 ${INSTALL_DIR}...${PLAIN}"
+    echo -e "\n${YELLOW}[5/6] 正在部署源码到 ${INSTALL_DIR}...${PLAIN}"
     if [ -d "${INSTALL_DIR}/.git" ]; then
         cd "$INSTALL_DIR"
         git fetch origin "$DEPLOY_BRANCH" || git fetch --all || true
@@ -190,7 +235,7 @@ json_value_or_default() {
 }
 
 write_env_file() {
-    echo -e "\n${YELLOW}[5/5] 正在生成 Docker 环境配置...${PLAIN}"
+    echo -e "\n${YELLOW}[6/6] 正在生成 Docker 环境配置...${PLAIN}"
     mkdir -p "${INSTALL_DIR}/vpngate_data"
     AUTH_FILE="${INSTALL_DIR}/vpngate_data/ui_auth.json"
 
@@ -200,11 +245,20 @@ write_env_file() {
     DEFAULT_USER="${AIMILI_UI_USERNAME:-$(json_value_or_default "$AUTH_FILE" username "$(random_token)")}"
     DEFAULT_PASS="${AIMILI_UI_PASSWORD:-$(json_value_or_default "$AUTH_FILE" password "$(random_token)")}"
 
-    read -r -p "请输入网页端口 [默认 ${DEFAULT_UI_PORT}]: " INPUT_UI_PORT || true
-    read -r -p "请输入代理端口 [默认 ${DEFAULT_PROXY_PORT}]: " INPUT_PROXY_PORT || true
-    read -r -p "请输入安全后缀 [默认随机 ${DEFAULT_SECRET}]: " INPUT_SECRET || true
-    read -r -p "请输入登录账号 [默认随机 ${DEFAULT_USER}]: " INPUT_USER || true
-    read -r -p "请输入登录密码 [默认随机 ${DEFAULT_PASS}]: " INPUT_PASS || true
+    if [ -z "$TTY_DEVICE" ] && [ ! -t 0 ]; then
+        echo -e "${YELLOW}  -> 管道安装模式：端口、后缀、账号和密码将自动生成或使用环境变量。${PLAIN}"
+        INPUT_UI_PORT=""
+        INPUT_PROXY_PORT=""
+        INPUT_SECRET=""
+        INPUT_USER=""
+        INPUT_PASS=""
+    else
+        prompt_read "请输入网页端口 [默认 ${DEFAULT_UI_PORT}]: " INPUT_UI_PORT
+        prompt_read "请输入代理端口 [默认 ${DEFAULT_PROXY_PORT}]: " INPUT_PROXY_PORT
+        prompt_read "请输入安全后缀 [默认随机 ${DEFAULT_SECRET}]: " INPUT_SECRET
+        prompt_read "请输入登录账号 [默认随机 ${DEFAULT_USER}]: " INPUT_USER
+        prompt_read "请输入登录密码 [默认随机 ${DEFAULT_PASS}]: " INPUT_PASS
+    fi
 
     UI_PORT="${INPUT_UI_PORT:-$DEFAULT_UI_PORT}"
     LOCAL_PROXY_PORT="${INPUT_PROXY_PORT:-$DEFAULT_PROXY_PORT}"
@@ -269,6 +323,7 @@ public_ip() {
 install_base_packages
 install_docker
 ensure_tun_device
+cleanup_existing_install
 deploy_source
 write_env_file
 start_stack
