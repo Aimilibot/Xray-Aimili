@@ -173,7 +173,68 @@ ensure_tun_device() {
     fi
 }
 
+cleanup_host_conflicts_and_residuals() {
+    echo -e "\n${YELLOW}正在清理宿主机旧版本残留与可能冲突的服务/配置...${PLAIN}"
+
+    # 1. Stop and disable old host-level services
+    local old_services=("aimilivpn.service" "aimili-xray.service" "aimili-vpn.service")
+    local svc
+    for svc in "${old_services[@]}"; do
+        if command -v systemctl >/dev/null 2>&1; then
+            if systemctl is-active --quiet "$svc" || systemctl is-enabled --quiet "$svc" 2>/dev/null; then
+                echo -e "  -> 停止并禁用宿主机系统服务 $svc ..."
+                systemctl stop "$svc" >/dev/null 2>&1 || true
+                systemctl disable "$svc" >/dev/null 2>&1 || true
+                systemctl reset-failed "$svc" >/dev/null 2>&1 || true
+            fi
+            # Remove systemd service files
+            rm -f "/etc/systemd/system/$svc" "/lib/systemd/system/$svc" "/usr/lib/systemd/system/$svc"
+        fi
+        if command -v rc-service >/dev/null 2>&1; then
+            rc-service "$svc" stop >/dev/null 2>&1 || true
+            rc-update del "$svc" default >/dev/null 2>&1 || true
+            rm -f "/etc/init.d/$svc"
+        fi
+    done
+
+    # 2. Kill leftover host processes (avoiding port conflicts)
+    pkill -TERM -f "vpngate_manager.py" >/dev/null 2>&1 || true
+    pkill -TERM -f "aimili-xray" >/dev/null 2>&1 || true
+    pkill -TERM -x xray >/dev/null 2>&1 || true
+    sleep 1
+    pkill -KILL -f "vpngate_manager.py" >/dev/null 2>&1 || true
+    pkill -KILL -f "aimili-xray" >/dev/null 2>&1 || true
+    pkill -KILL -x xray >/dev/null 2>&1 || true
+
+    # 3. Clean up host-level script command links
+    local old_commands=("/usr/local/bin/ml-x" "/usr/bin/ml-x" "/usr/local/bin/ml" "/usr/bin/ml")
+    local cmd_path
+    for cmd_path in "${old_commands[@]}"; do
+        if [ -f "$cmd_path" ] || [ -L "$cmd_path" ]; then
+            echo -e "  -> 删除宿主机旧命令脚本 $cmd_path"
+            rm -f "$cmd_path"
+        fi
+    done
+
+    # 4. Clean up old residual directories
+    local old_dirs=("/etc/aimili-xray" "/opt/aimili-xray")
+    local dir_path
+    for dir_path in "${old_dirs[@]}"; do
+        if [ -d "$dir_path" ]; then
+            echo -e "  -> 删除宿主机残留目录 $dir_path"
+            rm -rf "$dir_path"
+        fi
+    done
+
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+}
+
 cleanup_existing_install() {
+    # Call the host conflict cleanup first
+    cleanup_host_conflicts_and_residuals
+
     if [ "$CLEAN_INSTALL" != "1" ]; then
         echo -e "\n${YELLOW}[4/6] 已跳过旧 Docker 面板目录清理。${PLAIN}"
         return
@@ -198,6 +259,12 @@ cleanup_existing_install() {
 
 deploy_source() {
     echo -e "\n${YELLOW}[5/6] 正在部署源码到 ${INSTALL_DIR}...${PLAIN}"
+    
+    if [ -d "$INSTALL_DIR" ] && [ ! -d "${INSTALL_DIR}/.git" ] && [ ! -f "${INSTALL_DIR}/docker-compose.yml" ]; then
+        echo -e "  -> 检测到非空且非有效安装目录 ${INSTALL_DIR}，正在清理以重新克隆..."
+        rm -rf "$INSTALL_DIR"
+    fi
+
     if [ -d "${INSTALL_DIR}/.git" ]; then
         cd "$INSTALL_DIR"
         git fetch origin "$DEPLOY_BRANCH" || git fetch --all || true
