@@ -392,17 +392,55 @@ def write_xray_config(cfg: dict) -> bool:
                     continue
                 private_key = str(node.get("reality_private_key") or "").strip()
                 short_id = str(node.get("reality_short_id") or "").strip()
+                mldsa_seed = str(node.get("reality_mldsa65_seed") or "").strip()
+                spider_x = node.get("reality_spider_x")
+                
+                changed = False
                 if not private_key:
                     priv, pub = generate_reality_keys()
                     if priv and pub:
                         node["reality_private_key"] = priv
                         node["reality_public_key"] = pub
-                        write_json(SUBSCRIPTION_NODES_FILE, sub_nodes)
                         private_key = priv
+                        changed = True
+
+                if not mldsa_seed:
+                    seed, verify = generate_mldsa65_keys()
+                    if seed and verify:
+                        node["reality_mldsa65_seed"] = seed
+                        node["reality_mldsa65_verify"] = verify
+                        mldsa_seed = seed
+                        changed = True
+
+                if spider_x is None:
+                    import random
+                    rand_hex = "".join(random.choice("0123456789abcdef") for _ in range(random.randint(8, 16)))
+                    node["reality_spider_x"] = f"/{rand_hex}"
+                    spider_x = f"/{rand_hex}"
+                    changed = True
+
+                if changed:
+                    write_json(SUBSCRIPTION_NODES_FILE, sub_nodes)
 
                 if not private_key:
                     xray_event("WARNING", f"节点 {name} 缺少 Reality 私钥，已跳过")
                     continue
+
+                reality_settings = {
+                    "show": False,
+                    "dest": f"{camouflage_host}:443" if camouflage_host else "www.microsoft.com:443",
+                    "xver": 0,
+                    "serverNames": [
+                        camouflage_host or "www.microsoft.com"
+                    ],
+                    "privateKey": private_key,
+                    "shortIds": [
+                        short_id
+                    ] if short_id else [],
+                    "spiderX": spider_x or "/"
+                }
+                if mldsa_seed:
+                    reality_settings["mldsa65Seed"] = mldsa_seed
 
                 inbound_entry = {
                     "listen": "0.0.0.0",
@@ -423,18 +461,7 @@ def write_xray_config(cfg: dict) -> bool:
                     "streamSettings": {
                         "network": "tcp",
                         "security": "reality",
-                        "realitySettings": {
-                            "show": False,
-                            "dest": f"{camouflage_host}:443" if camouflage_host else "www.microsoft.com:443",
-                            "xver": 0,
-                            "serverNames": [
-                                camouflage_host or "www.microsoft.com"
-                            ],
-                            "privateKey": private_key,
-                            "shortIds": [
-                                short_id
-                            ] if short_id else []
-                        }
+                        "realitySettings": reality_settings
                     }
                 }
                 xray_inbounds.append(inbound_entry)
@@ -1184,6 +1211,26 @@ def generate_wireguard_keys() -> tuple[str, str]:
     public_raw = x25519_public_key(private_raw)
     return wireguard_key_b64(private_raw), wireguard_key_b64(public_raw)
 
+def generate_mldsa65_keys() -> tuple[str, str]:
+    try:
+        binary_path = xray_binary_path()
+        if binary_path:
+            res = subprocess.run([binary_path, "mldsa65"], capture_output=True, text=True, timeout=5)
+            output = (res.stdout or "") + "\n" + (res.stderr or "")
+            lines = output.splitlines()
+            seed = ""
+            verify = ""
+            for line in lines:
+                if "Seed:" in line:
+                    seed = line.split(":", 1)[1].strip()
+                elif "Verify:" in line:
+                    verify = line.split(":", 1)[1].strip()
+            if seed and verify:
+                return seed, verify
+    except Exception:
+        pass
+    return "", ""
+
 def generate_reality_keys() -> tuple[str, str]:
     try:
         binary_path = xray_binary_path()
@@ -1838,6 +1885,12 @@ def parse_share_link(link: str) -> tuple[str, str, str]:
                 "serverName": sni or address,
                 "fingerprint": fp or "chrome"
             }
+            spx = params.get("spx", "")
+            pqv = params.get("pqv", "")
+            if spx:
+                reality_settings["spiderX"] = spx
+            if pqv:
+                reality_settings["mldsa65Verify"] = pqv
             outbound["streamSettings"]["realitySettings"] = reality_settings
         elif security == "tls":
             tls_settings = {}
@@ -2451,15 +2504,24 @@ def generate_panel_node_share_link(node: dict[str, Any], host: str) -> str:
             "flow": "xtls-rprx-vision",
             "security": "reality",
             "type": "tcp",
-            "sni": camouflage_host,
+            "headerType": "none",
+            "sni": camouflage_host or "www.microsoft.com",
             "fp": "chrome",
         }
         public_key = str(node.get("reality_public_key") or node.get("public_key") or "").strip()
         short_id = str(node.get("reality_short_id") or node.get("short_id") or "").strip()
+        mldsa_verify = str(node.get("reality_mldsa65_verify") or "").strip()
+        spider_x = str(node.get("reality_spider_x") or "/").strip()
+        
         if public_key:
             params["pbk"] = public_key
         if short_id:
             params["sid"] = short_id
+        if spider_x:
+            params["spx"] = spider_x
+        if mldsa_verify:
+            params["pqv"] = mldsa_verify
+            
         query = urllib.parse.urlencode({k: v for k, v in params.items() if v})
         return f"vless://{uuid_value}@{host}:{port}?{query}#{urllib.parse.quote(remark)}"
 

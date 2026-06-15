@@ -315,8 +315,8 @@ cleanup_old_residuals_and_conflicts() {
                 docker compose down --remove-orphans >/dev/null 2>&1 || true
             )
         fi
-        docker stop aimilivpn-full >/dev/null 2>&1 || true
-        docker rm -f aimilivpn-full >/dev/null 2>&1 || true
+        docker stop aimilivpn-full aimili-vpn-panel aimili-vpngate >/dev/null 2>&1 || true
+        docker rm -f aimilivpn-full aimili-vpn-panel aimili-vpngate >/dev/null 2>&1 || true
     fi
 
     if command -v systemctl >/dev/null 2>&1; then

@@ -180,7 +180,16 @@
             "www.tesla.com",
             "www.paypal.com",
             "www.speedtest.net",
-            "www.python.org"
+            "www.python.org",
+            "www.amazon.com",
+            "www.oracle.com",
+            "www.adobe.com",
+            "www.zoom.us",
+            "www.ebay.com",
+            "www.ibm.com",
+            "www.visa.com",
+            "www.mastercard.com",
+            "cdnjs.cloudflare.com"
         ];
 
         function selectedSubscriptionLink() {

@@ -248,11 +248,11 @@ cleanup_existing_install() {
                 docker compose down --remove-orphans >/dev/null 2>&1 || true
             )
         fi
-        docker rm -f aimilivpn-full >/dev/null 2>&1 || true
+        docker rm -f aimilivpn-full aimili-vpn-panel aimili-vpngate >/dev/null 2>&1 || true
         rm -rf "$INSTALL_DIR"
         echo -e "${GREEN}  -> 已删除旧目录 ${INSTALL_DIR}。${PLAIN}"
     else
-        docker rm -f aimilivpn-full >/dev/null 2>&1 || true
+        docker rm -f aimilivpn-full aimili-vpn-panel aimili-vpngate >/dev/null 2>&1 || true
         echo -e "${GREEN}  -> 未发现旧目录，继续全新安装。${PLAIN}"
     fi
 }
