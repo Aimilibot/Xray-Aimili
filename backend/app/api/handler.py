@@ -38,7 +38,8 @@ from backend.app.core.xray import (
     save_outbound_node, delete_outbound_node, set_outbound_node_enabled,
     parse_share_link, test_outbound_node_via_temp_xray, register_warp_account,
     sync_panel_subscription_nodes_to_xray, test_warp_via_proxy, stop_xray, start_xray,
-    bg_install_xray, query_xray_client_stats, clean_hostname, xray_event
+    bg_install_xray, query_xray_client_stats, clean_hostname, xray_event,
+    get_public_ip_or_domain
 )
 from backend.app.core.vpn import (
     active_openvpn_running, get_tun_stats, maintain_valid_nodes,

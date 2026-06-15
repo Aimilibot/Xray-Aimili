@@ -820,7 +820,7 @@ input[type="radio"][name="net_routing_mode"]:checked + span {
     padding: 0 9px;
     border-radius: 7px;
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 500;
     line-height: 1;
 }
 
@@ -846,7 +846,7 @@ input[type="radio"][name="net_routing_mode"]:checked + span {
     background: color-mix(in srgb, var(--surface-elevated) 78%, transparent);
     border: 1px solid color-mix(in srgb, var(--surface-line) 74%, transparent);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .icon-only-btn {

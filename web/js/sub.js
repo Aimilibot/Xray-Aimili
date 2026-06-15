@@ -1,4 +1,16 @@
 
+        function generateRandomUUID() {
+            if (window.crypto && window.crypto.randomUUID) {
+                return window.crypto.randomUUID();
+            }
+            // RFC4122 v4 compliant fallback for non-secure HTTP contexts
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
         function openShareModal(ibIdx, clientIdx) {
             if (!xrayConfig) return;
             const inbound = xrayConfig.inbounds[ibIdx];
@@ -216,7 +228,7 @@
 
         async function loadSubscriptionLinks() {
             const tbody = $("subscription_items_rows");
-            if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="compact-empty">正在加载入站列表...</td></tr>`;
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="compact-empty">正在加载入站列表...</td></tr>`;
             try {
                 const res = await fetch("./api/panel/subscription-links");
                 const data = await res.json();
@@ -227,7 +239,7 @@
                 if (!subscriptionLinks.length) selectedSubscriptionLinkId = "";
                 renderSubscriptionItems();
             } catch (e) {
-                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="compact-empty">入站列表加载失败</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="compact-empty">入站列表加载失败</td></tr>`;
             }
         }
 
@@ -239,13 +251,13 @@
                 renderSubscriptionItems();
             } catch (e) {
                 const tbody = $("subscription_items_rows");
-                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="compact-empty">入站列表加载失败</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="compact-empty">入站列表加载失败</td></tr>`;
             }
         }
 
         async function loadSubscriptionWorkspace() {
             const tbody = $("subscription_items_rows");
-            if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="compact-empty">正在加载入站列表...</td></tr>`;
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="compact-empty">正在加载入站列表...</td></tr>`;
             try {
                 const [linksRes, nodesRes, rulesRes, outNodesRes] = await Promise.all([
                     fetch("./api/panel/subscription-links"),
@@ -311,9 +323,10 @@
                 hint.textContent = `${subscriptionLinks.length} 个订阅链接，${subscriptionNodes.length} 个节点链接，${independentCount} 个独立节点`;
             }
             if (!subscriptionLinks.length && !subscriptionNodes.length) {
-                tbody.innerHTML = `<tr><td colspan="6" class="compact-empty">暂无入站；点击右上角添加入站</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="compact-empty">暂无入站；点击右上角添加入站</td></tr>`;
                 return;
             }
+            let rowCounter = 1;
             const rowIcon = (name) => {
                 const icons = {
                     add: `<path d="M12 5v14"></path><path d="M5 12h14"></path>`,
@@ -355,8 +368,10 @@
                     actionButton("编辑", "edit", `editSubscriptionNode('${esc(node.id)}')`),
                     actionButton("删除", "trash", `deleteSubscriptionNode('${esc(node.id)}')`, true)
                 ]);
+                const currentRowNum = rowCounter++;
                 return `
                     <tr class="subscription-node-row${nested ? " subscription-node-row--child" : ""} hover:bg-[rgba(255,255,255,0.015)]">
+                        <td style="text-align:center; color:var(--muted); font-size:13px;">${currentRowNum}</td>
                         <td>${indent}<span class="inbound-kind-badge inbound-kind-badge--node">节点</span></td>
                         <td><span class="status-badge ${badgeClass}" style="display:inline-flex;"><span class="status-dot"></span>${statusText}</span></td>
                         <td class="min-w-[180px] whitespace-normal py-3 px-3.5">
@@ -388,8 +403,10 @@
                     actionButton(enabled ? "停用" : "启用", "power", `toggleSubscriptionLink('${esc(link.id)}', ${enabled ? "false" : "true"})`),
                     actionButton("删除", "trash", `deleteSubscriptionLink('${esc(link.id)}')`, true)
                 ]);
+                const currentRowNum = rowCounter++;
                 rows.push(`
                     <tr class="subscription-link-row${selected} cursor-pointer hover:bg-[rgba(255,255,255,0.015)]" onclick="selectSubscriptionLink('${esc(link.id)}')">
+                        <td style="text-align:center; color:var(--muted); font-size:13px;">${currentRowNum}</td>
                         <td>
                             <button type="button" class="subscription-expand-btn" onclick="toggleSubscriptionExpand('${esc(link.id)}', event)" aria-label="${expanded ? "折叠节点链接" : "展开节点链接"}">${expanded ? "−" : "+"}</button>
                             <span class="inbound-kind-badge inbound-kind-badge--link">订阅</span>
@@ -399,8 +416,8 @@
                             <strong>${esc(link.name || "-")}</strong>
                             <div style="font-size:12px; color:var(--muted); margin-top:3px;">${link.id === selectedSubscriptionLinkId ? "默认加入的订阅链接" : esc(link.remark || link.status_text || "订阅链接")}</div>
                         </td>
-                        <td>${enabledNodeCount} / ${nodeCount}</td>
-                        <td>订阅链接<div style="font-size:12px; color:var(--muted); margin-top:3px;">子节点默认启用</div></td>
+                        <td></td>
+                        <td></td>
                         <td>${actions}</td>
                     </tr>
                 `);
@@ -408,7 +425,7 @@
                     if (childNodes.length) {
                         childNodes.forEach(node => rows.push(renderNodeRow(node, true)));
                     } else {
-                        rows.push(`<tr class="subscription-node-row subscription-node-row--child"><td colspan="6" class="compact-empty">这个订阅链接下还没有节点链接</td></tr>`);
+                        rows.push(`<tr class="subscription-node-row subscription-node-row--child"><td style="text-align:center; color:var(--muted); font-size:13px;">-</td><td colspan="6" class="compact-empty">这个订阅链接下还没有节点链接</td></tr>`);
                     }
                 }
             });
@@ -462,9 +479,7 @@
         function generateSubscriptionToken() {
             const input = $("subscription_link_token");
             if (!input) return;
-            const randomPart = window.crypto && window.crypto.randomUUID
-                ? window.crypto.randomUUID().replaceAll("-", "")
-                : String(Date.now()) + Math.random().toString(16).slice(2);
+            const randomPart = generateRandomUUID().replaceAll("-", "");
             input.value = `sub_${randomPart.slice(0, 28)}`;
         }
 
@@ -698,9 +713,7 @@
         function generateSubscriptionUuid() {
             const input = $("subscription_node_uuid");
             if (!input) return;
-            input.value = window.crypto && window.crypto.randomUUID
-                ? window.crypto.randomUUID()
-                : "00000000-0000-4000-8000-" + String(Date.now()).slice(-12).padStart(12, "0");
+            input.value = generateRandomUUID();
         }
 
         function generateSubscriptionPort() {
@@ -721,9 +734,7 @@
         }
 
         function randomCredential(prefix = "") {
-            const raw = window.crypto && window.crypto.randomUUID
-                ? window.crypto.randomUUID().replaceAll("-", "")
-                : String(Date.now()) + Math.random().toString(16).slice(2);
+            const raw = generateRandomUUID().replaceAll("-", "");
             return `${prefix}${raw.slice(0, 12)}`;
         }
 
@@ -861,7 +872,7 @@
             syncXrayInboundFromDom();
             const ib = xrayConfig.inbounds[ibIdx];
             if (!ib.clients) ib.clients = [];
-            const rand = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : "00000000-0000-4000-8000-" + String(Date.now()).slice(-12).padStart(12, "0");
+            const rand = generateRandomUUID();
             const newClient = {
                 name: "client-" + (ib.clients.length + 1).toString().padStart(2, "0"),
                 uuid: ib.protocol === "vless" || ib.protocol === "vmess" ? rand : "",
@@ -887,7 +898,7 @@
             syncXrayInboundFromDom();
             const ib = xrayConfig.inbounds[ibIdx];
             const client = ib.clients[clientIdx];
-            const rand = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : "00000000-0000-4000-8000-" + String(Date.now()).slice(-12).padStart(12, "0");
+            const rand = generateRandomUUID();
             if (ib.protocol === "vless" || ib.protocol === "vmess") {
                 client.uuid = rand;
             } else {
@@ -899,7 +910,7 @@
         let xrayConfig = null;
 
         function defaultXrayInbound() {
-            const rand = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : "00000000-0000-4000-8000-" + String(Date.now()).slice(-12).padStart(12, "0");
+            const rand = generateRandomUUID();
             return {
                 id: "inbound-" + Date.now(),
                 protocol: "vless",
