@@ -413,6 +413,7 @@ def write_xray_config(cfg: dict) -> bool:
                         "clients": [
                             {
                                 "id": uuid_value,
+                                "flow": "xtls-rprx-vision",
                                 "level": 0,
                                 "email": name
                             }
@@ -1801,6 +1802,7 @@ def parse_share_link(link: str) -> tuple[str, str, str]:
         port = int(port_str)
         security = params.get("security", "none")
         network = params.get("type", "tcp")
+        flow = params.get("flow", "")
         sni = params.get("sni", "")
         pbk = params.get("pbk", "")
         sid = params.get("sid", "")
@@ -1808,16 +1810,20 @@ def parse_share_link(link: str) -> tuple[str, str, str]:
         path = params.get("path", "")
         host = params.get("host", "")
         
+        user_entry = {
+            "id": uuid_val,
+            "encryption": "none"
+        }
+        if flow:
+            user_entry["flow"] = flow
+
         outbound = {
             "protocol": "vless",
             "settings": {
                 "vnext": [{
                     "address": address,
                     "port": port,
-                    "users": [{
-                        "id": uuid_val,
-                        "encryption": "none"
-                    }]
+                    "users": [user_entry]
                 }]
             },
             "streamSettings": {
@@ -2442,6 +2448,7 @@ def generate_panel_node_share_link(node: dict[str, Any], host: str) -> str:
             return ""
         params = {
             "encryption": "none",
+            "flow": "xtls-rprx-vision",
             "security": "reality",
             "type": "tcp",
             "sni": camouflage_host,

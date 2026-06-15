@@ -227,8 +227,8 @@
         }
 
         async function loadSubscriptionLinks() {
-            const tbody = $("subscription_items_rows");
-            if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="compact-empty">正在加载入站列表...</td></tr>`;
+            const container = $("subscription_items_container");
+            if (container) container.innerHTML = `<div class="text-center py-8 text-muted">正在加载入站列表...</div>`;
             try {
                 const res = await fetch("./api/panel/subscription-links");
                 const data = await res.json();
@@ -239,7 +239,7 @@
                 if (!subscriptionLinks.length) selectedSubscriptionLinkId = "";
                 renderSubscriptionItems();
             } catch (e) {
-                if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="compact-empty">入站列表加载失败</td></tr>`;
+                if (container) container.innerHTML = `<div class="text-center py-8 text-danger">入站列表加载失败</div>`;
             }
         }
 
@@ -250,14 +250,14 @@
                 subscriptionNodes = Array.isArray(data.nodes) ? data.nodes : [];
                 renderSubscriptionItems();
             } catch (e) {
-                const tbody = $("subscription_items_rows");
-                if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="compact-empty">入站列表加载失败</td></tr>`;
+                const container = $("subscription_items_container");
+                if (container) container.innerHTML = `<div class="text-center py-8 text-danger">入站列表加载失败</div>`;
             }
         }
 
         async function loadSubscriptionWorkspace() {
-            const tbody = $("subscription_items_rows");
-            if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="compact-empty">正在加载入站列表...</td></tr>`;
+            const container = $("subscription_items_container");
+            if (container) container.innerHTML = `<div class="text-center py-8 text-muted">正在加载入站列表...</div>`;
             try {
                 const [linksRes, nodesRes, rulesRes, outNodesRes] = await Promise.all([
                     fetch("./api/panel/subscription-links"),
@@ -279,7 +279,7 @@
                 if (!subscriptionLinks.length) selectedSubscriptionLinkId = "";
                 renderSubscriptionItems();
             } catch (e) {
-                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="compact-empty">入站列表加载失败</td></tr>`;
+                if (container) container.innerHTML = `<div class="text-center py-8 text-danger">入站列表加载失败</div>`;
             }
         }
 
@@ -314,19 +314,15 @@
         }
 
         function renderSubscriptionItems() {
-            const tbody = $("subscription_items_rows");
+            const container = $("subscription_items_container");
             const hint = $("subscription_items_hint");
-            if (!tbody) return;
+            if (!container) return;
             const subscribedCount = subscriptionNodes.filter(node => node.subscription_id).length;
             const independentCount = subscriptionNodes.length - subscribedCount;
             if (hint) {
                 hint.textContent = `${subscriptionLinks.length} 个订阅链接，${subscriptionNodes.length} 个节点链接，${independentCount} 个独立节点`;
             }
-            if (!subscriptionLinks.length && !subscriptionNodes.length) {
-                tbody.innerHTML = `<tr><td colspan="7" class="compact-empty">暂无入站；点击右上角添加入站</td></tr>`;
-                return;
-            }
-            let rowCounter = 1;
+            
             const rowIcon = (name) => {
                 const icons = {
                     add: `<path d="M12 5v14"></path><path d="M5 12h14"></path>`,
@@ -339,17 +335,14 @@
                 };
                 return `<svg class="row-action__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${icons[name] || icons.edit}</svg>`;
             };
-            const actionButton = (label, icon, onclick, danger = false, showText = false) => `
-                <button type="button" class="row-action-btn${danger ? " is-danger" : ""}${showText ? " row-action-btn--text" : ""}" onclick="${onclick}" title="${esc(label)}" aria-label="${esc(label)}">
+            
+            const actionButton = (label, icon, onclick, danger = false, showText = false, extraClass = '') => `
+                <button type="button" class="row-action-btn ${extraClass}${danger ? " is-danger" : ""}${showText ? " row-action-btn--text" : ""}" onclick="${onclick}" title="${esc(label)}" aria-label="${esc(label)}">
                     ${rowIcon(icon)}${showText ? `<span class="row-action__label">${esc(label)}</span>` : ""}
                 </button>
             `;
-            const renderRowActions = (items) => `
-                <div class="row-actions" onclick="event.stopPropagation()">
-                    ${items.join("")}
-                </div>
-            `;
-            const renderNodeRow = (node, nested = false) => {
+
+            const renderNodeCard = (node, nested = false) => {
                 const enabled = node.enabled === true;
                 const badgeClass = enabled ? "active" : "inactive";
                 const statusText = enabled ? "已启用" : "未启用";
@@ -359,78 +352,137 @@
                 const outboundText = routedOutboundIds.length
                     ? routedOutboundIds.map(outboundLabelById).join("、")
                     : (node.outbound_node_id ? outboundLabelById(node.outbound_node_id) : "未绑定");
-                const outboundPrefix = routedOutboundIds.length ? "路由：" : "出站：";
-                const indent = nested ? `<span class="subscription-tree-branch"></span>` : "";
-                const actions = renderRowActions([
+                const outboundPrefix = routedOutboundIds.length ? "路由: " : "出站: ";
+                
+                const actionsHtml = [
                     actionButton("复制链接", "copy", `copySubscriptionNodeUrl('${esc(node.id)}')`),
                     actionButton("二维码", "qr", `showSubscriptionNodeQRCode('${esc(node.id)}')`),
-                    actionButton(enabled ? "停用" : "启用", "power", `toggleSubscriptionNode('${esc(node.id)}', ${enabled ? "false" : "true"})`),
+                    actionButton(enabled ? "停用" : "启用", "power", `toggleSubscriptionNode('${esc(node.id)}', ${enabled ? "false" : "true"})`, false, false, enabled ? 'text-green' : 'text-muted'),
                     actionButton("编辑", "edit", `editSubscriptionNode('${esc(node.id)}')`),
                     actionButton("删除", "trash", `deleteSubscriptionNode('${esc(node.id)}')`, true)
-                ]);
-                const currentRowNum = rowCounter++;
+                ].join("");
+
                 return `
-                    <tr class="subscription-node-row${nested ? " subscription-node-row--child" : ""} hover:bg-[rgba(255,255,255,0.015)]">
-                        <td style="text-align:center; color:var(--muted); font-size:13px;">${currentRowNum}</td>
-                        <td>${indent}<span class="inbound-kind-badge inbound-kind-badge--node">节点</span></td>
-                        <td><span class="status-badge ${badgeClass}" style="display:inline-flex;"><span class="status-dot"></span>${statusText}</span></td>
-                        <td class="min-w-[180px] whitespace-normal py-3 px-3.5">
-                            <strong>${esc(node.name || "-")}</strong>
-                            <div style="font-size:12px; color:var(--muted); margin-top:3px;">${esc(node.status_text || linkName)}</div>
-                        </td>
-                        <td>${esc(node.port || "-")}</td>
-                        <td><span class="inbound-protocol">${esc(protocolName)}</span><div style="font-size:12px; color:var(--muted); margin-top:3px;">${outboundPrefix}${esc(outboundText)}</div></td>
-                        <td>${actions}</td>
-                    </tr>
+                    <div class="node-card bg-[rgba(255,255,255,0.025)] border border-[color-mix(in_srgb,var(--border)_28%,transparent)] rounded-xl p-3.5 flex items-center justify-between flex-wrap gap-3 hover:bg-[rgba(255,255,255,0.055)] transition-all duration-200">
+                        <div class="flex items-center gap-3">
+                            <!-- Status dot indicator with soft glow if active -->
+                            <span class="w-2.5 h-2.5 rounded-full ${enabled ? 'bg-[var(--success)] shadow-[0_0_8px_var(--success)]' : 'bg-[var(--muted)]'}" title="${statusText}"></span>
+                            
+                            <div class="flex flex-col">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <strong class="text-[14px] text-text font-semibold">${esc(node.name || "-")}</strong>
+                                    <span class="inbound-kind-badge inbound-kind-badge--node font-medium">${esc(protocolName)}</span>
+                                    <span class="text-[11px] px-2 py-0.5 rounded bg-[rgba(255,255,255,0.08)] border border-[color-mix(in_srgb,var(--border)_30%,transparent)] text-muted font-mono">Port: ${esc(node.port || "-")}</span>
+                                </div>
+                                <div class="text-[11.5px] text-muted mt-1 flex items-center gap-3 flex-wrap">
+                                    <span>${outboundPrefix}<span class="text-text font-medium">${esc(outboundText)}</span></span>
+                                    ${!nested ? `<span class="text-muted opacity-60">|</span> <span>归属: <span class="text-text">${esc(linkName)}</span></span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
+                            ${actionsHtml}
+                        </div>
+                    </div>
                 `;
             };
-            const rows = [];
-            subscriptionLinks.forEach(link => {
+
+            const renderSubscriptionCard = (link) => {
                 const enabled = link.enabled !== false;
                 const badgeClass = enabled ? "active" : "inactive";
                 const statusText = enabled ? "已启用" : "未启用";
-                const selected = link.id === selectedSubscriptionLinkId ? " bg-[color-mix(in_srgb,var(--primary)_9%,transparent)]" : "";
                 const childNodes = subscriptionNodesForLink(link.id);
-                const nodeCount = childNodes.length;
-                const enabledNodeCount = childNodes.filter(node => node.enabled === true).length;
                 const expanded = expandedSubscriptionLinks.has(link.id);
-                const actions = renderRowActions([
-                    actionButton("添加节点", "add", `openCreateLinkModal('${esc(link.id)}')`, false, true),
-                    actionButton("设为默认", "star", `selectSubscriptionLink('${esc(link.id)}')`),
+                const isDefault = link.id === selectedSubscriptionLinkId;
+                
+                const actionsHtml = [
+                    actionButton(isDefault ? "默认订阅" : "设为默认", "star", `selectSubscriptionLink('${esc(link.id)}')`, false, false, isDefault ? 'text-primary' : ''),
                     actionButton("复制链接", "copy", `copySubscriptionUrl('${esc(link.id)}')`),
                     actionButton("二维码", "qr", `showSubscriptionLinkQRCode('${esc(link.id)}')`),
                     actionButton("编辑", "edit", `openSubscriptionLinkModal('${esc(link.id)}')`),
-                    actionButton(enabled ? "停用" : "启用", "power", `toggleSubscriptionLink('${esc(link.id)}', ${enabled ? "false" : "true"})`),
+                    actionButton(enabled ? "停用" : "启用", "power", `toggleSubscriptionLink('${esc(link.id)}', ${enabled ? "false" : "true"})`, false, false, enabled ? 'text-green' : 'text-muted'),
                     actionButton("删除", "trash", `deleteSubscriptionLink('${esc(link.id)}')`, true)
-                ]);
-                const currentRowNum = rowCounter++;
-                rows.push(`
-                    <tr class="subscription-link-row${selected} cursor-pointer hover:bg-[rgba(255,255,255,0.015)]" onclick="selectSubscriptionLink('${esc(link.id)}')">
-                        <td style="text-align:center; color:var(--muted); font-size:13px;">${currentRowNum}</td>
-                        <td>
-                            <button type="button" class="subscription-expand-btn" onclick="toggleSubscriptionExpand('${esc(link.id)}', event)" aria-label="${expanded ? "折叠节点链接" : "展开节点链接"}">${expanded ? "−" : "+"}</button>
-                            <span class="inbound-kind-badge inbound-kind-badge--link">订阅</span>
-                        </td>
-                        <td><span class="status-badge ${badgeClass}" style="display:inline-flex;"><span class="status-dot"></span>${statusText}</span></td>
-                        <td class="min-w-[180px] whitespace-normal py-3 px-3.5">
-                            <strong>${esc(link.name || "-")}</strong>
-                            <div style="font-size:12px; color:var(--muted); margin-top:3px;">${link.id === selectedSubscriptionLinkId ? "默认加入的订阅链接" : esc(link.remark || link.status_text || "订阅链接")}</div>
-                        </td>
-                        <td></td>
-                        <td></td>
-                        <td>${actions}</td>
-                    </tr>
-                `);
-                if (expanded) {
-                    if (childNodes.length) {
-                        childNodes.forEach(node => rows.push(renderNodeRow(node, true)));
-                    } else {
-                        rows.push(`<tr class="subscription-node-row subscription-node-row--child"><td style="text-align:center; color:var(--muted); font-size:13px;">-</td><td colspan="6" class="compact-empty">这个订阅链接下还没有节点链接</td></tr>`);
-                    }
-                }
+                ].join("");
+
+                const nodesListHtml = childNodes.length 
+                    ? childNodes.map(node => renderNodeCard(node, true)).join("")
+                    : `<div class="text-center py-4 text-muted text-[13px] bg-[rgba(0,0,0,0.015)] rounded-xl border border-dashed border-border">这个订阅链接下还没有节点链接</div>`;
+
+                return `
+                    <div class="sub-link-card bg-glass border border-border rounded-[22px] p-5 shadow-soft-shadow hover:shadow-shadow transition-all duration-300 flex flex-col gap-4">
+                        <!-- Card Header -->
+                        <div class="flex items-center justify-between flex-wrap gap-3">
+                            <div class="flex items-center gap-3">
+                                <!-- Expand/Collapse Arrow Button -->
+                                <button type="button" class="sub-card-expand-btn w-[28px] h-[28px] flex items-center justify-center rounded-lg bg-glass border border-border text-muted transition-colors duration-200 hover:text-primary hover:border-primary" onclick="toggleSubscriptionExpand('${esc(link.id)}', event)" aria-label="${expanded ? '折叠' : '展开'}">
+                                    <svg class="w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-90 text-primary' : ''}" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </button>
+                                
+                                <div class="flex flex-col">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-bold text-[15px] text-text">${esc(link.name || "-")}</span>
+                                        <span class="inbound-kind-badge inbound-kind-badge--link">订阅</span>
+                                        <span class="status-badge ${badgeClass}"><span class="status-dot"></span>${statusText}</span>
+                                        ${isDefault ? `<span class="bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-primary border border-[color-mix(in_srgb,var(--primary)_26%,transparent)] px-2 py-0.5 rounded-md text-[10.5px] font-semibold">默认订阅</span>` : ''}
+                                    </div>
+                                    <div class="text-[12px] text-muted mt-1">${link.id === selectedSubscriptionLinkId ? "默认加入的订阅链接" : esc(link.remark || "订阅链接")}</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Card Header Actions -->
+                            <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+                                <!-- Add Node to Subscription (Primary Style) -->
+                                <button type="button" class="min-h-[30px] py-1 px-3 text-[11.5px] w-auto rounded-xl bg-gradient-to-br from-primary to-second border-none text-white font-bold cursor-pointer shadow-[0_12px_24px_color-mix(in_srgb,var(--primary)_24%,transparent)] transition-all duration-[280ms] ease-in-out inline-flex justify-center items-center gap-1.5 hover:translate-y-[-2px] hover:shadow-[0_14px_28px_color-mix(in_srgb,var(--primary)_34%,transparent)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed" onclick="openCreateLinkModal('${esc(link.id)}')" title="添加节点到此订阅">
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+                                    添加节点
+                                </button>
+                                ${actionsHtml}
+                            </div>
+                        </div>
+                        
+                        <!-- Collapsible Body (Child Nodes) -->
+                        ${expanded ? `
+                        <div class="sub-card-nodes-list border-t border-[color-mix(in_srgb,var(--surface-line)_60%,transparent)] pt-4 flex flex-col gap-3 animate-[fadeIn_200ms_ease]">
+                            ${nodesListHtml}
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            };
+
+            if (!subscriptionLinks.length && !subscriptionNodes.length) {
+                container.innerHTML = `<div class="text-center py-10 text-muted bg-glass border border-dashed border-border rounded-[22px]">暂无入站；点击右上角添加入站</div>`;
+                return;
+            }
+
+            const cards = [];
+            
+            // 1. Render Subscriptions Cards
+            subscriptionLinks.forEach(link => {
+                cards.push(renderSubscriptionCard(link));
             });
-            independentSubscriptionNodes().forEach(node => rows.push(renderNodeRow(node, false)));
-            tbody.innerHTML = rows.join("");
+            
+            // 2. Render Independent Nodes Group
+            const independentNodes = independentSubscriptionNodes();
+            if (independentNodes.length) {
+                cards.push(`
+                    <div class="mt-6">
+                        <div class="flex items-center gap-2 mb-3 px-1">
+                            <h4 class="text-[14px] font-bold text-text">独立节点</h4>
+                            <span class="text-[11px] bg-glass border border-border text-muted px-2 py-0.5 rounded-md">${independentNodes.length}</span>
+                        </div>
+                        <div class="flex flex-col gap-3">
+                            ${independentNodes.map(node => renderNodeCard(node, false)).join("")}
+                        </div>
+                    </div>
+                `);
+            }
+            
+            container.innerHTML = cards.join("");
         }
 
         function renderSubscriptionLinks() {

@@ -606,24 +606,9 @@
                                 </button>
                             </div>
                         </div>
-                        <table class="w-full border-collapse min-w-[1000px]">
-                            <thead>
-                                <tr>
-                                    <th style="width:70px; text-align:center;">序号</th>
-                                    <th style="width:120px;">入站</th>
-                                    <th style="width:120px;">启用</th>
-                                    <th>备注</th>
-                                    <th style="width:120px;">端口</th>
-                                    <th>协议 / 出站</th>
-                                    <th style="width:260px; text-align:right;">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="subscription_items_rows">
-                                <tr>
-                                    <td colspan="7" class="compact-empty">正在加载入站列表...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <div id="subscription_items_container" class="flex flex-col gap-4 mt-3">
+                            <div class="text-center py-8 text-muted">正在加载入站列表...</div>
+                        </div>
                     </div>
                 </div>
             </section>
