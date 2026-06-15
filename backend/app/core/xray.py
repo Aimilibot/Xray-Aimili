@@ -746,7 +746,7 @@ def test_xray_config_file() -> tuple[bool, str]:
     binary_path = xray_binary_path()
     if not binary_path:
         return False, "未检测到 xray 二进制程序，无法验证配置"
-    command = [binary_path, "test", "-config", str(XRAY_CONFIG_FILE)]
+    command = [binary_path, "run", "-config", str(XRAY_CONFIG_FILE), "-test"]
     try:
         res = subprocess.run(
             command,

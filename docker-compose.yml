@@ -6,6 +6,7 @@ services:
     image: aimili-vpn-panel:latest
     container_name: aimili-vpn-panel
     restart: unless-stopped
+    network_mode: host
     cap_add:
       - NET_ADMIN
     devices:
@@ -27,11 +28,5 @@ services:
       SECRET_PATH: ${SECRET_PATH:-}
       UI_USERNAME: ${UI_USERNAME:-}
       UI_PASSWORD: ${UI_PASSWORD:-}
-    ports:
-      - "${UI_PORT:-8787}:${UI_PORT:-8787}"
-      - "${LOCAL_PROXY_PORT:-7928}:${LOCAL_PROXY_PORT:-7928}"
-      # Add Xray inbound ports here when you create public nodes in the panel.
-      # Example for the default VLESS inbound:
-      # - "10086:10086"
     volumes:
       - ./vpngate_data:/data
