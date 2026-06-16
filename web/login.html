@@ -1,462 +1,241 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登录 - Aimili-VPNGate 面板</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - Aimili-VPNGate 面板</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <style>
+    /* 登录页独有的极光背景，使用主题变量 */
+    :root {
+      --grid: rgba(30, 60, 120, 0.055);
+      --glow-1: rgba(233, 157, 102, 0.18);
+      --glow-2: rgba(243, 199, 132, 0.14);
+      --glow-3: rgba(217, 120, 82, 0.12);
+    }
 
-        :root {
-            --primary: #00a896;      /* 温润翡翠绿 */
-            --second: #059669;       /* 翠绿 */
-            --third: #3b82f6;        /* 晴空蓝 */
+    body {
+      min-height: 100vh;
+      margin: 0;
+      font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 18%, var(--glow-1), transparent 30%),
+        radial-gradient(circle at 88% 12%, var(--glow-2), transparent 28%),
+        radial-gradient(circle at 70% 88%, var(--glow-3), transparent 34%),
+        linear-gradient(135deg, var(--page-a) 0%, var(--page-b) 45%, var(--page-c) 100%);
+      background-attachment: fixed;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; position: relative;
+    }
 
-            --page-a: #f4f7f6;       /* 白玉微灰 */
-            --page-b: #fafcfb;       /* 白玉莹润 */
-            --page-c: #eef5f2;       /* 浅青 */
+    body::before {
+      content: ""; position: fixed; inset: 0;
+      background-image: linear-gradient(var(--grid) 1px, transparent 1px),
+                        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 46px 46px;
+      mask-image: linear-gradient(to bottom, black 0%, transparent 88%);
+      pointer-events: none; z-index: -3;
+    }
 
-            --text: #2d3748;
-            --muted: #718096;
-            --glass: rgba(255, 255, 255, 0.72);
-            --glass-strong: rgba(255, 255, 255, 0.88);
-            --border: rgba(255, 255, 255, 0.92);
-            --card: rgba(255, 255, 255, 0.78);
+    body::after {
+      content: ""; position: fixed;
+      width: 680px; height: 680px;
+      left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      background: conic-gradient(from 180deg, var(--glow-1), var(--glow-2), var(--glow-3), var(--glow-1));
+      filter: blur(80px); border-radius: 50%; opacity: .75;
+      animation: aurora 14s ease-in-out infinite alternate;
+      pointer-events: none; z-index: -2;
+    }
 
-            --shadow: 0 30px 90px rgba(0, 80, 70, 0.08);
-            --soft-shadow: 0 20px 50px rgba(0, 80, 70, 0.05);
+    @keyframes aurora {
+      0% { transform: translate(-54%, -52%) scale(.95) rotate(0deg); }
+      100% { transform: translate(-46%, -48%) scale(1.1) rotate(18deg); }
+    }
 
-            --grid: rgba(0, 168, 150, 0.035);
-            --glow-1: rgba(0, 168, 150, 0.15);
-            --glow-2: rgba(52, 211, 153, 0.15);
-            --glow-3: rgba(16, 185, 129, 0.12);
-            
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-        }
+    /* 登录卡片 */
+    .login-card {
+      background: var(--card);
+      backdrop-filter: blur(30px) saturate(180%);
+      -webkit-backdrop-filter: blur(30px) saturate(180%);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      width: 100%; max-width: 420px;
+      padding: 45px 35px;
+      position: relative; z-index: 10;
+      transition: box-shadow .3s;
+    }
 
-        body.theme-white {
-            --primary: #00a896;
-            --second: #059669;
-            --third: #3b82f6;
-            --page-a: #f4f7f6;
-            --page-b: #fafcfb;
-            --page-c: #eef5f2;
-            --text: #2d3748;
-            --muted: #718096;
-            --glass: rgba(255, 255, 255, 0.72);
-            --glass-strong: rgba(255, 255, 255, 0.88);
-            --border: rgba(255, 255, 255, 0.92);
-            --card: rgba(255, 255, 255, 0.78);
-            --shadow: 0 30px 90px rgba(0, 80, 70, 0.08);
-            --soft-shadow: 0 20px 50px rgba(0, 80, 70, 0.05);
-            --grid: rgba(0, 168, 150, 0.035);
-            --glow-1: rgba(0, 168, 150, 0.15);
-            --glow-2: rgba(52, 211, 153, 0.15);
-            --glow-3: rgba(16, 185, 129, 0.12);
-        }
+    .logo {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 60px; height: 60px; border-radius: 16px;
+      background: linear-gradient(135deg, var(--primary), var(--second));
+      color: #fff; font-size: 24px; font-weight: 800;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      transition: transform .3s;
+    }
+    .login-card:hover .logo { transform: rotate(-6deg) scale(1.05); }
 
-        body.theme-blue {
-            --primary: #4f7cff;
-            --second: #00d7b9;
-            --third: #9b6cff;
-            --page-a: #edf3ff;
-            --page-b: #f9fbff;
-            --page-c: #edf8f5;
-            --text: #111827;
-            --muted: #7b8498;
-            --glass: rgba(255,255,255,.58);
-            --glass-strong: rgba(255,255,255,.78);
-            --border: rgba(255,255,255,.78);
-            --card: rgba(255,255,255,.62);
-            --shadow: 0 30px 90px rgba(42,66,120,.18);
-            --soft-shadow: 0 22px 56px rgba(45,70,125,.11);
-            --grid: rgba(30,60,120,.055);
-            --glow-1: rgba(79,124,255,.34);
-            --glow-2: rgba(0,215,185,.28);
-            --glow-3: rgba(155,108,255,.26);
-        }
+    .login-card h2 { font-size: 26px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+    .login-card p { color: var(--muted); font-size: 14px; margin-bottom: 35px; }
 
-        body.theme-orange {
-            --primary: #ff8a3d;
-            --second: #ffd166;
-            --third: #ff5c35;
-            --page-a: #fff0e4;
-            --page-b: #fffaf4;
-            --page-c: #fff3df;
-            --text: #111827;
-            --muted: #7b8498;
-            --glass: rgba(255,255,255,.58);
-            --glass-strong: rgba(255,255,255,.78);
-            --border: rgba(255,255,255,.78);
-            --card: rgba(255,255,255,.62);
-            --shadow: 0 30px 90px rgba(42,66,120,.18);
-            --soft-shadow: 0 22px 56px rgba(45,70,125,.11);
-            --grid: rgba(30,60,120,.055);
-            --glow-1: rgba(255,138,61,.36);
-            --glow-2: rgba(255,209,102,.26);
-            --glow-3: rgba(255,92,53,.24);
-        }
+    .form-group { margin-bottom: 24px; text-align: left; }
+    .form-group label {
+      display: block; font-size: 12px; color: var(--muted);
+      margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    }
 
-        body.theme-red {
-            --primary: #ff2d55;
-            --second: #ff6b6b;
-            --third: #7c1d2c;
-            --page-a: #08090d;
-            --page-b: #141016;
-            --page-c: #25080d;
-            --text: #f8fafc;
-            --muted: #a2a7b5;
-            --glass: rgba(21,22,30,.66);
-            --glass-strong: rgba(28,30,40,.78);
-            --border: rgba(255,255,255,.12);
-            --card: rgba(24,25,35,.72);
-            --shadow: 0 34px 100px rgba(0,0,0,.45);
-            --soft-shadow: 0 24px 60px rgba(0,0,0,.32);
-            --grid: rgba(255,255,255,.045);
-            --glow-1: rgba(255,45,85,.3);
-            --glow-2: rgba(255,107,107,.18);
-            --glow-3: rgba(124,29,44,.28);
-        }
+    .input-wrapper { position: relative; display: flex; align-items: center; }
+    .form-input {
+      width: 100%; height: 46px; border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--glass-strong); color: var(--text);
+      padding: 0 16px 0 44px; outline: 0; font-size: 15px;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .form-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--focus-ring);
+    }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    .input-icon {
+      position: absolute; left: 15px; color: var(--muted);
+      width: 18px; height: 18px; pointer-events: none;
+      transition: color .2s;
+    }
+    .form-input:focus + .input-icon { color: var(--primary); }
 
-        body {
-            min-height: 100vh;
-            font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC", Roboto, sans-serif;
-            color: var(--text);
-            background:
-                radial-gradient(circle at 12% 18%, var(--glow-1), transparent 30%),
-                radial-gradient(circle at 88% 12%, var(--glow-2), transparent 28%),
-                radial-gradient(circle at 70% 88%, var(--glow-3), transparent 34%),
-                linear-gradient(135deg, var(--page-a) 0%, var(--page-b) 45%, var(--page-c) 100%);
-            background-attachment: fixed;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            position: relative;
-        }
+    .btn-submit {
+      width: 100%; height: 48px; border: 0; border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--second));
+      color: #fff; font-weight: 600; font-size: 15.5px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+      box-shadow: 0 4px 15px rgba(0, 168, 150, 0.2);
+      transition: opacity .2s, transform .2s, box-shadow .2s;
+      margin-top: 35px;
+    }
+    .btn-submit:hover { opacity: .95; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0, 168, 150, 0.35); }
+    .btn-submit:active { transform: translateY(0); }
+    .btn-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
 
-        body::before {
-            content: "";
-            position: fixed;
-            inset: 0;
-            background-image:
-                linear-gradient(var(--grid) 1px, transparent 1px),
-                linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-            background-size: 46px 46px;
-            mask-image: linear-gradient(to bottom, black 0%, transparent 88%);
-            pointer-events: none;
-            z-index: -3;
-        }
+    .alert {
+      padding: 12px 16px; border-radius: 12px; font-size: 13.5px;
+      margin-bottom: 24px; display: flex; align-items: center; gap: 10px;
+      text-align: left;
+      background: var(--red-soft);
+      border: 1px solid color-mix(in srgb, var(--danger) 26%, transparent);
+      color: var(--danger);
+      animation: shake .4s ease;
+    }
 
-        body::after {
-            content: "";
-            position: fixed;
-            width: 680px;
-            height: 680px;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            background: conic-gradient(from 180deg, var(--glow-1), var(--glow-2), var(--glow-3), var(--glow-1));
-            filter: blur(80px);
-            border-radius: 50%;
-            opacity: .75;
-            animation: aurora 14s ease-in-out infinite alternate;
-            pointer-events: none;
-            z-index: -2;
-        }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
 
-        @keyframes aurora {
-            0% { transform: translate(-54%, -52%) scale(.95) rotate(0deg); }
-            100% { transform: translate(-46%, -48%) scale(1.1) rotate(18deg); }
-        }
-
-        .login-card {
-            background: var(--card);
-            backdrop-filter: blur(30px) saturate(180%);
-            -webkit-backdrop-filter: blur(30px) saturate(180%);
-            border: 1px solid var(--border);
-            border-radius: 28px;
-            box-shadow: var(--soft-shadow);
-            width: 100%;
-            max-width: 420px;
-            padding: 45px 35px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            z-index: 10;
-        }
-
-        .login-card:hover {
-            box-shadow: var(--shadow);
-        }
-
-        .logo {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 60px;
-            height: 60px;
-            border-radius: 16px;
-            background: linear-gradient(135deg, var(--primary), var(--second));
-            color: #fff;
-            font-size: 24px;
-            font-weight: 800;
-            margin-bottom: 24px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
-        }
-
-        .login-card:hover .logo {
-            transform: rotate(-6deg) scale(1.05);
-        }
-
-        .login-card h2 {
-            font-size: 26px;
-            font-weight: 700;
-            margin-bottom: 8px;
-            letter-spacing: -0.5px;
-        }
-
-        .login-card p {
-            color: var(--muted);
-            font-size: 14px;
-            margin-bottom: 35px;
-            line-height: 1.5;
-        }
-
-        .form-group {
-            margin-bottom: 24px;
-            text-align: left;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 12px;
-            color: var(--muted);
-            margin-bottom: 8px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
-
-        .input-wrapper {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        .form-input {
-            width: 100%;
-            height: 46px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            background: var(--glass-strong);
-            color: var(--text);
-            padding: 0 16px 0 44px;
-            outline: 0;
-            font-size: 15px;
-            transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
-        }
-
-        body.theme-red .form-input {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .form-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(0, 168, 150, 0.15);
-            background: var(--glass-strong);
-        }
-
-        body.theme-blue .form-input:focus {
-            box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.15);
-        }
-        body.theme-orange .form-input:focus {
-            box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.15);
-        }
-        body.theme-red .form-input:focus {
-            box-shadow: 0 0 0 3px rgba(255, 45, 85, 0.15);
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .input-icon {
-            position: absolute;
-            left: 15px;
-            color: var(--muted);
-            width: 18px;
-            height: 18px;
-            pointer-events: none;
-            transition: color 0.2s;
-        }
-
-        .form-input:focus + .input-icon {
-            color: var(--primary);
-        }
-
-        .btn {
-            width: 100%;
-            height: 48px;
-            border: 0;
-            border-radius: 12px;
-            background: linear-gradient(135deg, var(--primary), var(--second));
-            color: #fff;
-            font-weight: 600;
-            font-size: 15.5px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            box-shadow: 0 4px 15px rgba(0, 168, 150, 0.2);
-            transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
-            margin-top: 35px;
-        }
-
-        body.theme-blue .btn {
-            box-shadow: 0 4px 15px rgba(79, 124, 255, 0.2);
-        }
-        body.theme-orange .btn {
-            box-shadow: 0 4px 15px rgba(255, 138, 61, 0.2);
-        }
-        body.theme-red .btn {
-            box-shadow: 0 4px 15px rgba(255, 45, 85, 0.2);
-        }
-
-        .btn:hover {
-            opacity: 0.95;
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(0, 168, 150, 0.35);
-        }
-        body.theme-blue .btn:hover {
-            box-shadow: 0 6px 20px rgba(79, 124, 255, 0.35);
-        }
-        body.theme-orange .btn:hover {
-            box-shadow: 0 6px 20px rgba(255, 138, 61, 0.35);
-        }
-        body.theme-red .btn:hover {
-            box-shadow: 0 6px 20px rgba(255, 45, 85, 0.35);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
-        }
-
-        .alert {
-            padding: 12px 16px;
-            border-radius: 12px;
-            font-size: 13.5px;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-align: left;
-            background: rgba(239, 68, 68, 0.08);
-            border: 1px solid rgba(239, 68, 68, 0.15);
-            color: var(--danger);
-            animation: shake 0.4s ease;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-6px); }
-            40%, 80% { transform: translateX(6px); }
-        }
-    </style>
+    /* 赤黑主题登录页覆盖 */
+    body:has(#theme-red:checked) .form-input {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    body:has(#theme-red:checked) .form-input:focus {
+      box-shadow: 0 0 0 3px rgba(255, 45, 85, 0.15);
+      background: rgba(255, 255, 255, 0.08);
+    }
+    body:has(#theme-red:checked) .btn-submit {
+      box-shadow: 0 4px 15px rgba(255, 45, 85, 0.2);
+    }
+    body:has(#theme-red:checked) .btn-submit:hover {
+      box-shadow: 0 6px 20px rgba(255, 45, 85, 0.35);
+    }
+  </style>
 </head>
 <body>
-    <script>
-        // Set body class according to theme immediately before content renders to prevent flicker
-        const savedTheme = localStorage.getItem('theme') || 'theme-white';
-        document.body.className = savedTheme;
-    </script>
+  <!-- 主题切换 (与主面板共享 localStorage key) -->
+  <input type="radio" name="theme" id="theme-orange" checked style="display:none">
+  <input type="radio" name="theme" id="theme-red" style="display:none">
 
-    <div class="login-card">
-        <div class="logo">VG</div>
-        <h2>欢迎回来</h2>
-        <p>请输入管理员账号密码以管理您的 VPN 节点</p>
+  <script>
+    (function(){
+      const saved = localStorage.getItem('theme') || 'theme-orange';
+      const el = document.getElementById(saved);
+      if (el) el.checked = true;
+    })();
+  </script>
 
-        <div id="error_text" class="alert" style="display: none;">
-            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-            <span>账号或密码不正确，请重新输入</span>
-        </div>
+  <div class="login-card">
+    <div class="logo">VG</div>
+    <h2>欢迎回来</h2>
+    <p>请输入管理员账号密码以管理您的 VPN 节点</p>
 
-        <form id="login_form" onsubmit="handleLogin(event)">
-            <div class="form-group">
-                <label for="username">用户名</label>
-                <div class="input-wrapper">
-                    <input type="text" id="username" name="username" class="form-input" placeholder="请输入用户名" required autocomplete="username">
-                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="password">密码</label>
-                <div class="input-wrapper">
-                    <input type="password" id="password" name="password" class="form-input" placeholder="请输入密码" required autocomplete="current-password">
-                    <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                </div>
-            </div>
-            
-            <button type="submit" id="submit_btn" class="btn">
-                <span>立即登录</span>
-                <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M10 17l5-5-5-5v10z"/></svg>
-            </button>
-        </form>
+    <div id="error_text" class="alert" style="display:none">
+      <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      <span>账号或密码不正确，请重新输入</span>
     </div>
 
-    <script>
-        async function handleLogin(e) {
-            e.preventDefault();
-            const uname = document.getElementById("username").value.trim();
-            const pwd = document.getElementById("password").value.trim();
-            const errorText = document.getElementById("error_text");
-            const submitBtn = document.getElementById("submit_btn");
+    <form id="login_form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label for="username">用户名</label>
+        <div class="input-wrapper">
+          <input type="text" id="username" name="username" class="form-input" placeholder="请输入用户名" required autocomplete="username">
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="password">密码</label>
+        <div class="input-wrapper">
+          <input type="password" id="password" name="password" class="form-input" placeholder="请输入密码" required autocomplete="current-password">
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+      </div>
+      <button type="submit" id="submit_btn" class="btn-submit">
+        <span>立即登录</span>
+        <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M10 17l5-5-5-5v10z"/></svg>
+      </button>
+    </form>
+  </div>
 
-            errorText.style.display = "none";
-            submitBtn.disabled = true;
-            submitBtn.querySelector("span").textContent = "正在验证...";
+  <script>
+    async function handleLogin(e) {
+      e.preventDefault();
+      const uname = document.getElementById("username").value.trim();
+      const pwd = document.getElementById("password").value.trim();
+      const errorText = document.getElementById("error_text");
+      const submitBtn = document.getElementById("submit_btn");
 
-            try {
-                const response = await fetch("./api/login", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username: uname, password: pwd })
-                });
+      errorText.style.display = "none";
+      submitBtn.disabled = true;
+      submitBtn.querySelector("span").textContent = "正在验证...";
 
-                const data = await response.json();
-                if (response.ok && data.ok) {
-                    window.location.reload();
-                } else {
-                    errorText.querySelector("span").textContent = data.error || "账号或密码不正确，请重新输入";
-                    errorText.style.display = "flex";
-                    errorText.style.animation = 'none';
-                    errorText.offsetHeight; /* trigger reflow */
-                    errorText.style.animation = null; 
-                    submitBtn.disabled = false;
-                    submitBtn.querySelector("span").textContent = "立即登录";
-                }
-            } catch (err) {
-                errorText.querySelector("span").textContent = "连接服务器失败，请稍后重试";
-                errorText.style.display = "flex";
-                submitBtn.disabled = false;
-                submitBtn.querySelector("span").textContent = "立即登录";
-            }
+      try {
+        const response = await fetch("./api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: uname, password: pwd })
+        });
+        const data = await response.json();
+        if (response.ok && data.ok) {
+          window.location.reload();
+        } else {
+          errorText.querySelector("span").textContent = data.error || "账号或密码不正确，请重新输入";
+          errorText.style.display = "flex";
+          // 重新触发 shake 动画
+          errorText.style.animation = 'none';
+          errorText.offsetHeight;
+          errorText.style.animation = null;
+          submitBtn.disabled = false;
+          submitBtn.querySelector("span").textContent = "立即登录";
         }
-    </script>
+      } catch (err) {
+        errorText.querySelector("span").textContent = "连接服务器失败，请稍后重试";
+        errorText.style.display = "flex";
+        submitBtn.disabled = false;
+        submitBtn.querySelector("span").textContent = "立即登录";
+      }
+    }
+  </script>
 </body>
 </html>

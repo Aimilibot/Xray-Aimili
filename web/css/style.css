@@ -36,7 +36,9 @@
     --control: var(--glass);
     --radius: 16px;
 }
-body:has(#theme-orange:checked), body.theme-orange {
+
+body:has(#theme-orange:checked),
+body.theme-orange {
     --primary: #e99d66;
     --second: #f3c784;
     --third: #d97852;
@@ -56,7 +58,9 @@ body:has(#theme-orange:checked), body.theme-orange {
     --glow-2: rgba(243, 199, 132, .14);
     --glow-3: rgba(217, 120, 82, .12);
 }
-body:has(#theme-red:checked), body.theme-red {
+
+body:has(#theme-red:checked),
+body.theme-red {
     --primary: #e85b78;
     --second: #d9778a;
     --third: #6f2a3c;
@@ -196,7 +200,7 @@ main a:hover {
     color: var(--second);
 }
 
-main section > div:first-child {
+main section>div:first-child {
     border-bottom-color: var(--surface-line) !important;
 }
 
@@ -322,13 +326,13 @@ button:disabled {
     font-weight: 600 !important;
 }
 
-#tab-host h3 + .grid span {
+#tab-host h3+.grid span {
     color: var(--muted);
     font-size: 13px;
     font-weight: 500;
 }
 
-#tab-host h3 + .grid strong {
+#tab-host h3+.grid strong {
     display: block;
     margin-top: 3px;
 }
@@ -492,7 +496,7 @@ main .modal-body a[class*="from-primary"]:hover,
         -4px -4px 11px rgba(255, 255, 255, 0.62) !important;
 }
 
-main button[class*="danger"],
+main button.btn-danger,
 main button[class*="ff5370"],
 main button[class*="to-danger"],
 .btn.danger {
@@ -504,7 +508,7 @@ main button[class*="to-danger"],
         -3px -3px 9px rgba(255, 255, 255, 0.54) !important;
 }
 
-main button[class*="danger"]:hover,
+main button.btn-danger:hover,
 main button[class*="ff5370"]:hover,
 main button[class*="to-danger"]:hover,
 .btn.danger:hover {
@@ -529,8 +533,8 @@ main button[class*="bg-transparent"] {
 }
 
 [data-subtab],
-input[type="radio"][name="outbound_node_tab"] + span,
-input[type="radio"][name="net_routing_mode"] + span {
+input[type="radio"][name="outbound_node_tab"]+span,
+input[type="radio"][name="net_routing_mode"]+span {
     min-height: 34px;
     border-radius: 10px !important;
     background: linear-gradient(145deg, rgba(255, 255, 255, 0.78), color-mix(in srgb, var(--page-a) 84%, white)) !important;
@@ -550,16 +554,16 @@ input[type="radio"][name="net_routing_mode"] {
 }
 
 [data-subtab]:hover,
-input[type="radio"][name="outbound_node_tab"] + span:hover,
-input[type="radio"][name="net_routing_mode"] + span:hover {
+input[type="radio"][name="outbound_node_tab"]+span:hover,
+input[type="radio"][name="net_routing_mode"]+span:hover {
     color: var(--text) !important;
     border-color: color-mix(in srgb, var(--primary) 18%, var(--surface-line)) !important;
     background: linear-gradient(145deg, #fff, color-mix(in srgb, var(--primary) 5%, var(--page-a))) !important;
 }
 
 [data-subtab].active,
-input[type="radio"][name="outbound_node_tab"]:checked + span,
-input[type="radio"][name="net_routing_mode"]:checked + span {
+input[type="radio"][name="outbound_node_tab"]:checked+span,
+input[type="radio"][name="net_routing_mode"]:checked+span {
     color: #fff !important;
     background: linear-gradient(145deg, var(--primary), var(--second)) !important;
     border-color: color-mix(in srgb, var(--primary) 70%, var(--border)) !important;
@@ -601,8 +605,8 @@ input[type="radio"][name="net_routing_mode"]:checked + span {
 }
 
 .segmented-tabs [data-subtab],
-.segmented-tabs input[type="radio"][name="outbound_node_tab"] + span,
-.segmented-tabs input[type="radio"][name="net_routing_mode"] + span {
+.segmented-tabs input[type="radio"][name="outbound_node_tab"]+span,
+.segmented-tabs input[type="radio"][name="net_routing_mode"]+span {
     width: 100% !important;
     height: 34px !important;
     min-height: 34px !important;
@@ -624,16 +628,16 @@ input[type="radio"][name="net_routing_mode"]:checked + span {
 }
 
 .segmented-tabs [data-subtab]:hover,
-.segmented-tabs input[type="radio"][name="outbound_node_tab"] + span:hover,
-.segmented-tabs input[type="radio"][name="net_routing_mode"] + span:hover {
+.segmented-tabs input[type="radio"][name="outbound_node_tab"]+span:hover,
+.segmented-tabs input[type="radio"][name="net_routing_mode"]+span:hover {
     background: color-mix(in srgb, var(--primary) 7%, white) !important;
     border-color: color-mix(in srgb, var(--primary) 16%, transparent) !important;
     color: var(--text) !important;
 }
 
 .segmented-tabs [data-subtab].active,
-.segmented-tabs input[type="radio"][name="outbound_node_tab"]:checked + span,
-.segmented-tabs input[type="radio"][name="net_routing_mode"]:checked + span {
+.segmented-tabs input[type="radio"][name="outbound_node_tab"]:checked+span,
+.segmented-tabs input[type="radio"][name="net_routing_mode"]:checked+span {
     background: linear-gradient(145deg, var(--primary), var(--second)) !important;
     border-color: color-mix(in srgb, var(--primary) 64%, var(--border)) !important;
     color: #fff !important;
@@ -925,7 +929,7 @@ input[type="radio"][name="net_routing_mode"]:checked + span {
     height: 16px;
     fill: none;
     stroke: currentColor;
-    stroke-width: 2.1;
+    stroke-width: 1.3;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
@@ -1046,6 +1050,7 @@ body::after {
     0% {
         transform: translate(-54%, -52%) scale(.95) rotate(0deg);
     }
+
     100% {
         transform: translate(-46%, -48%) scale(1.1) rotate(18deg);
     }
@@ -1056,40 +1061,72 @@ body::after {
     width: 6px;
     height: 6px;
 }
+
 ::-webkit-scrollbar-track {
     background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.15);
     border-radius: 3px;
 }
+
 body:has(#theme-red:checked) ::-webkit-scrollbar-thumb,
 body.theme-red ::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.15);
 }
+
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 0, 0, 0.25);
 }
 
 @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
 }
 
 @keyframes pulse {
-    0% { transform: scale(0.9); opacity: 1; }
-    50% { transform: scale(1.6); opacity: 0.4; }
-    100% { transform: scale(0.9); opacity: 1; }
+    0% {
+        transform: scale(0.9);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.6);
+        opacity: 0.4;
+    }
+
+    100% {
+        transform: scale(0.9);
+        opacity: 1;
+    }
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes panelIn {
@@ -1098,6 +1135,7 @@ body.theme-red ::-webkit-scrollbar-thumb {
         transform: translateY(14px) scale(.985);
         filter: blur(4px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -1106,23 +1144,49 @@ body.theme-red ::-webkit-scrollbar-thumb {
 }
 
 @keyframes toastIn {
-    from { transform: translateY(-20px) scale(0.95); opacity: 0; }
-    to { transform: translateY(0) scale(1); opacity: 1; }
+    from {
+        transform: translateY(-20px) scale(0.95);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
 }
 
 @keyframes toastOut {
-    from { transform: translateY(0) scale(1); opacity: 1; }
-    to { transform: translateY(-20px) scale(0.95); opacity: 0; }
+    from {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateY(-20px) scale(0.95);
+        opacity: 0;
+    }
 }
 
 @keyframes modalFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes modalZoomIn {
-    from { transform: scale(0.92) translateY(8px); opacity: 0; }
-    to { transform: scale(1) translateY(0); opacity: 1; }
+    from {
+        transform: scale(0.92) translateY(8px);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
 }
 
 /* Keep resource ring conic config */
@@ -1134,6 +1198,99 @@ body.theme-red ::-webkit-scrollbar-thumb {
         conic-gradient(var(--ring-color) calc(var(--pct) * 1%), color-mix(in srgb, var(--muted) 14%, transparent) 0);
 }
 
+/* ── Sidebar Layout ────────────────────────────────────────────────── */
+
+/* Logo zone */
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 22px 18px 16px;
+    flex-shrink: 0;
+}
+
+.sidebar-logo-icon {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    font-size: 13px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary), var(--second));
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--primary) 32%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+}
+
+.sidebar-logo-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.sidebar-logo-name {
+    font-size: 14px;
+    font-weight: 750;
+    color: var(--text);
+    letter-spacing: -0.3px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidebar-social-links {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.sidebar-social-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+    background: color-mix(in srgb, var(--glass-strong) 60%, transparent);
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1;
+    transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+    white-space: nowrap;
+}
+
+.sidebar-social-links a:hover {
+    color: var(--primary);
+    border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+    background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+/* Nav list */
+.sidebar-nav-list {
+    padding: 4px 10px;
+    gap: 3px;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.sidebar-nav-list::-webkit-scrollbar {
+    display: none;
+}
+
+/* Bottom zone */
+.sidebar-bottom {
+    padding: 12px 10px 16px;
+    flex-shrink: 0;
+}
+
 /* Sidebar basics */
 .menu-item {
     flex: 0 0 auto;
@@ -1141,15 +1298,15 @@ body.theme-red ::-webkit-scrollbar-thumb {
 
 .menu-item button {
     width: 100%;
-    min-height: 48px;
-    padding: 8px 10px;
+    min-height: 44px;
+    padding: 8px 12px;
     border: 1px solid transparent;
-    border-radius: 16px;
+    border-radius: 14px;
     background: transparent;
-    color: var(--text);
+    color: var(--muted);
     font: inherit;
     font-size: 13.5px !important;
-    font-weight: 650;
+    font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1158,75 +1315,56 @@ body.theme-red ::-webkit-scrollbar-thumb {
     transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
-.sidebar-social-links a {
-    min-width: 0;
-    min-height: 34px;
-    padding: 7px 9px;
-    border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), color-mix(in srgb, var(--page-a) 86%, white));
-    color: var(--text);
-    text-decoration: none;
-    box-shadow:
-        3px 3px 8px rgba(32, 72, 66, 0.055),
-        -3px -3px 8px rgba(255, 255, 255, 0.78);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    flex: 1 1 0;
-    font-size: 13px;
-    font-weight: 650;
-    line-height: 1;
-    transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease;
-}
-
-.sidebar-social-links a:hover {
-    transform: translateY(-1px);
-    border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
-    background: linear-gradient(145deg, #fff, color-mix(in srgb, var(--primary) 7%, var(--page-a)));
-    color: var(--primary);
-}
-
-.sidebar-social-links .icon {
-    width: 14px;
-    height: 14px;
-    margin-right: 0;
-    flex: 0 0 14px;
-}
 
 .menu-item button:hover {
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.82), color-mix(in srgb, var(--primary) 5%, var(--page-a)));
-    border-color: color-mix(in srgb, var(--primary) 14%, var(--border));
-    box-shadow:
-        4px 4px 10px rgba(32, 72, 66, 0.045),
-        -4px -4px 10px rgba(255, 255, 255, 0.68);
-    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--primary) 7%, transparent);
+    color: var(--text);
+    transform: none;
 }
 
 .menu-item button span[aria-hidden="true"] {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
-    color: var(--primary);
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.86), color-mix(in srgb, var(--primary) 12%, white));
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--muted) 9%, transparent);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 36px;
-    box-shadow:
-        2px 2px 6px rgba(32, 72, 66, 0.045),
-        -2px -2px 6px rgba(255, 255, 255, 0.72);
-    transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+    flex: 0 0 32px;
+    transition: background 180ms ease, color 180ms ease;
+}
+
+/* Logout button */
+.sidebar-logout-btn {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 550;
+    cursor: pointer;
+    text-align: left;
+    transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+    letter-spacing: 0;
+}
+
+.sidebar-logout-btn:hover {
+    background: color-mix(in srgb, #ef4444 8%, transparent);
+    border-color: color-mix(in srgb, #ef4444 20%, transparent);
+    color: #ef4444;
 }
 
 .nav-icon {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     display: block;
     fill: none;
     stroke: currentColor;
-    stroke-width: 2.1;
+    stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
     flex: 0 0 auto;
@@ -1262,8 +1400,13 @@ body.theme-red ::-webkit-scrollbar-thumb {
     display: inline-block;
 }
 
-.pill-orange { background: linear-gradient(135deg, #fff7ed, #d99b62); }
-.pill-red { background: linear-gradient(135deg, #111827, #d73a5f); }
+.pill-orange {
+    background: linear-gradient(135deg, #fff7ed, #d99b62);
+}
+
+.pill-red {
+    background: linear-gradient(135deg, #111827, #d73a5f);
+}
 
 .theme-option {
     position: relative;
@@ -1286,8 +1429,13 @@ body.theme-red ::-webkit-scrollbar-thumb {
     line-height: 1.45;
 }
 
-.theme-option[for="theme-orange"] > div { background: linear-gradient(135deg, #fff7ed, #d99b62 55%, #d6a85f); }
-.theme-option[for="theme-red"] > div { background: linear-gradient(135deg, #111827, #d73a5f); }
+.theme-option[for="theme-orange"]>div {
+    background: linear-gradient(135deg, #fff7ed, #d99b62 55%, #d6a85f);
+}
+
+.theme-option[for="theme-red"]>div {
+    background: linear-gradient(135deg, #111827, #d73a5f);
+}
 
 .theme-option.active {
     border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
@@ -1394,7 +1542,7 @@ body.theme-red ::-webkit-scrollbar-thumb {
     -webkit-backdrop-filter: blur(18px) saturate(170%);
     font-size: 13px;
     font-weight: 700;
-    animation: toastIn 240ms cubic-bezier(0.2,0.8,0.2,1) both;
+    animation: toastIn 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 #vps-floating-trigger {
@@ -1440,36 +1588,16 @@ body.theme-red ::-webkit-scrollbar-thumb {
 
 /* Sidebar menu active states using CSS variables mapping (to keep app.js state changes simple) */
 .menu-item.active button {
-    color: var(--text);
-    background: linear-gradient(145deg, color-mix(in srgb, var(--primary) 8%, white), color-mix(in srgb, var(--primary) 13%, var(--page-a)));
-    box-shadow:
-        inset 2px 2px 6px rgba(22, 92, 78, 0.055),
-        inset -2px -2px 6px rgba(255, 255, 255, 0.74),
-        0 12px 28px rgba(22, 92, 78, 0.06);
-    border: 1px solid color-mix(in srgb, var(--primary) 34%, var(--border));
-    position: relative;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 11%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 16%, transparent);
+    font-weight: 650;
     transform: none;
 }
 
-.menu-item.active button::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 12px;
-    width: 4px;
-    height: 24px;
-    border-radius: 999px;
-    background: var(--primary);
-    box-shadow: 0 0 10px color-mix(in srgb, var(--primary) 16%, transparent);
-}
-
-.menu-item.active button span {
-    color: #fff;
-    background: linear-gradient(145deg, var(--primary), var(--second));
-    box-shadow:
-        inset 2px 2px 5px rgba(0, 0, 0, 0.12),
-        inset -2px -2px 5px rgba(255, 255, 255, 0.16),
-        3px 3px 9px color-mix(in srgb, var(--primary) 18%, transparent);
+.menu-item.active button span[aria-hidden="true"] {
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
 }
 
 @media (max-width: 900px) {
@@ -1613,7 +1741,7 @@ main .modal-body a[class*="from-primary"],
     font-weight: 700 !important;
 }
 
-main button[class*="danger"],
+main button.btn-danger,
 main button[class*="ff5370"],
 main button[class*="to-danger"],
 .btn.danger {
@@ -1634,8 +1762,8 @@ main button[class*="bg-transparent"] {
 }
 
 [data-subtab],
-input[type="radio"][name="outbound_node_tab"] + span,
-input[type="radio"][name="net_routing_mode"] + span {
+input[type="radio"][name="outbound_node_tab"]+span,
+input[type="radio"][name="net_routing_mode"]+span {
     height: var(--ui-control-height) !important;
     min-height: var(--ui-control-height) !important;
     padding: 0 var(--ui-control-pad-x) !important;
@@ -1685,29 +1813,6 @@ textarea {
     font-weight: var(--ui-weight-section) !important;
 }
 
-/* Sidebar information layout */
-.sidebar-tools {
-    margin: 0 2px 16px;
-    padding: 0 0 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    border-bottom: 1px solid color-mix(in srgb, var(--surface-line) 76%, transparent);
-}
-
-.sidebar-social-links {
-    gap: 8px !important;
-}
-
-.sidebar-social-links a {
-    flex: 1 1 0;
-    height: 34px !important;
-    min-height: 34px !important;
-    padding: 0 12px !important;
-    border-radius: 12px !important;
-    font-size: 12.5px !important;
-    font-weight: 650 !important;
-}
 
 .sidebar-theme-row {
     min-height: 30px;
@@ -1718,7 +1823,7 @@ textarea {
     gap: 10px;
 }
 
-.sidebar-theme-row > span {
+.sidebar-theme-row>span {
     color: var(--muted);
     font-size: 12px;
     font-weight: 650;
@@ -1812,35 +1917,6 @@ body:has(#theme-red:checked) .theme-pill[for="theme-red"] {
     vertical-align: bottom;
 }
 
-.sidebar-account-actions {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding-top: 10px;
-}
-
-.sidebar-logout-btn,
-.sidebar-quick-action {
-    width: 100% !important;
-    height: 34px !important;
-    min-height: 34px !important;
-    margin: 0 !important;
-    padding: 0 10px !important;
-    box-sizing: border-box !important;
-    border-radius: 11px !important;
-    font-size: 12.5px !important;
-    font-weight: 650 !important;
-    line-height: 1 !important;
-    box-shadow:
-        2px 2px 7px rgba(31, 48, 55, 0.045),
-        -2px -2px 7px rgba(255, 255, 255, 0.72) !important;
-}
-
-.sidebar-logout-btn {
-    border: 1px solid color-mix(in srgb, var(--surface-line) 70%, var(--border)) !important;
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.86), color-mix(in srgb, var(--page-a) 86%, white)) !important;
-    color: var(--text) !important;
-}
 
 .sidebar-quick-action {
     border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border)) !important;
@@ -1894,12 +1970,12 @@ main {
     outline: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
 }
 
-main > section > div:first-child {
+main>section>div:first-child {
     min-height: 48px;
     gap: 14px;
 }
 
-main > section > div:first-child h2 {
+main>section>div:first-child h2 {
     display: flex;
     align-items: center;
     min-width: 0;
@@ -2048,7 +2124,7 @@ td .font-mono,
     overflow-wrap: anywhere;
 }
 
-.fixed.inset-0 > div {
+.fixed.inset-0>div {
     max-height: calc(100vh - 48px);
     overflow: auto;
 }
@@ -2118,8 +2194,8 @@ td .font-mono,
     text-align: left;
 }
 
-.domain-cert-field > label,
-.domain-cert-field > div > label {
+.domain-cert-field>label,
+.domain-cert-field>div>label {
     display: block;
     margin-bottom: 8px;
     color: color-mix(in srgb, var(--text) 72%, var(--muted));
@@ -2188,7 +2264,7 @@ td .font-mono,
     border-color: color-mix(in srgb, var(--primary) 16%, transparent);
 }
 
-.domain-cert-mode input:checked + span {
+.domain-cert-mode input:checked+span {
     color: #fff;
     border-color: color-mix(in srgb, var(--primary) 68%, var(--border));
     background: linear-gradient(145deg, var(--primary), var(--second));
@@ -2198,7 +2274,7 @@ td .font-mono,
         inset -1px -1px 3px rgba(0, 0, 0, 0.11);
 }
 
-.domain-cert-mode input:focus-visible + span {
+.domain-cert-mode input:focus-visible+span {
     outline: 3px solid var(--focus-ring);
     outline-offset: 2px;
 }
@@ -2569,12 +2645,12 @@ body.theme-red #vps-floating-trigger:hover {
         overflow: auto;
     }
 
-    main > section > div:first-child {
+    main>section>div:first-child {
         align-items: flex-start;
         flex-direction: column;
     }
 
-    main > section > div:first-child button {
+    main>section>div:first-child button {
         align-self: flex-start;
     }
 
@@ -2586,8 +2662,8 @@ body.theme-red #vps-floating-trigger:hover {
     }
 
     .segmented-tabs [data-subtab],
-    .segmented-tabs input[type="radio"][name="outbound_node_tab"] + span,
-    .segmented-tabs input[type="radio"][name="net_routing_mode"] + span {
+    .segmented-tabs input[type="radio"][name="outbound_node_tab"]+span,
+    .segmented-tabs input[type="radio"][name="net_routing_mode"]+span {
         min-width: 96px;
     }
 
@@ -2606,7 +2682,7 @@ body.theme-red #vps-floating-trigger:hover {
         align-items: flex-start !important;
     }
 
-    .fixed.inset-0 > div {
+    .fixed.inset-0>div {
         width: 100% !important;
         max-height: calc(100vh - 24px);
         border-radius: 22px !important;

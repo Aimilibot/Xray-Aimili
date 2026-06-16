@@ -334,15 +334,15 @@
             
             const rowIcon = (name) => {
                 const icons = {
-                    add: `<path d="M12 5v14"></path><path d="M5 12h14"></path>`,
+                    add: `<path d="M12 5v14M5 12h14"></path>`,
                     star: `<path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.8 1-6.1-4.4-4.3 6.1-.9Z"></path>`,
                     copy: `<rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>`,
                     qr: `<rect x="3" y="3" width="6" height="6" rx="1"></rect><rect x="15" y="3" width="6" height="6" rx="1"></rect><rect x="3" y="15" width="6" height="6" rx="1"></rect><path d="M15 15h2v2h-2z"></path><path d="M19 15h2"></path><path d="M15 19h6"></path><path d="M11 3h1"></path><path d="M11 7h1"></path><path d="M3 11h1"></path><path d="M7 11h1"></path>`,
-                    power: `<path d="M12 2v10"></path><path d="M18.4 6.6a9 9 0 1 1-12.8 0"></path>`,
-                    edit: `<path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>`,
-                    trash: `<path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v5"></path><path d="M14 11v5"></path>`
+                    power: `<path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0"></path>`,
+                    edit: `<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>`,
+                    trash: `<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"></path>`
                 };
-                return `<svg class="row-action__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${icons[name] || icons.edit}</svg>`;
+                return `<svg class="row-action__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${icons[name] || icons.edit}</svg>`;
             };
             
             const actionButton = (label, icon, onclick, danger = false, showText = false, extraClass = '') => `
@@ -353,109 +353,98 @@
 
             const renderNodeCard = (node, nested = false) => {
                 const enabled = node.enabled === true;
-                const badgeClass = enabled ? "active" : "inactive";
-                const statusText = enabled ? "已启用" : "未启用";
+                const statusText = enabled ? "已启动" : "已停止";
                 const protocolName = subscriptionProtocolNames[node.protocol] || node.protocol || "-";
                 const linkName = node.subscription_id ? subscriptionLinkNameById(node.subscription_id) : "独立节点";
                 const routedOutboundIds = routedOutboundsForSubscriptionNode(node.id);
                 const outboundText = routedOutboundIds.length
-                    ? routedOutboundIds.map(outboundLabelById).join("、")
+                    ? routedOutboundIds.map(outboundLabelById).join(",")
                     : (node.outbound_node_id ? outboundLabelById(node.outbound_node_id) : "未绑定");
-                const outboundPrefix = routedOutboundIds.length ? "路由: " : "出站: ";
-                
+
                 const actionsHtml = [
                     actionButton("复制链接", "copy", `copySubscriptionNodeUrl('${esc(node.id)}')`),
                     actionButton("二维码", "qr", `showSubscriptionNodeQRCode('${esc(node.id)}')`),
-                    actionButton(enabled ? "停用" : "启用", "power", `toggleSubscriptionNode('${esc(node.id)}', ${enabled ? "false" : "true"})`, false, false, enabled ? 'text-green' : 'text-muted'),
                     actionButton("编辑", "edit", `editSubscriptionNode('${esc(node.id)}')`),
+                    actionButton(enabled ? "停用" : "启用", "power", `toggleSubscriptionNode('${esc(node.id)}', ${enabled ? "false" : "true"})`, false, false, enabled ? 'text-success' : 'text-muted'),
                     actionButton("删除", "trash", `deleteSubscriptionNode('${esc(node.id)}')`, true)
                 ].join("");
 
                 return `
-                    <div class="node-card bg-[rgba(255,255,255,0.025)] border border-[color-mix(in_srgb,var(--border)_28%,transparent)] rounded-xl p-3.5 flex items-center justify-between flex-wrap gap-3 hover:bg-[rgba(255,255,255,0.055)] transition-all duration-200">
-                        <div class="flex items-center gap-3">
-                            <!-- Status dot indicator with soft glow if active -->
-                            <span class="w-2.5 h-2.5 rounded-full ${enabled ? 'bg-[var(--success)] shadow-[0_0_8px_var(--success)]' : 'bg-[var(--muted)]'}" title="${statusText}"></span>
+                    <div class="node-card bg-[rgba(255,255,255,0.015)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] rounded-lg py-1.5 px-3 flex items-center justify-between gap-3 hover:bg-[rgba(255,255,255,0.04)] transition-all duration-200 w-full">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <!-- Status dot -->
+                            <span class="w-2 h-2 rounded-full ${enabled ? 'bg-[var(--success)] shadow-[0_0_6px_var(--success)]' : 'bg-[var(--muted)]'} flex-none" title="${statusText}"></span>
                             
-                            <div class="flex flex-col">
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <strong class="text-[14px] text-text font-semibold">${esc(node.name || "-")}</strong>
-                                    <span class="inbound-kind-badge inbound-kind-badge--node font-medium">${esc(protocolName)}</span>
-                                    <span class="text-[11px] px-2 py-0.5 rounded bg-[rgba(255,255,255,0.08)] border border-[color-mix(in_srgb,var(--border)_30%,transparent)] text-muted font-mono">Port: ${esc(node.port || "-")}</span>
-                                </div>
-                                <div class="text-[11.5px] text-muted mt-1 flex items-center gap-3 flex-wrap">
-                                    <span>${outboundPrefix}<span class="text-text font-medium">${esc(outboundText)}</span></span>
-                                    ${!nested ? `<span class="text-muted opacity-60">|</span> <span>归属: <span class="text-text">${esc(linkName)}</span></span>` : ''}
-                                </div>
+                            <!-- Horizontal info list -->
+                            <div class="flex items-center gap-3 text-[12.5px] flex-wrap text-text min-w-0">
+                                <strong class="text-[13px] font-semibold text-text truncate max-w-[150px]" title="${esc(node.name || '-')}">${esc(node.name || "-")}</strong>
+                                <span class="px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] text-muted text-[11px] font-mono leading-none">${esc(protocolName)}</span>
+                                <span class="text-muted text-[12px] font-mono">端口: ${esc(node.port || "-")}</span>
+                                <span class="text-muted text-[12px]">(出站: <span class="text-text font-medium">${esc(outboundText)}</span>)</span>
+                                ${!nested ? `<span class="text-muted text-[12px]">归属: <span class="text-text">${esc(linkName)}</span></span>` : ''}
                             </div>
                         </div>
                         
                         <!-- Actions -->
-                        <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
+                        <div class="flex items-center gap-1 flex-none" onclick="event.stopPropagation()">
                             ${actionsHtml}
                         </div>
                     </div>
                 `;
             };
 
-            const renderSubscriptionCard = (link) => {
+            const renderSubscriptionCard = (link, idx) => {
                 const enabled = link.enabled !== false;
-                const badgeClass = enabled ? "active" : "inactive";
-                const statusText = enabled ? "已启用" : "未启用";
+                const statusText = enabled ? "已启动" : "已停止";
                 const childNodes = subscriptionNodesForLink(link.id);
                 const expanded = expandedSubscriptionLinks.has(link.id);
-                const isDefault = link.id === selectedSubscriptionLinkId;
                 
                 const actionsHtml = [
-                    actionButton(isDefault ? "默认订阅" : "设为默认", "star", `selectSubscriptionLink('${esc(link.id)}')`, false, false, isDefault ? 'text-primary' : ''),
+                    actionButton("添加节点", "add", `openCreateLinkModal('${esc(link.id)}')`),
                     actionButton("复制链接", "copy", `copySubscriptionUrl('${esc(link.id)}')`),
                     actionButton("二维码", "qr", `showSubscriptionLinkQRCode('${esc(link.id)}')`),
                     actionButton("编辑", "edit", `openSubscriptionLinkModal('${esc(link.id)}')`),
-                    actionButton(enabled ? "停用" : "启用", "power", `toggleSubscriptionLink('${esc(link.id)}', ${enabled ? "false" : "true"})`, false, false, enabled ? 'text-green' : 'text-muted'),
+                    actionButton(enabled ? "停用" : "启用", "power", `toggleSubscriptionLink('${esc(link.id)}', ${enabled ? "false" : "true"})`, false, false, enabled ? 'text-success' : 'text-muted'),
                     actionButton("删除", "trash", `deleteSubscriptionLink('${esc(link.id)}')`, true)
                 ].join("");
 
+                const expandIcon = expanded 
+                    ? `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path></svg>`
+                    : `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>`;
+
                 const nodesListHtml = childNodes.length 
                     ? childNodes.map(node => renderNodeCard(node, true)).join("")
-                    : `<div class="text-center py-4 text-muted text-[13px] bg-[rgba(0,0,0,0.015)] rounded-xl border border-dashed border-border">这个订阅链接下还没有节点链接</div>`;
+                    : `<div class="text-center py-3 text-muted text-[12.5px] bg-[rgba(0,0,0,0.01)] rounded-lg border border-dashed border-border">这个订阅链接下还没有节点链接</div>`;
 
                 return `
-                    <div class="sub-link-card bg-glass border border-border rounded-[22px] p-5 shadow-soft-shadow hover:shadow-shadow transition-all duration-300 flex flex-col gap-4">
+                    <div class="sub-link-card bg-glass border border-border rounded-2xl p-4 shadow-soft-shadow hover:shadow-shadow transition-all duration-300 flex flex-col gap-3">
                         <!-- Card Header -->
-                        <div class="flex items-center justify-between flex-wrap gap-3">
-                            <div class="flex items-center gap-3">
-                                <!-- Expand/Collapse Arrow Button -->
-                                <button type="button" class="sub-card-expand-btn w-[28px] h-[28px] flex items-center justify-center rounded-lg bg-glass border border-border text-muted transition-colors duration-200 hover:text-primary hover:border-primary" onclick="toggleSubscriptionExpand('${esc(link.id)}', event)" aria-label="${expanded ? '折叠' : '展开'}">
-                                    <svg class="w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-90 text-primary' : ''}" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path>
-                                    </svg>
+                        <div class="flex items-center justify-between gap-3 w-full">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <!-- Serial Number -->
+                                <span class="text-[13.5px] font-mono text-muted font-bold flex-none">${idx}</span>
+                                
+                                <!-- Expand Button -->
+                                <button type="button" class="w-6 h-6 flex items-center justify-center rounded-md bg-glass border border-border text-muted transition-all duration-200 hover:text-primary hover:border-primary flex-none" onclick="toggleSubscriptionExpand('${esc(link.id)}', event)" aria-label="${expanded ? '折叠' : '展开'}">
+                                    ${expandIcon}
                                 </button>
                                 
-                                <div class="flex flex-col">
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <span class="font-bold text-[15px] text-text">${esc(link.name || "-")}</span>
-                                        <span class="inbound-kind-badge inbound-kind-badge--link">订阅</span>
-                                        <span class="status-badge ${badgeClass}"><span class="status-dot"></span>${statusText}</span>
-                                        ${isDefault ? `<span class="bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-primary border border-[color-mix(in_srgb,var(--primary)_26%,transparent)] px-2 py-0.5 rounded-md text-[10.5px] font-semibold">默认订阅</span>` : ''}
-                                    </div>
-                                    <div class="text-[12px] text-muted mt-1">${link.id === selectedSubscriptionLinkId ? "默认加入的订阅链接" : esc(link.remark || "订阅链接")}</div>
-                                </div>
+                                <!-- Name -->
+                                <span class="font-bold text-[14.5px] text-text truncate max-w-[200px]" title="${esc(link.name || '-')}">${esc(link.name || "-")}</span>
+                                
+                                <!-- Status Text -->
+                                <span class="text-[12px] font-semibold ${enabled ? 'text-success' : 'text-muted'} flex-none">${statusText}</span>
                             </div>
                             
-                            <!-- Card Header Actions -->
-                            <div class="flex items-center gap-2" onclick="event.stopPropagation()">
-                                <!-- Add Node to Subscription (Primary Style) -->
-                                <button type="button" class="min-h-[30px] py-1 px-3 text-[11.5px] w-auto rounded-xl bg-gradient-to-br from-primary to-second border-none text-white font-bold cursor-pointer shadow-[0_12px_24px_color-mix(in_srgb,var(--primary)_24%,transparent)] transition-all duration-[280ms] ease-in-out inline-flex justify-center items-center gap-1.5 hover:translate-y-[-2px] hover:shadow-[0_14px_28px_color-mix(in_srgb,var(--primary)_34%,transparent)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed" onclick="openCreateLinkModal('${esc(link.id)}')" title="添加节点到此订阅">
-                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
-                                    添加节点
-                                </button>
+                            <!-- Actions -->
+                            <div class="flex items-center gap-1 flex-none" onclick="event.stopPropagation()">
                                 ${actionsHtml}
                             </div>
                         </div>
                         
-                        <!-- Collapsible Body (Child Nodes) -->
+                        <!-- Collapsible Body -->
                         ${expanded ? `
-                        <div class="sub-card-nodes-list border-t border-[color-mix(in_srgb,var(--surface-line)_60%,transparent)] pt-4 flex flex-col gap-3 animate-[fadeIn_200ms_ease]">
+                        <div class="sub-card-nodes-list border-t border-[color-mix(in_srgb,var(--surface-line)_50%,transparent)] pt-3 flex flex-col gap-2.5 animate-[fadeIn_200ms_ease]">
                             ${nodesListHtml}
                         </div>
                         ` : ''}
@@ -471,8 +460,8 @@
             const cards = [];
             
             // 1. Render Subscriptions Cards
-            subscriptionLinks.forEach(link => {
-                cards.push(renderSubscriptionCard(link));
+            subscriptionLinks.forEach((link, idx) => {
+                cards.push(renderSubscriptionCard(link, idx + 1));
             });
             
             // 2. Render Independent Nodes Group

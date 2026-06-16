@@ -18,11 +18,36 @@
             }, 2600);
         }
 
+        function copyToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(text);
+            }
+            return new Promise((resolve, reject) => {
+                try {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    textArea.style.position = "fixed";
+                    textArea.style.top = "0";
+                    textArea.style.left = "0";
+                    textArea.style.opacity = "0";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    if (successful) resolve();
+                    else reject(new Error("execCommand copy failed"));
+                } catch (err) {
+                    reject(err);
+                }
+            });
+        }
+
         async function copyShareText(id) {
             const input = document.getElementById(id);
             if (!input) return;
             try {
-                await navigator.clipboard.writeText(input.value);
+                await copyToClipboard(input.value);
                 const btn = input.nextElementSibling;
                 const oldText = btn.innerText;
                 btn.innerText = "已复制";
