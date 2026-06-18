@@ -383,6 +383,19 @@ start_stack() {
     docker compose up -d --build
 }
 
+create_host_menu_launcher() {
+    echo -e "\n${YELLOW}正在创建宿主机全局管理命令 'ml'...${PLAIN}"
+    cat > /usr/bin/ml <<EOF
+#!/bin/bash
+cd ${INSTALL_DIR}
+export AIMILI_INSTALL_DIR=${INSTALL_DIR}
+export VPNGATE_DATA_DIR=${INSTALL_DIR}/vpngate_data
+export AIMILI_RUNTIME=docker
+exec /usr/bin/python3 cli/menu.py "\$@"
+EOF
+    chmod +x /usr/bin/ml
+}
+
 public_ip() {
     curl -s --max-time 3 https://api.ipify.org || curl -s --max-time 3 https://ifconfig.me || curl -s --max-time 3 icanhazip.com || echo "您的服务器公网IP"
 }
@@ -394,6 +407,7 @@ cleanup_existing_install
 deploy_source
 write_env_file
 start_stack
+create_host_menu_launcher
 
 PUBLIC_IP="$(public_ip)"
 
@@ -405,8 +419,9 @@ echo -e "  * 网页管理账号:  ${YELLOW}${UI_USERNAME}${PLAIN}"
 echo -e "  * 网页管理密码:  ${YELLOW}${UI_PASSWORD}${PLAIN}"
 echo -e "  * HTTP/SOCKS5 代理端口: ${BLUE}${LOCAL_PROXY_PORT}${PLAIN}"
 echo -e " --------------------------------------------------------"
-echo -e "  * 查看状态:   ${YELLOW}cd ${INSTALL_DIR} && docker compose ps${PLAIN}"
-echo -e "  * 查看日志:   ${YELLOW}cd ${INSTALL_DIR} && docker compose logs -f${PLAIN}"
-echo -e "  * 重启服务:   ${YELLOW}cd ${INSTALL_DIR} && docker compose restart${PLAIN}"
-echo -e "  * 停止服务:   ${YELLOW}cd ${INSTALL_DIR} && docker compose down${PLAIN}"
+echo -e "  * 打开管理菜单: ${YELLOW}ml${PLAIN}"
+echo -e "  * 查看状态:     ${YELLOW}ml status${PLAIN}"
+echo -e "  * 查看日志:     ${YELLOW}ml logs${PLAIN}"
+echo -e "  * 在线更新:     ${YELLOW}ml update${PLAIN}"
+echo -e "  * 完全卸载:     ${YELLOW}ml uninstall${PLAIN}"
 echo -e "=========================================================="

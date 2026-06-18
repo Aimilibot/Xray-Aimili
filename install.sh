@@ -150,9 +150,6 @@ while true; do
     esac
 done
 
-echo -e "\n${YELLOW}正在清理旧版本残留与冲突...${PLAIN}"
-cleanup_old_residuals_and_conflicts
-
 echo -e "\n${YELLOW}[1/6] 正在安装系统基础依赖...${PLAIN}"
 if [ "$PKG_MGR" = "apt-get" ]; then
     echo -e "  -> 正在运行 apt-get update 更新软件源清单..."
@@ -323,6 +320,9 @@ cleanup_old_residuals_and_conflicts() {
         systemctl daemon-reload >/dev/null 2>&1 || true
     fi
 }
+
+echo -e "\n${YELLOW}正在清理旧版本残留与冲突...${PLAIN}"
+cleanup_old_residuals_and_conflicts
 
 cleanup_local_runtime_cache() {
     if [ -z "${INSTALL_DIR}" ] || [ "${INSTALL_DIR}" = "/" ]; then
@@ -518,6 +518,9 @@ echo -e "  -> 正在写入管理脚本 /usr/bin/ml ..."
 cat > /usr/bin/ml <<EOF
 #!/bin/bash
 cd ${INSTALL_DIR}
+export AIMILI_INSTALL_DIR=${INSTALL_DIR}
+export VPNGATE_DATA_DIR=${INSTALL_DIR}/vpngate_data
+export AIMILI_RUNTIME=host
 exec /usr/bin/python3 cli/menu.py "\$@"
 EOF
 chmod +x /usr/bin/ml
@@ -726,9 +729,10 @@ echo -e "  * 网页管理账号:  ${YELLOW}${USERNAME}${PLAIN}"
 echo -e "  * 网页管理密码:  ${YELLOW}${PASSWORD}${PLAIN}"
 echo -e "  * HTTP/SOCKS5 代理端口:  ${BLUE}http://127.0.0.1:7928/${PLAIN}  或  ${BLUE}http://[::1]:7928/${PLAIN}"
 echo -e " --------------------------------------------------------"
-echo -e "  * 快速状态指令:   ${YELLOW}ml status${PLAIN}  或  ${YELLOW}ml${PLAIN}"
+echo -e "  * 打开管理菜单:   ${YELLOW}ml${PLAIN}"
+echo -e "  * 快速状态指令:   ${YELLOW}ml status${PLAIN}"
 echo -e "  * 查看实时日志:   ${YELLOW}ml logs${PLAIN}"
-echo -e "  * 停止服务:       ${YELLOW}ml stop${PLAIN}"
-echo -e "  * 重启服务:       ${YELLOW}ml restart${PLAIN}"
+echo -e "  * 在线更新面板:   ${YELLOW}ml update${PLAIN}"
+echo -e "  * 完全卸载清理:   ${YELLOW}ml uninstall${PLAIN}"
 echo -e "=========================================================="
 echo

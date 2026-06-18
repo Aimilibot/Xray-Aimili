@@ -42,9 +42,7 @@ COPY cli /app/cli
 COPY docker/vpngate/entrypoint.sh /usr/local/bin/aimili-vpngate-entrypoint
 
 RUN chmod +x /usr/local/bin/aimili-vpngate-entrypoint \
-    && mkdir -p /data \
-    && echo '#!/bin/bash\ncd /app\nexec python cli/menu.py "$@"' > /usr/bin/ml \
-    && chmod +x /usr/bin/ml
+    && mkdir -p /data
 
 VOLUME ["/data"]
 EXPOSE 8787 7928

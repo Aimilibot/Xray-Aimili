@@ -41,9 +41,7 @@ COPY cli /app/cli
 COPY docker/full/entrypoint.sh /usr/local/bin/aimili-full-entrypoint
 
 RUN chmod +x /usr/local/bin/aimili-full-entrypoint \
-    && mkdir -p /data \
-    && printf '%s\n' '#!/bin/bash' 'cd /app' 'exec python cli/menu.py "$@"' > /usr/bin/ml \
-    && chmod +x /usr/bin/ml
+    && mkdir -p /data
 
 VOLUME ["/data"]
 EXPOSE 8787 7928

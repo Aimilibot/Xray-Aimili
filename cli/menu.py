@@ -32,12 +32,108 @@ C_FAIL = '\033[91m'
 C_END = '\033[0m'
 C_BOLD = '\033[1m'
 
-INSTALL_DIR = "/opt/aimilivpn"
-DATA_DIR = Path("/opt/aimilivpn/vpngate_data")
+INSTALL_DIR = os.environ.get("AIMILI_INSTALL_DIR", "/opt/aimilivpn")
+DATA_DIR = Path(os.environ.get("VPNGATE_DATA_DIR", str(Path(INSTALL_DIR) / "vpngate_data")))
 STATE_FILE = DATA_DIR / "state.json"
 NODES_FILE = DATA_DIR / "nodes.json"
 AUTH_FILE = DATA_DIR / "ui_auth.json"
 LOG_FILE = DATA_DIR / "vpngate.log"
+DOCKER_INSTALL_DIR = os.environ.get("AIMILI_DOCKER_INSTALL_DIR", "/opt/aimilivpn-docker")
+LEGACY_INSTALL_DIRS = ["/opt/aimili-xray", "/etc/aimili-xray"]
+SERVICE_NAMES = ["aimilivpn.service", "aimili-xray.service", "aimili-vpn.service"]
+COMMAND_LINKS = ["/usr/bin/ml", "/usr/local/bin/ml", "/usr/bin/ml-x", "/usr/local/bin/ml-x"]
+XRAY_PATHS = [
+    "/usr/local/bin/xray",
+    "/usr/bin/xray",
+    "/bin/xray",
+    "/etc/xray",
+    "/usr/local/etc/xray",
+    "/var/log/xray",
+    "/usr/local/share/xray",
+    "/etc/systemd/system/xray.service",
+    "/etc/systemd/system/xray@.service",
+    "/lib/systemd/system/xray.service",
+    "/lib/systemd/system/xray@.service",
+    "/usr/lib/systemd/system/xray.service",
+    "/usr/lib/systemd/system/xray@.service",
+    "/etc/init.d/xray",
+]
+
+def is_docker_install():
+    runtime = os.environ.get("AIMILI_RUNTIME")
+    if runtime:
+        return runtime == "docker"
+    return Path(INSTALL_DIR).resolve(strict=False) == Path(DOCKER_INSTALL_DIR).resolve(strict=False)
+
+def run_quiet(cmd, cwd=None, check=False):
+    try:
+        return subprocess.run(
+            cmd,
+            cwd=cwd,
+            check=check,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except FileNotFoundError:
+        return None
+
+def safe_remove_path(path):
+    target = Path(path)
+    resolved = target.resolve(strict=False)
+    if str(resolved) in ("", "/", "/opt", "/etc", "/usr", "/var", "/lib", "/bin"):
+        print(f"{C_WARNING}跳过异常路径: {path}{C_END}")
+        return
+    try:
+        if target.is_symlink() or target.is_file():
+            target.unlink(missing_ok=True)
+        elif target.is_dir():
+            shutil.rmtree(target, ignore_errors=True)
+    except Exception as e:
+        print(f"{C_WARNING}清理失败 {path}: {e}{C_END}")
+
+def ensure_global_launcher():
+    launcher = Path("/usr/bin/ml")
+    runtime = "docker" if is_docker_install() else "host"
+    data_dir = str(DATA_DIR)
+    content = (
+        "#!/bin/bash\n"
+        f"cd {INSTALL_DIR}\n"
+        f"export AIMILI_INSTALL_DIR={INSTALL_DIR}\n"
+        f"export VPNGATE_DATA_DIR={data_dir}\n"
+        f"export AIMILI_RUNTIME={runtime}\n"
+        'exec /usr/bin/python3 cli/menu.py "$@"\n'
+    )
+    try:
+        launcher.write_text(content, encoding="utf-8")
+        launcher.chmod(0o755)
+        return True
+    except Exception as e:
+        print(f"{C_WARNING}写入 /usr/bin/ml 失败: {e}{C_END}")
+        return False
+
+def compose_available():
+    return is_docker_install() and shutil.which("docker") and (Path(INSTALL_DIR) / "docker-compose.yml").exists()
+
+def docker_compose(args, check=False, quiet=False):
+    if not compose_available():
+        return None
+    stdout = subprocess.DEVNULL if quiet else None
+    stderr = subprocess.DEVNULL if quiet else None
+    return subprocess.run(["docker", "compose", *args], cwd=INSTALL_DIR, check=check, stdout=stdout, stderr=stderr, text=True)
+
+def docker_stack_active():
+    if not shutil.which("docker"):
+        return False
+    for name in ("aimili-vpn-panel", "aimilivpn-full", "aimili-vpngate"):
+        res = subprocess.run(
+            ["docker", "inspect", "-f", "{{.State.Running}}", name],
+            capture_output=True,
+            text=True,
+        )
+        if res.returncode == 0 and res.stdout.strip().lower() == "true":
+            return True
+    return False
 
 def clear_screen():
     print("\033[H\033[J", end="", flush=True)
@@ -148,6 +244,8 @@ def get_service_pid():
     return None
 
 def check_service_active():
+    if is_docker_install():
+        return docker_stack_active()
     return get_service_pid() is not None
 
 def check_openvpn_process():
@@ -310,8 +408,10 @@ def format_line(label, value, target_width=24):
     return f"{prefix}{label}{padding}:  {value}"
 
 def print_header():
+    runtime = "Docker Stack" if is_docker_install() else "Host Service"
     print(f"{C_BOLD}{C_CYAN}============================================================{C_END}")
-    print(f"{C_BOLD}{C_CYAN}                  Aimili-VPNGate 管理后台                   {C_END}")
+    print(f"{C_BOLD}{C_CYAN}                  AimiliVPN 独立管理终端                    {C_END}")
+    print(f"{C_CYAN}                    Runtime: {runtime:<22}{C_END}")
     print(f"{C_BOLD}{C_CYAN}============================================================{C_END}")
 
 def print_status_summary():
@@ -354,8 +454,9 @@ def print_status_summary():
         login_ip = f"[{h}]" if ":" in h else h
     web_url = f"http://{login_ip}:{ui_port}/{secret_path}/"
         
+    runtime = "Docker" if is_docker_install() else "宿主机"
     print(f"{C_BOLD}{C_CYAN}============================================================{C_END}")
-    print(f" AimiliVPN 状态 : {status_color}{status_text}{C_END}")
+    print(f" AimiliVPN 状态 : {status_color}{status_text}{C_END}    运行模式: {C_BOLD}{runtime}{C_END}")
     print(f" 活动节点       : {C_BOLD}{active_node_text}{C_END}")
     print(f" 管理网页       : {C_CYAN}{web_url}{C_END}")
     print()
@@ -381,7 +482,10 @@ def show_system_status():
     bbr = get_bbr_status()
     bbr_colored = f"{C_GREEN}已启用{C_END}" if bbr == "active" else f"{C_FAIL}未启用{C_END}"
     gateway_status = f"{C_GREEN}已激活{C_END}" if gateway_ok else f"{C_FAIL}未启动{C_END}"
-    panel_status = f"{C_GREEN}已激活 (PID: {pid}){C_END}" if (service_ok and pid) else f"{C_FAIL}未启动{C_END}"
+    if is_docker_install():
+        panel_status = f"{C_GREEN}已激活 (Docker){C_END}" if service_ok else f"{C_FAIL}未启动{C_END}"
+    else:
+        panel_status = f"{C_GREEN}已激活 (PID: {pid}){C_END}" if (service_ok and pid) else f"{C_FAIL}未启动{C_END}"
     
     if state.get("is_connecting"):
         openvpn_status = f"{C_WARNING}切换连接中...{C_END}"
@@ -487,6 +591,15 @@ def show_system_status():
     input(f"\n按 {C_BOLD}回车键{C_END} 返回主菜单...")
 
 def run_service_cmd(cmd):
+    if is_docker_install() and compose_available():
+        if cmd == "start":
+            docker_compose(["up", "-d"], check=False)
+        elif cmd == "stop":
+            docker_compose(["down", "--remove-orphans"], check=False)
+        elif cmd == "restart":
+            docker_compose(["restart"], check=False)
+        return
+
     if shutil.which("systemctl"):
         subprocess.run(["systemctl", cmd, "aimilivpn.service"])
     elif shutil.which("rc-service"):
@@ -495,7 +608,7 @@ def run_service_cmd(cmd):
         pid = get_service_pid()
         if pid:
             if cmd in ("stop", "restart"):
-                print(f"检测到 Docker/容器环境，正在向主进程 (PID {pid}) 发送终止信号...", flush=True)
+                print(f"未检测到服务管理器，正在向主进程 (PID {pid}) 发送终止信号...", flush=True)
                 import signal
                 try:
                     os.kill(int(pid), signal.SIGTERM)
@@ -507,47 +620,21 @@ def run_service_cmd(cmd):
         else:
             print("未检测到运行中的 AimiliVPN 管理后台进程，且未检测到 systemd/OpenRC 服务管理器。", flush=True)
 
-def start_service():
-    print("正在启动 AimiliVPN 服务...", flush=True)
-    run_service_cmd("start")
-    print("已发送启动指令。")
-    time.sleep(1.5)
-
-def stop_service():
-    print("正在停止 AimiliVPN 服务...", flush=True)
-    run_service_cmd("stop")
-    print("已发送停止指令。")
-    time.sleep(1.5)
-
 def restart_service():
     print("正在重启 AimiliVPN 服务...", flush=True)
     run_service_cmd("restart")
     print("已发送重启指令。")
     time.sleep(1.5)
 
-def control_services():
-    while True:
-        clear_screen()
-        print_status_summary()
-        print(f"{C_BOLD}【服务管理控制菜单】{C_END}")
-        print(f"  {C_GREEN}[1]{C_END} 启动 AimiliVPN 服务")
-        print(f"  {C_GREEN}[2]{C_END} 停止 AimiliVPN 服务")
-        print(f"  {C_GREEN}[3]{C_END} 重启 AimiliVPN 服务")
-        print(f"  {C_GREEN}[0]{C_END} 返回主菜单")
-        print(f"{C_BOLD}{C_CYAN}============================================================{C_END}\n")
-        key = input("请输入数字选择 [0-3]：").strip()
-        if key == '1':
-            start_service()
-        elif key == '2':
-            stop_service()
-        elif key == '3':
-            restart_service()
-        elif key == '0' or key == 'q' or key == '\x03':
-            break
-
 def show_logs():
     print(f"\n正在实时查看运行日志 (按 {C_BOLD}Ctrl+C{C_END} 退出)...\n", flush=True)
     if not LOG_FILE.exists():
+        if is_docker_install() and compose_available():
+            try:
+                docker_compose(["logs", "-f", "--tail", "80"], check=False)
+            except KeyboardInterrupt:
+                pass
+            return
         print(f"日志文件不存在: {LOG_FILE}")
         time.sleep(2)
         return
@@ -989,10 +1076,141 @@ def show_panel_access():
     print(" 提示: 请妥善保管此登录路径及管理员凭据，防止泄漏。")
     input("\n按回车键返回主菜单...")
 
+def detect_remote_branch():
+    candidates = []
+    current = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True)
+    if current.returncode == 0 and current.stdout.strip() not in ("", "HEAD"):
+        candidates.append(current.stdout.strip())
+
+    head = subprocess.run(["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], capture_output=True, text=True)
+    if head.returncode == 0 and head.stdout.strip().startswith("origin/"):
+        candidates.append(head.stdout.strip().split("/", 1)[1])
+
+    candidates.extend(["main", "master", "bate"])
+    for branch in dict.fromkeys(candidates):
+        chk = subprocess.run(["git", "rev-parse", "--verify", f"origin/{branch}"], capture_output=True, text=True)
+        if chk.returncode == 0:
+            return branch
+    return "main"
+
+def cleanup_python_cache():
+    for root, dirs, files in os.walk(INSTALL_DIR):
+        dirs[:] = [d for d in dirs if d != ".git"]
+        for dirname in list(dirs):
+            if dirname == "__pycache__":
+                shutil.rmtree(Path(root) / dirname, ignore_errors=True)
+                dirs.remove(dirname)
+        for filename in files:
+            if filename.endswith((".pyc", ".pyo")):
+                safe_remove_path(Path(root) / filename)
+
+def ensure_host_service():
+    if shutil.which("systemctl"):
+        service = Path("/etc/systemd/system/aimilivpn.service")
+        service.write_text(
+            "[Unit]\n"
+            "Description=AimiliVPN OpenVPN Manager with HTTP/SOCKS5 Proxy\n"
+            "After=network.target\n\n"
+            "[Service]\n"
+            "Type=simple\n"
+            f"WorkingDirectory={INSTALL_DIR}\n"
+            "ExecStart=/usr/bin/python3 backend/vpngate_manager.py\n"
+            "Restart=always\n"
+            "RestartSec=5\n"
+            "EnvironmentFile=-/etc/default/aimilivpn\n\n"
+            "[Install]\n"
+            "WantedBy=multi-user.target\n",
+            encoding="utf-8",
+        )
+        run_quiet(["systemctl", "daemon-reload"])
+        run_quiet(["systemctl", "enable", "aimilivpn.service"])
+        return
+
+    if shutil.which("rc-service"):
+        service = Path("/etc/init.d/aimilivpn")
+        service.write_text(
+            "#!/sbin/openrc-run\n\n"
+            "description=\"AimiliVPN OpenVPN Manager with HTTP/SOCKS5 Proxy\"\n"
+            "command=\"/usr/bin/python3\"\n"
+            f"command_args=\"{INSTALL_DIR}/backend/vpngate_manager.py\"\n"
+            "command_background=\"yes\"\n"
+            f"directory=\"{INSTALL_DIR}\"\n"
+            "pidfile=\"/run/aimilivpn.pid\"\n\n"
+            "depend() {\n"
+            "    need net\n"
+            "    after firewall\n"
+            "}\n",
+            encoding="utf-8",
+        )
+        service.chmod(0o755)
+        run_quiet(["rc-update", "add", "aimilivpn", "default"])
+
+def cleanup_service_files():
+    for svc in SERVICE_NAMES:
+        base = svc[:-8] if svc.endswith(".service") else svc
+        if shutil.which("systemctl"):
+            run_quiet(["systemctl", "stop", svc])
+            run_quiet(["systemctl", "disable", svc])
+            run_quiet(["systemctl", "reset-failed", svc])
+            for path in (
+                f"/etc/systemd/system/{svc}",
+                f"/lib/systemd/system/{svc}",
+                f"/usr/lib/systemd/system/{svc}",
+                f"/etc/systemd/system/multi-user.target.wants/{svc}",
+            ):
+                safe_remove_path(path)
+        if shutil.which("rc-service"):
+            run_quiet(["rc-service", base, "stop"])
+            run_quiet(["rc-update", "del", base, "default"])
+            safe_remove_path(f"/etc/init.d/{base}")
+    if shutil.which("systemctl"):
+        run_quiet(["systemctl", "daemon-reload"])
+
+def cleanup_processes():
+    for pattern in ("vpngate_manager.py", "aimili-xray"):
+        run_quiet(["pkill", "-TERM", "-f", pattern])
+    run_quiet(["pkill", "-TERM", "-x", "xray"])
+    time.sleep(1)
+    for pattern in ("vpngate_manager.py", "aimili-xray"):
+        run_quiet(["pkill", "-KILL", "-f", pattern])
+    run_quiet(["pkill", "-KILL", "-x", "xray"])
+
+def cleanup_docker_residuals():
+    if not shutil.which("docker"):
+        return
+    compose_dirs = []
+    for path in (INSTALL_DIR, DOCKER_INSTALL_DIR, "/opt/aimilivpn-docker"):
+        p = Path(path)
+        if p not in compose_dirs and (p / "docker-compose.yml").exists():
+            compose_dirs.append(p)
+
+    for compose_dir in compose_dirs:
+        run_quiet(["docker", "compose", "down", "-v", "--remove-orphans", "--rmi", "local"], cwd=str(compose_dir))
+
+    for name in ("aimilivpn-full", "aimili-vpn-panel", "aimili-vpngate"):
+        run_quiet(["docker", "rm", "-f", name])
+    for image in ("aimili-vpn-panel:latest", "aimili-vpngate:latest", "aimilivpn-full:latest"):
+        run_quiet(["docker", "image", "rm", "-f", image])
+
+def cleanup_xray_residuals():
+    if shutil.which("systemctl"):
+        run_quiet(["systemctl", "stop", "xray.service", "xray@*.service"])
+        run_quiet(["systemctl", "disable", "xray.service", "xray@*.service"])
+    if shutil.which("rc-service"):
+        run_quiet(["rc-service", "xray", "stop"])
+        run_quiet(["rc-update", "del", "xray", "default"])
+    run_quiet(["pkill", "-TERM", "-x", "xray"])
+    time.sleep(0.5)
+    run_quiet(["pkill", "-KILL", "-x", "xray"])
+    for path in XRAY_PATHS:
+        safe_remove_path(path)
+    if shutil.which("systemctl"):
+        run_quiet(["systemctl", "daemon-reload"])
+
 def update_panel():
     clear_screen()
     print_header()
-    print("\n正在从远程仓库拉取最新版本...", flush=True)
+    print("\n正在检查远程版本并准备更新...", flush=True)
     if os.path.exists(INSTALL_DIR):
         try:
             os.chdir(INSTALL_DIR)
@@ -1002,38 +1220,41 @@ def update_panel():
                 return
                 
             subprocess.run(["git", "fetch", "--all"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            
-            # Detect remote default branch
-            branch = "bate"
-            for b in ["bate", "main", "master"]:
-                chk = subprocess.run(["git", "rev-parse", "--verify", f"origin/{b}"], capture_output=True, text=True)
-                if chk.returncode == 0:
-                    branch = b
-                    break
+            branch = detect_remote_branch()
                     
             local_commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
             remote_commit = subprocess.run(["git", "rev-parse", f"origin/{branch}"], capture_output=True, text=True).stdout.strip()
             
             if local_commit == remote_commit:
                 print(f"\n{C_GREEN}当前已是最新版本！{C_END}")
-                ans = input("是否强制拉取并重新覆盖安装？(y/N): ").strip().lower()
+                ans = input("是否强制刷新源码并重建运行环境？(y/N): ").strip().lower()
                 if ans != 'y':
                     return
             else:
                 print(f"\n检测到新版本！本地: {local_commit[:8]}，远程最新: {remote_commit[:8]}")
-                ans = input("是否开始下载并升级重启服务？(Y/n): ").strip().lower()
+                ans = input("是否开始下载并更新面板？(Y/n): ").strip().lower()
                 if ans not in ('', 'y', 'yes'):
                     return
-                    
+
+            print("\n正在停止当前运行实例...")
+            run_service_cmd("stop")
+
             print(f"\n正在强制重置源码至 origin/{branch} ...")
             subprocess.run(["git", "reset", "--hard", f"origin/{branch}"], check=True)
             
             print("清理 Python 编译缓存...")
-            subprocess.run(["find", ".", "-type", "d", "-name", "__pycache__", "-exec", "rm", "-rf", "{}", "+"], check=False)
-            
-            print("正在重新运行一键安装配置...")
-            subprocess.run(["bash", "install.sh"])
-            print(f"\n{C_GREEN}面板升级并重装服务完成！{C_END}")
+            cleanup_python_cache()
+
+            if is_docker_install():
+                print("正在重建并启动 Docker Stack...")
+                docker_compose(["up", "-d", "--build"], check=True)
+            else:
+                print("正在刷新宿主机服务配置...")
+                ensure_host_service()
+                run_service_cmd("restart")
+
+            ensure_global_launcher()
+            print(f"\n{C_GREEN}面板更新完成，配置与运行数据已保留。{C_END}")
             time.sleep(2)
         except Exception as e:
             print(f"升级中发生错误: {e}")
@@ -1045,30 +1266,40 @@ def update_panel():
 def uninstall_panel():
     clear_screen()
     print_header()
-    print(f"\n{C_FAIL}{C_BOLD}⚠️ 警告：完全卸载将停止服务、删除 systemd 守护进程、擦除所有配置、日志及源码！{C_END}")
-    ans = input("是否确认完全卸载？请输入 [y/N]：").strip().lower()
-    if ans == 'y':
-        print("\n正在停止并清理服务进程...", flush=True)
-        stop_service()
-        if shutil.which("systemctl"):
-            subprocess.run(["systemctl", "disable", "aimilivpn.service"], capture_output=True)
-            try: os.unlink("/etc/systemd/system/aimilivpn.service")
-            except Exception: pass
-        elif shutil.which("rc-service"):
-            subprocess.run(["rc-update", "del", "aimilivpn"], capture_output=True)
-            try: os.unlink("/etc/init.d/aimilivpn")
-            except Exception: pass
-            
-        try: os.unlink("/usr/bin/ml")
-        except Exception: pass
-        
-        print("清理移除本地文件目录...")
-        subprocess.run(["rm", "-rf", INSTALL_DIR])
-        print(f"\n{C_GREEN}完全卸载及清理完成！{C_END}")
-        sys.exit(0)
-    else:
+    print(f"\n{C_FAIL}{C_BOLD}警告：完全卸载将删除 AimiliVPN 服务、Docker Stack、Xray、命令入口、配置、日志、缓存和源码目录。{C_END}")
+    print(f"将清理：{INSTALL_DIR}、{DOCKER_INSTALL_DIR}、/usr/bin/ml、AimiliVPN 服务文件、Xray 残留。")
+    ans = input("如确认完全卸载，请输入 YES：").strip()
+    if ans != 'YES':
         print("已取消卸载。")
         time.sleep(1)
+        return
+
+    print("\n正在停止服务与残留进程...", flush=True)
+    run_service_cmd("stop")
+    cleanup_service_files()
+    cleanup_processes()
+
+    print("正在清理 Docker 容器、镜像与编排目录...")
+    cleanup_docker_residuals()
+
+    print("正在清理 Xray Core 与历史配置...")
+    cleanup_xray_residuals()
+
+    print("正在删除命令入口、运行配置、日志和源码目录...")
+    for path in COMMAND_LINKS:
+        safe_remove_path(path)
+    for path in (
+        "/etc/default/aimilivpn",
+        "/etc/sysctl.d/99-aimilivpn.conf",
+        INSTALL_DIR,
+        DOCKER_INSTALL_DIR,
+        "/opt/aimilivpn-docker",
+        *LEGACY_INSTALL_DIRS,
+    ):
+        safe_remove_path(path)
+
+    print(f"\n{C_GREEN}完全卸载及痕迹清理完成。{C_END}")
+    sys.exit(0)
 
 def main():
     if os.getuid() != 0:
@@ -1077,16 +1308,16 @@ def main():
         
     if len(sys.argv) > 1:
         cmd = sys.argv[1].lower()
-        if cmd == "start":
-            start_service()
-        elif cmd == "stop":
-            stop_service()
-        elif cmd == "restart":
-            restart_service()
-        elif cmd == "status":
+        if cmd == "status":
             show_system_status()
         elif cmd == "logs":
             show_logs()
+        elif cmd == "refresh":
+            fetch_and_test_nodes()
+        elif cmd == "nodes":
+            list_and_switch_nodes()
+        elif cmd == "route":
+            configure_routing_mode()
         elif cmd == "update":
             update_panel()
         elif cmd == "uninstall":
@@ -1097,36 +1328,31 @@ def main():
             configure_port()
         elif cmd == "password":
             configure_credentials()
+        elif cmd == "access":
+            show_panel_access()
         else:
-            print("未知命令。可用子命令: start, stop, restart, status, logs, update, uninstall, web, port, password")
+            print("未知命令。可用子命令: status, logs, refresh, nodes, route, update, uninstall, web, port, password, access")
         sys.exit(0)
         
     # Interactive CLI Menu loop
     while True:
         clear_screen()
         print_status_summary()
-        print()
-        print(f" {C_BOLD}# 核心运维{C_END}")
-        print(f"  {C_GREEN}[1]{C_END} 查看系统状态")
-        print(f"  {C_GREEN}[2]{C_END} 启动/停止/重启")
-        print(f"  {C_GREEN}[3]{C_END} 实时运行日志")
-        print()
-        print(f" {C_BOLD}# 节点配置{C_END}")
-        print(f"  {C_GREEN}[4]{C_END} 刷新测试 VPNGate")
-        print(f"  {C_GREEN}[5]{C_END} 查看切换连接节点")
-        print(f"  {C_GREEN}[6]{C_END} 切换出站路由模式")
-        print()
-        print(f" {C_BOLD}# 安全设置{C_END}")
-        print(f"  {C_GREEN}[7]{C_END} 修改网页/代理端口")
-        print(f"  {C_GREEN}[8]{C_END} 修改管理员密码")
-        print(f"  {C_GREEN}[9]{C_END} 查看面板登录信息")
-        print()
-        print(f" {C_BOLD}# 系统维护{C_END}")
-        print(f"  {C_GREEN}[10]{C_END} 在线更新面板")
-        print(f"  {C_GREEN}[11]{C_END} 卸载面板服务")
-        print(f"  {C_GREEN}[0]{C_END} 退出终端")
-        print()
-        print(f"{C_BOLD}{C_CYAN}============================================================{C_END}")
+        print(f"\n{C_BOLD}{C_CYAN}+----------------------------------------------------------+{C_END}")
+        print(f"{C_BOLD}{C_CYAN}|                    AimiliVPN Menu                       |{C_END}")
+        print(f"{C_BOLD}{C_CYAN}+----------------------------------------------------------+{C_END}")
+        print(f"{C_BOLD}  状态与日志{C_END}")
+        print(f"    {C_GREEN}[1]{C_END} 查看系统状态              {C_GREEN}[2]{C_END} 实时运行日志")
+        print(f"{C_BOLD}  节点与路由{C_END}")
+        print(f"    {C_GREEN}[3]{C_END} 刷新测试 VPNGate          {C_GREEN}[4]{C_END} 查看/切换节点")
+        print(f"    {C_GREEN}[5]{C_END} 切换出站路由模式")
+        print(f"{C_BOLD}  面板安全{C_END}")
+        print(f"    {C_GREEN}[6]{C_END} 修改网页/代理端口         {C_GREEN}[7]{C_END} 修改管理员密码")
+        print(f"    {C_GREEN}[8]{C_END} 修改网页登录设置          {C_GREEN}[9]{C_END} 查看登录信息")
+        print(f"{C_BOLD}  维护{C_END}")
+        print(f"    {C_GREEN}[10]{C_END} 在线更新                 {C_FAIL}[11]{C_END} 完全卸载")
+        print(f"    {C_GREEN}[0]{C_END} 退出")
+        print(f"{C_BOLD}{C_CYAN}+----------------------------------------------------------+{C_END}")
         choice = input("请选择操作 [0-11]: ").strip()
         if choice in ('q', 'Q', '0'):
             print(f"\n退出终端菜单，再见！")
@@ -1137,19 +1363,19 @@ def main():
         if choice == '1':
             show_system_status()
         elif choice == '2':
-            control_services()
-        elif choice == '3':
             show_logs()
-        elif choice == '4':
+        elif choice == '3':
             fetch_and_test_nodes()
-        elif choice == '5':
+        elif choice == '4':
             list_and_switch_nodes()
-        elif choice == '6':
+        elif choice == '5':
             configure_routing_mode()
-        elif choice == '7':
+        elif choice == '6':
             configure_port()
-        elif choice == '8':
+        elif choice == '7':
             configure_credentials()
+        elif choice == '8':
+            configure_web()
         elif choice == '9':
             show_panel_access()
         elif choice == '10':
