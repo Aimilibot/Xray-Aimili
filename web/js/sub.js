@@ -407,7 +407,7 @@
                 const expanded = expandedSubscriptionLinks.has(link.id);
                 
                 const actionsHtml = [
-                    actionButton("添加节点", "add", `openCreateLinkModal('${esc(link.id)}')`),
+                    actionButton("添加节点", "add", `openSubscriptionNodeModal('', '${esc(link.id)}', '${esc(link.protocol)}')`),
                     actionButton("复制链接", "copy", `copySubscriptionUrl('${esc(link.id)}')`),
                     actionButton("二维码", "qr", `showSubscriptionLinkQRCode('${esc(link.id)}')`),
                     actionButton("编辑", "edit", `openSubscriptionLinkModal('${esc(link.id)}')`),
@@ -519,11 +519,28 @@
             $("subscription_link_name").value = link ? (link.name || "") : "";
             $("subscription_link_token").value = link ? (link.token || "") : "";
             $("subscription_link_remark").value = link ? (link.remark || "") : "";
+            $("subscription_link_port").value = link ? (link.port || "") : "";
+            $("subscription_link_protocol").value = link ? (link.protocol || "vless-reality") : "vless-reality";
+            $("subscription_link_camouflage").value = link ? (link.camouflage_host || "") : "";
+            $("subscription_link_ws_path").value = link ? (link.ws_path || "/") : "/";
+            
             $("subscription_link_error").style.display = "none";
             $("subscription_link_success").style.display = "none";
+            
+            const titleEl = $("subscription_link_modal_title");
+            if (titleEl) titleEl.textContent = link ? "编辑入站订阅" : "配置入站订阅";
+            
             const btn = $("subscription_link_submit");
-            if (btn) btn.textContent = link ? "保存订阅链接" : "创建订阅链接";
-            if (!link) generateSubscriptionToken();
+            if (btn) btn.textContent = link ? "保存配置" : "创建配置";
+            
+            if (!link) {
+                generateSubscriptionToken();
+                generateSubscriptionLinkPort();
+                generateSubscriptionLinkCamouflage();
+            }
+            
+            handleSubscriptionLinkProtocolChange(link ? (link.protocol || "vless-reality") : "vless-reality");
+            
             const modal = $("subscription-link-modal");
             if (modal) modal.style.display = "flex";
         }
@@ -540,6 +557,39 @@
             input.value = `sub_${randomPart.slice(0, 28)}`;
         }
 
+        function generateSubscriptionLinkPort() {
+            const input = $("subscription_link_port");
+            if (!input) return;
+            let port;
+            const usedPorts = new Set(subscriptionLinks.map(l => parseInt(l.port)).filter(Boolean));
+            do {
+                port = Math.floor(Math.random() * (60000 - 10000 + 1)) + 10000;
+            } while (usedPorts.has(port));
+            input.value = port;
+        }
+
+        function generateSubscriptionLinkCamouflage() {
+            const input = $("subscription_link_camouflage");
+            if (!input) return;
+            const idx = Math.floor(Math.random() * camouflageHosts.length);
+            input.value = camouflageHosts[idx];
+        }
+
+        function handleSubscriptionLinkProtocolChange(protocol) {
+            const camoGroup = $("subscription_link_camouflage_group");
+            const wsGroup = $("subscription_link_ws_path_group");
+            if (protocol === "vless-reality") {
+                if (camoGroup) camoGroup.style.display = "block";
+                if (wsGroup) wsGroup.style.display = "none";
+            } else if (protocol === "vmess-ws-tls") {
+                if (camoGroup) camoGroup.style.display = "block";
+                if (wsGroup) wsGroup.style.display = "block";
+            } else if (protocol === "socks5") {
+                if (camoGroup) camoGroup.style.display = "none";
+                if (wsGroup) wsGroup.style.display = "none";
+            }
+        }
+
         async function saveSubscriptionLink(event) {
             event.preventDefault();
             const err = $("subscription_link_error");
@@ -548,11 +598,16 @@
             err.style.display = "none";
             ok.style.display = "none";
             const existing = subscriptionLinks.find(item => item.id === $("subscription_link_id").value);
+            const protocol = $("subscription_link_protocol").value;
             const payload = {
                 id: $("subscription_link_id").value,
                 name: $("subscription_link_name").value.trim(),
                 token: $("subscription_link_token").value.trim(),
                 remark: $("subscription_link_remark").value.trim(),
+                port: parseInt($("subscription_link_port").value),
+                protocol: protocol,
+                camouflage_host: protocol === "socks5" ? "" : $("subscription_link_camouflage").value.trim(),
+                ws_path: protocol === "vmess-ws-tls" ? $("subscription_link_ws_path").value.trim() : "/",
                 enabled: existing ? existing.enabled !== false : true,
                 created_at: existing ? existing.created_at : ""
             };
@@ -580,7 +635,7 @@
                 err.style.display = "block";
             } finally {
                 btn.disabled = false;
-                btn.textContent = "创建订阅链接";
+                btn.textContent = $("subscription_link_id").value ? "保存配置" : "创建配置";
             }
         }
 
@@ -722,7 +777,10 @@
             const node = subscriptionNodes.find(item => item.id === nodeId) || null;
             const linkId = node ? (node.subscription_id || "") : (preferredLinkId || selectedSubscriptionLinkId);
             const joinSubscription = node ? Boolean(node.subscription_id) : true;
-            const protocol = node ? (node.protocol || "vless-reality") : (preferredProtocol || "vless-reality");
+            
+            const parentLink = subscriptionLinks.find(l => l.id === linkId) || null;
+            const protocol = parentLink ? (parentLink.protocol || "vless-reality") : (node ? (node.protocol || "vless-reality") : (preferredProtocol || "vless-reality"));
+            
             const modalTitle = $("subscription_node_modal_title");
             $("subscription_node_id").value = node ? node.id : "";
             $("subscription_node_join_subscription").checked = joinSubscription;
@@ -730,21 +788,19 @@
             handleSubscriptionJoinChange(joinSubscription);
             $("subscription_node_name").value = node ? (node.name || "") : "";
             $("subscription_node_protocol").value = protocol;
-            $("subscription_node_port").value = node ? (node.port || "") : "";
-            $("subscription_node_camouflage").value = protocol === "socks5" ? "" : (node ? (node.camouflage_host || "") : "");
+            $("subscription_node_port").value = parentLink ? (parentLink.port || "") : (node ? (node.port || "") : "");
+            $("subscription_node_camouflage").value = protocol === "socks5" ? "" : (parentLink ? (parentLink.camouflage_host || "") : (node ? (node.camouflage_host || "") : ""));
             $("subscription_node_uuid").value = protocol === "socks5" ? "" : (node ? (node.uuid || "") : "");
             $("subscription_node_socks_username").value = node ? (node.socks_username || node.username || (protocol === "socks5" ? (node.uuid || "") : "")) : "";
             $("subscription_node_socks_password").value = node ? (node.socks_password || node.password || "") : "";
             $("subscription_node_error").style.display = "none";
             $("subscription_node_success").style.display = "none";
             if (!node) {
-                generateSubscriptionPort();
                 if (protocol === "socks5") {
                     generateSubscriptionSocksCredential("username");
                     generateSubscriptionSocksCredential("password");
                 } else {
                     generateSubscriptionUuid();
-                    generateSubscriptionCamouflage();
                 }
             }
             if (modalTitle && node) modalTitle.textContent = node.subscription_id ? "编辑节点链接" : "编辑独立节点";

@@ -370,60 +370,63 @@ def write_xray_config(cfg: dict) -> bool:
             xray_inbounds.append(inbound_entry)
 
         try:
+            sub_links = read_json_list(SUBSCRIPTION_LINKS_FILE)
             sub_nodes = read_json_list(SUBSCRIPTION_NODES_FILE)
         except Exception:
+            sub_links = []
             sub_nodes = []
 
-        for node in sub_nodes:
-            if not node.get("enabled"):
+        for link in sub_links:
+            if not link.get("enabled"):
                 continue
 
-            protocol = str(node.get("protocol") or "").strip().lower()
-            port = int(node.get("port") or 0)
+            protocol = str(link.get("protocol") or "").strip().lower()
+            port = int(link.get("port") or 0)
             if not port:
                 continue
 
-            name = str(node.get("name") or f"{protocol}-{port}").strip()
-            uuid_value = str(node.get("uuid") or "").strip()
-            camouflage_host = clean_hostname(node.get("camouflage_host"))
+            camouflage_host = clean_hostname(link.get("camouflage_host"))
+            child_nodes = [node for node in sub_nodes if node.get("subscription_id") == link.get("id") and node.get("enabled")]
+            if not child_nodes:
+                continue
+
+            name = str(link.get("name") or f"{protocol}-{port}").strip()
 
             if protocol == "vless-reality":
-                if not uuid_value:
-                    continue
-                private_key = str(node.get("reality_private_key") or "").strip()
-                short_id = str(node.get("reality_short_id") or "").strip()
-                mldsa_seed = str(node.get("reality_mldsa65_seed") or "").strip()
-                spider_x = node.get("reality_spider_x")
+                private_key = str(link.get("reality_private_key") or "").strip()
+                short_id = str(link.get("reality_short_id") or "").strip()
+                mldsa_seed = str(link.get("reality_mldsa65_seed") or "").strip()
+                spider_x = link.get("reality_spider_x")
                 
                 changed = False
                 if not private_key:
                     priv, pub = generate_reality_keys()
                     if priv and pub:
-                        node["reality_private_key"] = priv
-                        node["reality_public_key"] = pub
+                        link["reality_private_key"] = priv
+                        link["reality_public_key"] = pub
                         private_key = priv
                         changed = True
 
                 if not mldsa_seed:
                     seed, verify = generate_mldsa65_keys()
                     if seed and verify:
-                        node["reality_mldsa65_seed"] = seed
-                        node["reality_mldsa65_verify"] = verify
+                        link["reality_mldsa65_seed"] = seed
+                        link["reality_mldsa65_verify"] = verify
                         mldsa_seed = seed
                         changed = True
 
                 if spider_x is None:
                     import random
                     rand_hex = "".join(random.choice("0123456789abcdef") for _ in range(random.randint(8, 16)))
-                    node["reality_spider_x"] = f"/{rand_hex}"
+                    link["reality_spider_x"] = f"/{rand_hex}"
                     spider_x = f"/{rand_hex}"
                     changed = True
 
                 if changed:
-                    write_json(SUBSCRIPTION_NODES_FILE, sub_nodes)
+                    write_json(SUBSCRIPTION_LINKS_FILE, sub_links)
 
                 if not private_key:
-                    xray_event("WARNING", f"节点 {name} 缺少 Reality 私钥，已跳过")
+                    xray_event("WARNING", f"订阅 {name} 缺少 Reality 私钥，已跳过")
                     continue
 
                 reality_settings = {
@@ -442,20 +445,26 @@ def write_xray_config(cfg: dict) -> bool:
                 if mldsa_seed:
                     reality_settings["mldsa65Seed"] = mldsa_seed
 
+                xray_clients = []
+                for node in child_nodes:
+                    uuid_value = str(node.get("uuid") or "").strip()
+                    if uuid_value:
+                        xray_clients.append({
+                            "id": uuid_value,
+                            "flow": "xtls-rprx-vision",
+                            "level": 0,
+                            "email": node.get("name") or "client"
+                        })
+                if not xray_clients:
+                    continue
+
                 inbound_entry = {
                     "listen": "0.0.0.0",
                     "port": port,
                     "protocol": "vless",
-                    "tag": node["id"],
+                    "tag": link["id"],
                     "settings": {
-                        "clients": [
-                            {
-                                "id": uuid_value,
-                                "flow": "xtls-rprx-vision",
-                                "level": 0,
-                                "email": name
-                            }
-                        ],
+                        "clients": xray_clients,
                         "decryption": "none"
                     },
                     "streamSettings": {
@@ -467,9 +476,6 @@ def write_xray_config(cfg: dict) -> bool:
                 xray_inbounds.append(inbound_entry)
 
             elif protocol == "vmess-ws-tls":
-                if not uuid_value:
-                    continue
-
                 ui_cfg = load_ui_config()
                 cert_file = ""
                 key_file = ""
@@ -486,29 +492,35 @@ def write_xray_config(cfg: dict) -> bool:
                             break
 
                 if not cert_file or not key_file or not os.path.exists(cert_file) or not os.path.exists(key_file):
-                    xray_event("WARNING", f"节点 {name} 的 TLS 证书文件不存在，已跳过以防止 Xray 启动失败")
+                    xray_event("WARNING", f"订阅 {name} 的 TLS 证书文件不存在，已跳过以防止 Xray 启动失败")
+                    continue
+
+                xray_clients = []
+                for node in child_nodes:
+                    uuid_value = str(node.get("uuid") or "").strip()
+                    if uuid_value:
+                        xray_clients.append({
+                            "id": uuid_value,
+                            "level": 0,
+                            "alterId": 0,
+                            "email": node.get("name") or "client"
+                        })
+                if not xray_clients:
                     continue
 
                 inbound_entry = {
                     "listen": "0.0.0.0",
                     "port": port,
                     "protocol": "vmess",
-                    "tag": node["id"],
+                    "tag": link["id"],
                     "settings": {
-                        "clients": [
-                            {
-                                "id": uuid_value,
-                                "level": 0,
-                                "alterId": 0,
-                                "email": name
-                            }
-                        ]
+                        "clients": xray_clients
                     },
                     "streamSettings": {
                         "network": "ws",
                         "security": "tls",
                         "wsSettings": {
-                            "path": str(node.get("ws_path") or "/")
+                            "path": str(link.get("ws_path") or "/")
                         },
                         "tlsSettings": {
                             "certificates": [
@@ -523,17 +535,21 @@ def write_xray_config(cfg: dict) -> bool:
                 xray_inbounds.append(inbound_entry)
 
             elif protocol == "socks5":
-                socks_username = str(node.get("socks_username") or node.get("username") or "").strip()
-                socks_password = str(node.get("socks_password") or node.get("password") or "").strip()
+                accounts = []
+                for node in child_nodes:
+                    socks_username = str(node.get("socks_username") or node.get("username") or "").strip()
+                    socks_password = str(node.get("socks_password") or node.get("password") or "").strip()
+                    if socks_username and socks_password:
+                        accounts.append({"user": socks_username, "pass": socks_password})
 
                 inbound_entry = {
                     "listen": "0.0.0.0",
                     "port": port,
                     "protocol": "socks",
-                    "tag": node["id"],
+                    "tag": link["id"],
                     "settings": {
-                        "auth": "password" if (socks_username and socks_password) else "noauth",
-                        "accounts": [{"user": socks_username, "pass": socks_password}] if (socks_username and socks_password) else [],
+                        "auth": "password" if accounts else "noauth",
+                        "accounts": accounts,
                         "udp": True
                     }
                 }
@@ -678,7 +694,18 @@ def write_xray_config(cfg: dict) -> bool:
             inbound_ids = normalize_id_list(rule.get("inbound_node_ids"), rule.get("inbound_node_id"))
             outbound_ids = normalize_id_list(rule.get("outbound_node_ids"), rule.get("outbound_node_id"))
             
-            valid_inbound_ids = [val for val in inbound_ids if val in available_inbound_tags]
+            resolved_inbound_ids = []
+            for ib_id in inbound_ids:
+                if ib_id in available_inbound_tags:
+                    resolved_inbound_ids.append(ib_id)
+                else:
+                    node = next((n for n in sub_nodes if n.get("id") == ib_id), None)
+                    if node:
+                        sub_id = node.get("subscription_id")
+                        if sub_id in available_inbound_tags:
+                            resolved_inbound_ids.append(sub_id)
+            
+            valid_inbound_ids = list(set(resolved_inbound_ids))
             if not valid_inbound_ids:
                 rule["status"] = "error"
                 rule["status_text"] = "入站节点配置已失效，规则已自动禁用"
@@ -1291,12 +1318,11 @@ def sync_panel_subscription_nodes_to_xray(restart_service: bool = True) -> None:
 def migrate_subscription_hierarchy() -> None:
     links = read_json_list(SUBSCRIPTION_LINKS_FILE)
     nodes = read_json_list(SUBSCRIPTION_NODES_FILE)
-    if not nodes:
-        return
-
+    
     changed_links = False
     changed_nodes = False
-    if not links:
+    
+    if not links and nodes:
         default_link = {
             "id": f"sublink-{uuid.uuid4().hex[:12]}",
             "name": "默认订阅",
@@ -1311,12 +1337,36 @@ def migrate_subscription_hierarchy() -> None:
         links.append(default_link)
         changed_links = True
 
-    fallback_link_id = str(links[0].get("id") or "")
-    for item in nodes:
-        if "subscription_id" not in item:
-            item["subscription_id"] = fallback_link_id
-            item["updated_at"] = current_timestamp()
-            changed_nodes = True
+    if links and nodes:
+        fallback_link_id = str(links[0].get("id") or "")
+        for item in nodes:
+            if "subscription_id" not in item:
+                item["subscription_id"] = fallback_link_id
+                item["updated_at"] = current_timestamp()
+                changed_nodes = True
+
+        for link in links:
+            link_id = link.get("id")
+            # Find the first active or first available node under this link to inherit settings
+            first_node = next((n for n in nodes if str(n.get("subscription_id")) == str(link_id)), None)
+            if first_node:
+                if "port" not in link or not link.get("port"):
+                    link["port"] = first_node.get("port") or 10086
+                    changed_links = True
+                if "protocol" not in link or not link.get("protocol"):
+                    link["protocol"] = first_node.get("protocol") or "vless-reality"
+                    changed_links = True
+                
+                fields_to_copy = [
+                    "camouflage_host", "ws_path", 
+                    "reality_private_key", "reality_public_key", 
+                    "reality_short_id", "reality_mldsa65_seed", 
+                    "reality_mldsa65_verify", "reality_spider_x"
+                ]
+                for field in fields_to_copy:
+                    if field in first_node and (field not in link or not link.get(field)):
+                        link[field] = first_node[field]
+                        changed_links = True
 
     if changed_links:
         write_json(SUBSCRIPTION_LINKS_FILE, links)
@@ -1340,6 +1390,7 @@ def validate_subscription_link_payload(payload: dict[str, Any], existing_links: 
     name = str(payload.get("name") or "").strip()
     token = clean_subscription_token(payload.get("token"))
     remark = str(payload.get("remark") or "").strip()
+    protocol = str(payload.get("protocol") or "vless-reality").strip().lower()
 
     if not name:
         return None, "订阅名称不能为空"
@@ -1348,22 +1399,88 @@ def validate_subscription_link_payload(payload: dict[str, Any], existing_links: 
     if not (8 <= len(token) <= 96):
         return None, "订阅 Token 长度必须在 8 至 96 位之间"
 
+    try:
+        port = int(payload.get("port"))
+    except (TypeError, ValueError):
+        return None, "端口必须是数字"
+    if not (1 <= port <= 65535):
+        return None, "端口必须在 1 至 65535 之间"
+
     current_id = str(payload.get("id") or "").strip()
     for item in existing_links:
         item_id = str(item.get("id") or "")
         if item_id != current_id and clean_subscription_token(item.get("token")) == token:
             return None, "订阅 Token 已存在"
+        if item_id != current_id and int(item.get("port") or 0) == port:
+            return None, f"端口 {port} 已被其他订阅占用"
+
+    if protocol not in {item["id"] for item in ALLOWED_SUBSCRIPTION_PROTOCOLS}:
+        return None, f"协议类型不支持: {protocol}"
+
+    camouflage_host = clean_hostname(payload.get("camouflage_host"))
+    ws_path = str(payload.get("ws_path") or "/").strip()
+    if not ws_path.startswith("/"):
+        ws_path = "/" + ws_path
+
+    reality_private_key = str(payload.get("reality_private_key") or "").strip()
+    reality_public_key = str(payload.get("reality_public_key") or "").strip()
+    reality_short_id = str(payload.get("reality_short_id") or "").strip()
+    reality_mldsa65_seed = str(payload.get("reality_mldsa65_seed") or "").strip()
+    reality_mldsa65_verify = str(payload.get("reality_mldsa65_verify") or "").strip()
+    reality_spider_x = str(payload.get("reality_spider_x") or "").strip()
 
     now = current_timestamp()
     link_id = current_id or f"sublink-{uuid.uuid4().hex[:12]}"
+    
+    if current_id:
+        existing = next((l for l in existing_links if l.get("id") == current_id), None)
+        if existing:
+            if not reality_private_key: reality_private_key = existing.get("reality_private_key", "")
+            if not reality_public_key: reality_public_key = existing.get("reality_public_key", "")
+            if not reality_short_id: reality_short_id = existing.get("reality_short_id", "")
+            if not reality_mldsa65_seed: reality_mldsa65_seed = existing.get("reality_mldsa65_seed", "")
+            if not reality_mldsa65_verify: reality_mldsa65_verify = existing.get("reality_mldsa65_verify", "")
+            if not reality_spider_x: reality_spider_x = existing.get("reality_spider_x", "")
+
+    if protocol == "vless-reality":
+        if not camouflage_host:
+            return None, "伪装网址不能为空"
+        if not re.match(r"^[a-z0-9.-]+$", camouflage_host):
+            return None, "伪装网址只允许填写域名"
+
+        if not reality_private_key or not reality_public_key:
+            priv, pub = generate_reality_keys()
+            if priv and pub:
+                reality_private_key = priv
+                reality_public_key = pub
+            else:
+                return None, "生成 Reality 密钥失败，请确保系统已安装 Xray 并具有执行权限。"
+        if not reality_short_id:
+            import secrets
+            reality_short_id = secrets.token_hex(8)
+        if not reality_spider_x:
+            import random
+            rand_hex = "".join(random.choice("0123456789abcdef") for _ in range(random.randint(8, 16)))
+            reality_spider_x = f"/{rand_hex}"
+
     return {
         "id": link_id,
         "name": name,
         "token": token,
         "remark": remark,
+        "port": port,
+        "protocol": protocol,
+        "camouflage_host": camouflage_host,
+        "ws_path": ws_path,
+        "reality_private_key": reality_private_key,
+        "reality_public_key": reality_public_key,
+        "reality_short_id": reality_short_id,
+        "reality_mldsa65_seed": reality_mldsa65_seed,
+        "reality_mldsa65_verify": reality_mldsa65_verify,
+        "reality_spider_x": reality_spider_x,
         "enabled": bool(payload.get("enabled", True)),
         "status": "draft",
-        "status_text": "订阅链接已创建，节点启用后会进入订阅内容",
+        "status_text": "已配置入站服务",
         "created_at": str(payload.get("created_at") or now),
         "updated_at": now,
     }, ""
@@ -1373,6 +1490,9 @@ def save_subscription_link(payload: dict[str, Any]) -> tuple[dict[str, Any] | No
     link, error = validate_subscription_link_payload(payload, links)
     if error or link is None:
         return None, error
+    
+    is_new = not any(item.get("id") == link["id"] for item in links)
+    
     updated = False
     for idx, item in enumerate(links):
         if item.get("id") == link["id"]:
@@ -1382,6 +1502,45 @@ def save_subscription_link(payload: dict[str, Any]) -> tuple[dict[str, Any] | No
     if not updated:
         links.append(link)
     write_json(SUBSCRIPTION_LINKS_FILE, links)
+    
+    if is_new:
+        nodes = read_json_list(SUBSCRIPTION_NODES_FILE)
+        existing_nodes = [n for n in nodes if n.get("subscription_id") == link["id"]]
+        if not existing_nodes:
+            protocol = link["protocol"]
+            uuid_value = ""
+            socks_username = ""
+            socks_password = ""
+            if protocol == "socks5":
+                socks_username = f"user_{uuid.uuid4().hex[:12]}"
+                socks_password = f"pwd_{uuid.uuid4().hex[:12]}"
+            else:
+                uuid_value = str(uuid.uuid4())
+                
+            default_node = {
+                "id": f"subnode-{uuid.uuid4().hex[:12]}",
+                "subscription_id": link["id"],
+                "name": f"默认节点",
+                "protocol": protocol,
+                "port": link["port"],
+                "uuid": uuid_value,
+                "socks_username": socks_username,
+                "socks_password": socks_password,
+                "enabled": True,
+                "outbound_node_id": "",
+                "status": "draft",
+                "status_text": "已生成账号",
+                "created_at": current_timestamp(),
+                "updated_at": current_timestamp(),
+            }
+            nodes.append(default_node)
+            write_json(SUBSCRIPTION_NODES_FILE, nodes)
+            
+    try:
+        sync_panel_subscription_nodes_to_xray(True)
+    except Exception as e:
+        print(f"[ERROR] Syncing after subscription link save failed: {e}", flush=True)
+        
     return link, ""
 
 def ensure_default_subscription_link() -> dict[str, Any]:
@@ -1456,51 +1615,29 @@ def set_subscription_link_enabled(link_id: str, enabled: bool) -> tuple[dict[str
 
 def validate_subscription_node_payload(payload: dict[str, Any], existing_nodes: list[dict[str, Any]]) -> tuple[dict[str, Any] | None, str]:
     subscription_id = str(payload.get("subscription_id") or "").strip()
-    add_to_subscription = bool(payload.get("add_to_subscription", bool(subscription_id)))
+    links = read_json_list(SUBSCRIPTION_LINKS_FILE)
+    if not subscription_id:
+        subscription_id = str(ensure_default_subscription_link().get("id") or "")
+        links = read_json_list(SUBSCRIPTION_LINKS_FILE)
+    
+    link = next((item for item in links if item.get("id") == subscription_id), None)
+    if not link:
+        return None, "订阅链接不存在"
+
     name = str(payload.get("name") or "").strip()
-    protocol = str(payload.get("protocol") or "").strip().lower()
+    if not name:
+        return None, "节点名称不能为空"
+
+    protocol = str(link.get("protocol") or "vless-reality").strip().lower()
+    port = int(link.get("port") or 10086)
+    camouflage_host = clean_hostname(link.get("camouflage_host"))
+
     uuid_value = str(payload.get("uuid") or "").strip()
-    camouflage_host = clean_hostname(payload.get("camouflage_host"))
     socks_username = clean_proxy_credential(payload.get("socks_username") or payload.get("username"))
     socks_password = clean_proxy_credential(payload.get("socks_password") or payload.get("password"))
 
-    if add_to_subscription:
-        links = read_json_list(SUBSCRIPTION_LINKS_FILE)
-        if not subscription_id:
-            subscription_id = str(ensure_default_subscription_link().get("id") or "")
-            links = read_json_list(SUBSCRIPTION_LINKS_FILE)
-        if not any(item.get("id") == subscription_id for item in links):
-            return None, "订阅链接不存在"
-    else:
-        subscription_id = ""
-    if not name:
-        return None, "节点名称不能为空"
-    if protocol not in {item["id"] for item in ALLOWED_SUBSCRIPTION_PROTOCOLS}:
-        return None, "协议类型不支持"
-
-    try:
-        port = int(payload.get("port"))
-    except (TypeError, ValueError):
-        return None, "端口必须是数字"
-    if not (1 <= port <= 65535):
-        return None, "端口必须在 1 至 65535 之间"
-
-    current_id = str(payload.get("id") or "")
-    for item in existing_nodes:
-        if str(item.get("id") or "") != current_id and int(item.get("port") or 0) == port:
-            return None, f"端口 {port} 已被其他订阅节点占用"
-
-    existing_node = None
-    if current_id:
-        existing_node = next((n for n in existing_nodes if n.get("id") == current_id), None)
-
-    reality_private_key = ""
-    reality_public_key = ""
-    reality_short_id = ""
-
     if protocol == "socks5":
         uuid_value = ""
-        camouflage_host = ""
         if not socks_username:
             socks_username = f"user_{uuid.uuid4().hex[:12]}"
         if not socks_password:
@@ -1519,35 +1656,8 @@ def validate_subscription_node_payload(payload: dict[str, Any], existing_nodes: 
         except ValueError:
             return None, "UUID 格式不正确"
 
-        if not camouflage_host:
-            return None, "伪装网址不能为空"
-        if camouflage_host and not re.match(r"^[a-z0-9.-]+$", camouflage_host):
-            return None, "伪装网址只允许填写域名"
-
-        if protocol == "vless-reality":
-            if existing_node and existing_node.get("protocol") == "vless-reality":
-                reality_private_key = existing_node.get("reality_private_key", "")
-                reality_public_key = existing_node.get("reality_public_key", "")
-                reality_short_id = existing_node.get("reality_short_id", "")
-            
-            if not reality_private_key or not reality_public_key:
-                priv, pub = generate_reality_keys()
-                if priv and pub:
-                    reality_private_key = priv
-                    reality_public_key = pub
-                else:
-                    return None, "生成 Reality 密钥失败，请确保系统已安装 Xray 并具有执行权限。"
-            
-            if not reality_short_id:
-                import secrets
-                try:
-                    reality_short_id = secrets.token_hex(8)
-                except Exception:
-                    import random
-                    reality_short_id = "".join(random.choice("0123456789abcdef") for _ in range(16))
-
     now = current_timestamp()
-    node_id = current_id or f"subnode-{uuid.uuid4().hex[:12]}"
+    node_id = str(payload.get("id") or "") or f"subnode-{uuid.uuid4().hex[:12]}"
     return {
         "id": node_id,
         "subscription_id": subscription_id,
@@ -1558,9 +1668,6 @@ def validate_subscription_node_payload(payload: dict[str, Any], existing_nodes: 
         "camouflage_host": camouflage_host,
         "socks_username": socks_username,
         "socks_password": socks_password,
-        "reality_private_key": reality_private_key,
-        "reality_public_key": reality_public_key,
-        "reality_short_id": reality_short_id,
         "enabled": bool(payload.get("enabled", True)),
         "outbound_node_id": str(payload.get("outbound_node_id") or ""),
         "status": "draft",
@@ -2508,10 +2615,16 @@ def generate_xray_share_link(inbound: dict, client: dict, host: str) -> str:
     return ""
 
 def generate_panel_node_share_link(node: dict[str, Any], host: str) -> str:
-    protocol = str(node.get("protocol") or "").lower()
-    port = int(node.get("port") or 0)
+    sub_id = node.get("subscription_id")
+    links = read_json_list(SUBSCRIPTION_LINKS_FILE)
+    link = next((l for l in links if l.get("id") == sub_id), None)
+    if not link:
+        return ""
+        
+    protocol = str(link.get("protocol") or node.get("protocol") or "").lower()
+    port = int(link.get("port") or node.get("port") or 0)
     uuid_value = str(node.get("uuid") or "")
-    camouflage_host = clean_hostname(node.get("camouflage_host"))
+    camouflage_host = clean_hostname(link.get("camouflage_host") or node.get("camouflage_host"))
     remark = str(node.get("name") or f"{protocol}-{port}")
 
     if not protocol or not port:
@@ -2529,10 +2642,10 @@ def generate_panel_node_share_link(node: dict[str, Any], host: str) -> str:
             "sni": camouflage_host or "www.microsoft.com",
             "fp": "chrome",
         }
-        public_key = str(node.get("reality_public_key") or node.get("public_key") or "").strip()
-        short_id = str(node.get("reality_short_id") or node.get("short_id") or "").strip()
-        mldsa_verify = str(node.get("reality_mldsa65_verify") or "").strip()
-        spider_x = str(node.get("reality_spider_x") or "/").strip()
+        public_key = str(link.get("reality_public_key") or node.get("reality_public_key") or node.get("public_key") or "").strip()
+        short_id = str(link.get("reality_short_id") or node.get("reality_short_id") or node.get("short_id") or "").strip()
+        mldsa_verify = str(link.get("reality_mldsa65_verify") or node.get("reality_mldsa65_verify") or "").strip()
+        spider_x = str(link.get("reality_spider_x") or node.get("reality_spider_x") or "/").strip()
         
         if public_key:
             params["pbk"] = public_key
@@ -2560,7 +2673,7 @@ def generate_panel_node_share_link(node: dict[str, Any], host: str) -> str:
             "net": "ws",
             "type": "none",
             "host": camouflage_host,
-            "path": str(node.get("ws_path") or "/"),
+            "path": str(link.get("ws_path") or node.get("ws_path") or "/"),
             "tls": "tls",
             "sni": camouflage_host,
         }
