@@ -597,24 +597,18 @@ def write_xray_config(cfg: dict) -> bool:
             "settings": {}
         }
         if cfg.get("require_vpn", False):
-            primary_outbound["streamSettings"] = {
-                "sockopt": {
-                    "interface": outbound_interface
-                }
-            }
+            inject_outbound_sockopt(primary_outbound, outbound_interface)
+
+        vpngate_active_outbound = {
+            "tag": "vpngate-openvpn-active",
+            "protocol": "freedom",
+            "settings": {}
+        }
+        inject_outbound_sockopt(vpngate_active_outbound, outbound_interface)
 
         xray_outbounds = [
             primary_outbound,
-            {
-                "tag": "vpngate-openvpn-active",
-                "protocol": "freedom",
-                "settings": {},
-                "streamSettings": {
-                    "sockopt": {
-                        "interface": outbound_interface
-                    }
-                }
-            }
+            vpngate_active_outbound
         ]
 
         for node in outbound_nodes:
@@ -1759,6 +1753,11 @@ def set_subscription_node_enabled(node_id: str, enabled: bool) -> tuple[dict[str
 def inject_outbound_sockopt(outbound: dict, interface: str) -> None:
     if not interface:
         return
+    import sys
+    if sys.platform.startswith("linux"):
+        from pathlib import Path
+        if not Path(f"/sys/class/net/{interface}").exists():
+            return
     stream_settings = outbound.setdefault("streamSettings", {})
     sockopt = stream_settings.setdefault("sockopt", {})
     sockopt["interface"] = interface
@@ -2274,37 +2273,129 @@ def register_warp_account() -> dict[str, Any]:
     }
 
 def test_warp_via_proxy() -> dict[str, Any]:
-    proxy_url = "http://127.0.0.1:10088"
-    proxy_handler = urllib.request.ProxyHandler({
-        "http": proxy_url,
-        "https": proxy_url
-    })
-    opener = urllib.request.build_opener(proxy_handler)
-    
-    url = "http://ip-api.com/json"
-    start_time = time.time()
+    binary_path = xray_binary_path()
+    if not binary_path:
+        return {"ok": False, "error": "未检测到 Xray Core，无法进行测试"}
+
+    nodes = read_json_list(OUTBOUND_NODES_FILE)
+    node = next((item for item in nodes if item.get("type") == "warp"), None)
+    if not node:
+        return {"ok": False, "error": "WARP 配置不存在，请先注册设备"}
+
+    peer_pub = node.get("peer_public_key") or ""
+    private_key = node.get("private_key") or ""
+    addresses = node.get("addresses") or []
+    endpoint = node.get("endpoint") or "engage.cloudflareclient.com:2408"
+
+    if not peer_pub or not private_key or not addresses:
+        return {"ok": False, "error": "WARP 出站节点配置不完整，请先重新注册设备"}
+
+    warp_outbound = {
+        "protocol": "wireguard",
+        "settings": {
+            "secretKey": private_key,
+            "address": addresses,
+            "peers": [
+                {
+                    "publicKey": peer_pub,
+                    "endpoint": endpoint
+                }
+            ]
+        },
+        "tag": "test-warp"
+    }
+
+    cfg = load_xray_cfg()
+    outbound_interface = str(cfg.get("outbound_interface") or "tun0")
+    if cfg.get("require_vpn", False):
+        inject_outbound_sockopt(warp_outbound, outbound_interface)
+
+    port = free_local_port()
+    config_path = DATA_DIR / f"xray_warp_test_{uuid.uuid4().hex[:8]}.json"
+    test_config = {
+        "log": {"loglevel": "warning"},
+        "inbounds": [
+            {
+                "listen": "127.0.0.1",
+                "port": port,
+                "protocol": "http",
+                "settings": {"timeout": 10},
+                "tag": "test-http"
+            }
+        ],
+        "outbounds": [warp_outbound],
+        "routing": {
+            "rules": [
+                {
+                    "type": "field",
+                    "inboundTag": ["test-http"],
+                    "outboundTag": "test-warp"
+                }
+            ]
+        }
+    }
+
+    proc: subprocess.Popen[str] | None = None
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with opener.open(req, timeout=10) as response:
-            latency = int((time.time() - start_time) * 1000)
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(test_config, f, ensure_ascii=False, indent=2)
+        proc = subprocess.Popen(
+            [binary_path, "run", "-config", str(config_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=str(ROOT_DIR),
+        )
+        time.sleep(1.2)
+        if proc.poll() is not None:
+            output = ""
+            try:
+                output = (proc.stdout.read() if proc.stdout else "")[-1200:]
+            except Exception:
+                pass
+            return {"ok": False, "error": diagnose_xray_failure(output.splitlines(), "测试 Xray 进程启动失败")}
+
+        proxy_url = f"http://127.0.0.1:{port}"
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}))
+        started = time.time()
+        req = urllib.request.Request("http://ip-api.com/json", headers={"User-Agent": "Mozilla/5.0"})
+        with opener.open(req, timeout=12) as response:
+            latency = int((time.time() - started) * 1000)
             data = json.loads(response.read().decode("utf-8"))
-            if data.get("status") == "success":
-                return {
-                    "ok": True,
-                    "ip": data.get("query", ""),
-                    "location": f"{data.get('country', '')} {data.get('city', '')}".strip(),
-                    "latency_ms": latency
-                }
-            else:
-                return {
-                    "ok": False,
-                    "error": data.get("message", "IP lookup failed")
-                }
+        if data.get("status") == "success":
+            return {
+                "ok": True,
+                "ip": data.get("query", ""),
+                "location": f"{data.get('country', '')} {data.get('city', '')}".strip(),
+                "latency_ms": latency
+            }
+        else:
+            return {
+                "ok": False,
+                "error": data.get("message", "IP lookup failed")
+            }
     except Exception as e:
         return {
             "ok": False,
             "error": f"请求超时或失败: {e}"
         }
+    finally:
+        if proc and proc.poll() is None:
+            try:
+                proc.terminate()
+                proc.wait(timeout=2)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+        try:
+            config_path.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 def free_local_port() -> int:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -228,7 +228,7 @@
                         const checked = selectedOutbounds.has(out.id) || (selectedOutbounds.size === 0 && out.id === "vpn-out") ? "checked" : "";
                         return `
                             <label class="flex items-center gap-2 py-1.5 px-3 bg-glass/40 border border-border rounded-xl cursor-pointer hover:border-primary/60 transition-all select-none">
-                                <input type="checkbox" name="routing_outbound" value="${esc(out.id)}" ${checked} class="rounded border-border text-primary focus:ring-primary w-4 h-4">
+                                <input type="radio" name="routing_outbound" value="${esc(out.id)}" ${checked} class="rounded-full border-border text-primary focus:ring-primary w-4 h-4">
                                 <span class="text-[13px] font-semibold text-text">${esc(out.name)}</span>
                             </label>
                         `;

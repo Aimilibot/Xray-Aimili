@@ -703,46 +703,42 @@
       </div>
       <form id="routing-rule-form" onsubmit="saveRoutingRule(event)">
         <input type="hidden" id="routing_rule_id">
-        <div class="flex flex-col gap-5">
+        <div class="flex flex-col gap-4">
           <div>
-            <label for="routing_rule_name" class="block text-[13px] font-semibold text-muted mb-2.5">规则名称</label>
+            <label for="routing_rule_name" class="block text-[13px] font-semibold text-muted mb-2">规则名称</label>
             <input id="routing_rule_name" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="例如 Netflix 走 WARP" required>
           </div>
           
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label class="block text-[13px] font-semibold text-muted mb-2.5">📥 选择入站 (多选来源)</label>
-              <div id="routing_rule_inbound_pills" class="flex flex-wrap gap-2 max-h-[160px] overflow-y-auto p-2 bg-[rgba(255,255,255,0.02)] border border-[color-mix(in_srgb,var(--border)_40%,transparent)] rounded-2xl min-h-[60px] items-start align-top"></div>
-              <p class="text-[11px] text-muted mt-2">当流量来自勾选的入站服务时触发规则。</p>
-            </div>
-            <div>
-              <label class="block text-[13px] font-semibold text-muted mb-2.5">📤 选择出站 (多选出口)</label>
-              <div id="routing_rule_outbound_pills" class="flex flex-wrap gap-2 max-h-[160px] overflow-y-auto p-2 bg-[rgba(255,255,255,0.02)] border border-[color-mix(in_srgb,var(--border)_40%,transparent)] rounded-2xl min-h-[60px] items-start align-top"></div>
-              <p class="text-[11px] text-muted mt-2">将匹配的流量重定向到勾选的出站代理口。</p>
-            </div>
+          <div>
+            <label class="block text-[13px] font-semibold text-muted mb-2">📥 选择入站 (可多选)</label>
+            <div id="routing_rule_inbound_pills" class="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto p-2 bg-[rgba(255,255,255,0.02)] border border-[color-mix(in_srgb,var(--border)_40%,transparent)] rounded-2xl min-h-[50px] items-start align-top"></div>
+          </div>
+
+          <div>
+            <label class="block text-[13px] font-semibold text-muted mb-2">📤 选择出站 (单选出口)</label>
+            <div id="routing_rule_outbound_pills" class="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto p-2 bg-[rgba(255,255,255,0.02)] border border-[color-mix(in_srgb,var(--border)_40%,transparent)] rounded-2xl min-h-[50px] items-start align-top"></div>
           </div>
           
           <div class="border-t border-[color-mix(in_srgb,var(--border)_30%,transparent)] pt-4 mt-1">
             <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
-              <label class="block text-[13px] font-semibold text-muted">🎯 匹配流量条件 (留空默认“全部流量”)</label>
+              <label class="block text-[13px] font-semibold text-muted">🎯 流量匹配规则 (留空为全部流量)</label>
               <div id="routing_rule_match_hint" class="text-xs text-muted font-medium bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] py-0.5 px-2.5 rounded-lg border border-[color-mix(in_srgb,var(--primary)_15%,transparent)]"></div>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div class="flex flex-col gap-2">
                 <span class="text-xs font-bold text-text flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-second" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg> 域名 / 网址 (Domain)</span>
-                <textarea id="routing_match_domain_values" rows="3" oninput="updateRoutingStatusHint()" class="w-full py-2.5 px-3 bg-glass border border-border rounded-xl text-text text-[13px] outline-none font-mono focus:border-primary resize-none placeholder-[rgba(255,255,255,0.25)]" placeholder="例如: netflix.com, nflxvideo.net"></textarea>
+                <textarea id="routing_match_domain_values" rows="3" oninput="updateRoutingStatusHint()" class="w-full py-2.5 px-3 bg-glass border border-border rounded-xl text-text text-[13px] outline-none font-mono focus:border-primary resize-none placeholder-muted/70" placeholder="例如: netflix.com, nflxvideo.net"></textarea>
               </div>
               <div class="flex flex-col gap-2">
                 <span class="text-xs font-bold text-text flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-third" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg> IP 地址 (IP)</span>
-                <textarea id="routing_match_ip_values" rows="3" oninput="updateRoutingStatusHint()" class="w-full py-2.5 px-3 bg-glass border border-border rounded-xl text-text text-[13px] outline-none font-mono focus:border-primary resize-none placeholder-[rgba(255,255,255,0.25)]" placeholder="例如: 1.1.1.1, 192.168.0.0/16"></textarea>
+                <textarea id="routing_match_ip_values" rows="3" oninput="updateRoutingStatusHint()" class="w-full py-2.5 px-3 bg-glass border border-border rounded-xl text-text text-[13px] outline-none font-mono focus:border-primary resize-none placeholder-muted/70" placeholder="例如: 1.1.1.1, 192.168.0.0/16"></textarea>
               </div>
               <div class="flex flex-col gap-2">
                 <span class="text-xs font-bold text-text flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-warning" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg> 端口 (Port)</span>
-                <textarea id="routing_match_port_values" rows="3" oninput="updateRoutingStatusHint()" class="w-full py-2.5 px-3 bg-glass border border-border rounded-xl text-text text-[13px] outline-none font-mono focus:border-primary resize-none placeholder-[rgba(255,255,255,0.25)]" placeholder="例如: 80, 443, 1000-2000"></textarea>
+                <textarea id="routing_match_port_values" rows="3" oninput="updateRoutingStatusHint()" class="w-full py-2.5 px-3 bg-glass border border-border rounded-xl text-text text-[13px] outline-none font-mono focus:border-primary resize-none placeholder-muted/70" placeholder="例如: 80, 443, 1000-2000"></textarea>
               </div>
             </div>
-            <p class="text-[11px] text-muted mt-2">使用英文逗号、空格、分号或换行来分隔多个条件项目。</p>
           </div>
         </div>
         <div id="routing_rule_error" class="service-alert" style="display:none"></div>
