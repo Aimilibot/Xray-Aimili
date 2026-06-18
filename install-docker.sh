@@ -22,6 +22,7 @@ if [ -r /dev/tty ] && [ -w /dev/tty ]; then
     TTY_DEVICE="/dev/tty"
 fi
 PERSIST_BACKUP_DIR=""
+STALE_INSTALL_BACKUP=""
 
 ensure_safe_install_dir() {
     case "$INSTALL_DIR" in
@@ -65,6 +66,14 @@ restore_persistent_data() {
     rm -rf "$PERSIST_BACKUP_DIR"
     PERSIST_BACKUP_DIR=""
     echo -e "${GREEN}  -> 已恢复原有 Docker 配置与数据。${PLAIN}"
+}
+
+move_stale_install_dir() {
+    ensure_safe_install_dir
+    local backup_path="${INSTALL_DIR}.bak.$(date +%Y%m%d%H%M%S)"
+    mv "$INSTALL_DIR" "$backup_path"
+    STALE_INSTALL_BACKUP="$backup_path"
+    echo -e "${YELLOW}  -> 已将旧安装目录移动到 ${backup_path}，不会删除原数据。${PLAIN}"
 }
 
 prompt_read() {
@@ -304,10 +313,9 @@ cleanup_existing_install() {
 deploy_source() {
     echo -e "\n${YELLOW}[5/6] 正在部署源码到 ${INSTALL_DIR}...${PLAIN}"
     
-    if [ -d "$INSTALL_DIR" ] && [ ! -d "${INSTALL_DIR}/.git" ] && [ ! -f "${INSTALL_DIR}/docker-compose.yml" ]; then
-        echo -e "  -> 检测到非空且非有效安装目录 ${INSTALL_DIR}，正在清理以重新克隆..."
-        ensure_safe_install_dir
-        rm -rf "$INSTALL_DIR"
+    if [ -d "$INSTALL_DIR" ] && [ ! -d "${INSTALL_DIR}/.git" ]; then
+        echo -e "  -> 检测到 ${INSTALL_DIR} 不是 Git 仓库，正在移动旧目录后重新克隆源码..."
+        move_stale_install_dir
     fi
 
     if [ -d "${INSTALL_DIR}/.git" ]; then
@@ -320,9 +328,6 @@ deploy_source() {
             git checkout "$DEPLOY_BRANCH" || true
             git pull origin "$DEPLOY_BRANCH" || true
         fi
-    elif [ -d "$INSTALL_DIR" ] && [ -f "${INSTALL_DIR}/docker-compose.yml" ]; then
-        echo -e "${YELLOW}  -> 检测到已有非 Git 安装目录，将直接复用。${PLAIN}"
-        cd "$INSTALL_DIR"
     else
         mkdir -p "$(dirname "$INSTALL_DIR")"
         git clone -b "$DEPLOY_BRANCH" "$GITHUB_URL" "$INSTALL_DIR" || git clone "$GITHUB_URL" "$INSTALL_DIR"
