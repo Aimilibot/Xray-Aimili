@@ -66,8 +66,8 @@
         let nodes = [], state = {}, testingNodeIds = new Set(), stats_cache = null;
         let featureGates = {
             vpngate_enabled: false,
-            warp_enabled: false,
-            custom_enabled: false
+            warp_enabled: true,
+            custom_enabled: true
         };
         let currentPage = 1;
         const pageSize = 11;
@@ -205,10 +205,20 @@
 
         function renderFeatureGateSwitches() {
             Object.keys(featureGates).forEach(key => {
-                const input = document.getElementById(`feature_${key}`);
-                if (input) input.checked = featureGates[key] === true;
+                document.querySelectorAll(`[data-feature-toggle="${key}"]`).forEach(input => {
+                    input.checked = featureGates[key] === true;
+                });
                 const card = document.querySelector(`[data-feature-card="${key}"]`);
                 if (card) card.classList.toggle("is-enabled", featureGates[key] === true);
+                const btn = document.querySelector(`[data-feature-power="${key}"]`);
+                if (btn) {
+                    const enabled = featureGates[key] === true;
+                    btn.classList.toggle("is-on", enabled);
+                    btn.setAttribute("aria-pressed", enabled ? "true" : "false");
+                    btn.title = enabled ? "关闭" : "启动";
+                    const label = btn.querySelector(".feature-power-label");
+                    if (label) label.textContent = enabled ? "关闭" : "启动";
+                }
             });
         }
 
@@ -227,14 +237,19 @@
                 <div class="feature-disabled-panel">
                     <strong>${esc(title)}</strong>
                     <div>${esc(message)}</div>
-                    ${key ? `<button type="button" class="btn primary" style="margin-top:12px; width:auto;" onclick="setFeatureGate('${key}', true)">开启功能</button>` : ""}
                 </div>
             `;
         }
 
+        async function toggleFeaturePower(key) {
+            await setFeatureGate(key, !isFeatureEnabled(key));
+        }
+
         async function setFeatureGate(key, enabled) {
-            const input = document.getElementById(`feature_${key}`);
-            if (input) input.disabled = true;
+            const inputs = Array.from(document.querySelectorAll(`[data-feature-toggle="${key}"]`));
+            inputs.forEach(input => input.disabled = true);
+            const powerBtn = document.querySelector(`[data-feature-power="${key}"]`);
+            if (powerBtn) powerBtn.disabled = true;
             try {
                 const res = await fetch("./api/features/toggle", {
                     method: "POST",
@@ -244,7 +259,7 @@
                 const data = await res.json();
                 if (!res.ok || !data.ok) {
                     showToast(data.error || "功能开关更新失败", "error");
-                    if (input) input.checked = !enabled;
+                    inputs.forEach(input => input.checked = !enabled);
                     return;
                 }
                 syncFeatureGates(data.features);
@@ -255,10 +270,12 @@
                 if (key === "vpngate_enabled" && enabled) startConnectionPolling();
             } catch (e) {
                 showToast("功能开关请求失败", "error");
-                if (input) input.checked = !enabled;
+                inputs.forEach(input => input.checked = !enabled);
             } finally {
-                if (input) input.disabled = false;
+                inputs.forEach(input => input.disabled = false);
+                if (powerBtn) powerBtn.disabled = false;
                 renderFeatureGateSwitches();
+                if (typeof renderWarpPowerButton === "function") renderWarpPowerButton();
             }
         }
 

@@ -24,19 +24,30 @@
         }
 
         let currentWarpNode = null;
+        const batchTestIconHtml = `<svg viewBox="0 0 24 24"><path d="M4 5h10"/><path d="M4 12h8"/><path d="M4 19h10"/><path d="m16 12 2 2 4-5"/></svg>`;
+
+        function renderWarpPowerButton() {
+            const btn = document.querySelector(`[data-feature-power="warp_enabled"]`);
+            if (!btn) return;
+            const isOn = !!currentWarpNode && isFeatureEnabled("warp_enabled");
+            btn.classList.toggle("is-on", isOn);
+            btn.setAttribute("aria-pressed", isOn ? "true" : "false");
+            btn.title = isOn ? "关闭" : "启动";
+            const label = btn.querySelector(".feature-power-label");
+            if (label) label.textContent = isOn ? "关闭" : "启动";
+        }
 
         async function loadWarpState() {
             if (!isFeatureEnabled("warp_enabled")) {
                 currentWarpNode = null;
                 const emptyState = $("warp_empty_state");
                 const detailsState = $("warp_details_state");
-                const btnDelete = $("btn_delete_warp");
                 if (emptyState) {
                     emptyState.style.display = "block";
-                    emptyState.innerHTML = featureDisabledHtml("Cloudflare WARP 未开启", "打开开关后才会注册 WARP 账号并加载出站配置。", "warp_enabled");
+                    emptyState.innerHTML = featureDisabledHtml("Cloudflare WARP 未启动", "点击右上角启动后会自动创建并测试 WARP 出站。", "warp_enabled");
                 }
                 if (detailsState) detailsState.style.display = "none";
-                if (btnDelete) btnDelete.style.display = "none";
+                renderWarpPowerButton();
                 return;
             }
             try {
@@ -47,12 +58,10 @@
 
                 const emptyState = $("warp_empty_state");
                 const detailsState = $("warp_details_state");
-                const btnDelete = $("btn_delete_warp");
 
                 if (currentWarpNode) {
                     emptyState.style.display = "none";
                     detailsState.style.display = "block";
-                    btnDelete.style.display = "inline-block";
                     toggleEditWarpEndpoint(false);
 
                     $("warp_ipv4_val").textContent = (currentWarpNode.addresses || []).find(ip => !ip.includes(":")) || "无";
@@ -63,41 +72,35 @@
                     const enabled = currentWarpNode.enabled !== false;
                     const statusVal = $("warp_status_val");
                     statusVal.className = "detail-value status-badge " + (enabled ? "active" : "inactive");
-                    statusVal.innerHTML = `<span class="status-dot"></span>${enabled ? "已启用" : "已停用"}`;
-
-                    $("btn_toggle_warp").textContent = enabled ? "停用" : "启用";
-                    $("btn_toggle_warp").className = "btn btn-sm " + (enabled ? "btn-secondary" : "");
+                    statusVal.innerHTML = `<span class="status-dot"></span>${enabled ? "已启动" : "未启动"}`;
                 } else {
                     emptyState.style.display = "block";
+                    emptyState.textContent = "WARP 尚未创建。点击右上角启动后会自动注册并测试。";
                     detailsState.style.display = "none";
-                    btnDelete.style.display = "none";
                 }
+                renderWarpPowerButton();
             } catch (e) {
                 console.error("加载 WARP 状态失败", e);
+                renderWarpPowerButton();
             }
         }
 
-        async function registerWarpNode() {
+        async function registerWarpNode(options = {}) {
             if (!isFeatureEnabled("warp_enabled")) {
                 showToast("请先开启 Cloudflare WARP 功能", "warning");
                 return;
             }
             const isRebuild = !!currentWarpNode;
-            if (isRebuild && !confirm("确定要重建 WARP 配置吗？现有设备密钥将被替换。")) {
+            if (isRebuild && !options.skipConfirm && !confirm("确定要重建 WARP 配置吗？现有设备密钥将被替换。")) {
                 return;
             }
 
-            const btnReg = $("btn_register_warp");
-            const btnRebuild = $("btn_rebuild_warp");
-            const originalRegText = btnReg.textContent;
-            const originalRebuildText = btnRebuild ? btnRebuild.textContent : "";
+            const powerBtn = document.querySelector(`[data-feature-power="warp_enabled"]`);
+            const label = powerBtn ? powerBtn.querySelector(".feature-power-label") : null;
+            const originalLabel = label ? label.textContent : "";
 
-            btnReg.disabled = true;
-            btnReg.textContent = "注册中...";
-            if (btnRebuild) {
-                btnRebuild.disabled = true;
-                btnRebuild.textContent = "注册中...";
-            }
+            if (powerBtn) powerBtn.disabled = true;
+            if (label) label.textContent = "启动中";
 
             try {
                 const res = await fetch("./api/panel/outbound-nodes/warp/register", {
@@ -111,63 +114,31 @@
                 }
                 showToast(data.message || "WARP 注册成功", "success");
                 await loadWarpState();
+                if (options.autoTest !== false) {
+                    await testWarpNode();
+                }
             } catch (e) {
                 showToast("无法连接后端注册接口: " + e, "error");
             } finally {
-                btnReg.disabled = false;
-                btnReg.textContent = originalRegText;
-                if (btnRebuild) {
-                    btnRebuild.disabled = false;
-                    btnRebuild.textContent = originalRebuildText;
-                }
+                if (powerBtn) powerBtn.disabled = false;
+                if (label) label.textContent = originalLabel || (isFeatureEnabled("warp_enabled") ? "关闭" : "启动");
+                renderFeatureGateSwitches();
             }
         }
 
-        async function toggleWarpNode() {
+        async function toggleWarpFeaturePower() {
+            if (currentWarpNode && isFeatureEnabled("warp_enabled")) {
+                await setFeatureGate("warp_enabled", false);
+                currentWarpNode = null;
+                await loadWarpState();
+                return;
+            }
             if (!isFeatureEnabled("warp_enabled")) {
-                showToast("请先开启 Cloudflare WARP 功能", "warning");
-                return;
+                await setFeatureGate("warp_enabled", true);
             }
-            if (!currentWarpNode) return;
-            const targetState = !(currentWarpNode.enabled !== false);
-            try {
-                const res = await fetch("./api/panel/outbound-nodes/toggle", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: currentWarpNode.id, enabled: targetState })
-                });
-                const data = await res.json();
-                if (!res.ok || !data.ok) {
-                    showToast(data.error || "更新 WARP 节点状态失败", "error");
-                    return;
-                }
-                showToast(targetState ? "WARP 已启用" : "WARP 已停用", "success");
-                await loadWarpState();
-            } catch (e) {
-                showToast("连接接口失败", "error");
-            }
-        }
-
-        async function deleteWarpNode() {
-            if (!currentWarpNode) return;
-            if (!confirm("确定要删除 WARP 出站节点吗？所有使用此出站的路由规则也将失效。")) {
-                return;
-            }
-            try {
-                const res = await fetch("./api/panel/outbound-nodes/delete", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: currentWarpNode.id })
-                });
-                const data = await res.json();
-                if (!res.ok || !data.ok) {
-                    showToast(data.error || "删除 WARP 节点失败", "error");
-                    return;
-                }
-                showToast(data.message || "WARP 节点已成功删除", "success");
-                await loadWarpState();
-            } catch (e) {
-                showToast("连接接口失败", "error");
+            await loadWarpState();
+            if (!currentWarpNode) {
+                await registerWarpNode({ skipConfirm: true, autoTest: true });
             }
         }
 
@@ -178,9 +149,11 @@
             }
             const btnTest = $("btn_test_warp");
             const testIpVal = $("warp_test_ip_val");
-            btnTest.disabled = true;
-            testIpVal.textContent = "测试中...";
-            testIpVal.style.color = "var(--muted)";
+            if (btnTest) btnTest.disabled = true;
+            if (testIpVal) {
+                testIpVal.textContent = "测试中...";
+                testIpVal.style.color = "var(--muted)";
+            }
 
             try {
                 const res = await fetch("./api/panel/outbound-nodes/warp/test", {
@@ -189,17 +162,23 @@
                 });
                 const data = await res.json();
                 if (res.ok && data.ok) {
-                    testIpVal.textContent = `${data.ip} (${data.location}) - 延迟: ${data.latency_ms}ms`;
-                    testIpVal.style.color = "var(--second)";
+                    if (testIpVal) {
+                        testIpVal.textContent = `${data.ip} (${data.location}) - 延迟: ${data.latency_ms}ms`;
+                        testIpVal.style.color = "var(--second)";
+                    }
                 } else {
-                    testIpVal.textContent = "测试失败: " + (data.error || "未知原因");
-                    testIpVal.style.color = "var(--warning)";
+                    if (testIpVal) {
+                        testIpVal.textContent = "测试失败: " + (data.error || "未知原因");
+                        testIpVal.style.color = "var(--warning)";
+                    }
                 }
             } catch (e) {
-                testIpVal.textContent = "连接测试接口失败: " + e;
-                testIpVal.style.color = "var(--warning)";
+                if (testIpVal) {
+                    testIpVal.textContent = "连接测试接口失败: " + e;
+                    testIpVal.style.color = "var(--warning)";
+                }
             } finally {
-                btnTest.disabled = false;
+                if (btnTest) btnTest.disabled = false;
             }
         }
 
@@ -249,7 +228,7 @@
                 outboundNodes = outboundNodes.filter(item => item.type === "warp");
                 if (disabledState) {
                     disabledState.style.display = "block";
-                    disabledState.innerHTML = featureDisabledHtml("自定义节点未开启", "打开开关后才会加载订阅/分享链接解析和 JSON 出站配置。", "custom_enabled");
+                    disabledState.innerHTML = featureDisabledHtml("自定义节点未启动", "点击右上角启动后会加载节点解析和 JSON 出站配置。", "custom_enabled");
                 }
                 if (table) table.style.display = "none";
                 return;
@@ -304,7 +283,6 @@
                         <td>
                             <div class="flex gap-2 justify-end flex-wrap">
                                 <button type="button" class="min-h-[30px] py-1 px-3 text-[11.5px] w-auto rounded-xl bg-glass border border-border text-text shadow-none hover:bg-glass-strong hover:shadow-none inline-flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed" onclick="testOutboundNode('${esc(node.id)}')" style="width:auto;">测试</button>
-                                <button type="button" class="min-h-[30px] py-1 px-3 text-[11.5px] w-auto rounded-xl bg-glass border border-border text-text shadow-none hover:bg-glass-strong hover:shadow-none inline-flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed" onclick="toggleOutboundNode('${esc(node.id)}', ${enabled ? "false" : "true"})" style="width:auto;">${enabled ? "停用" : "启用"}</button>
                                 <button type="button" class="min-h-[30px] py-1 px-3 text-[11.5px] w-auto rounded-xl bg-glass border border-border text-text shadow-none hover:bg-glass-strong hover:shadow-none inline-flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed" onclick="editOutboundNode('${esc(node.id)}')" style="width:auto;">编辑</button>
                                 <button type="button" class="min-h-[30px] py-1 px-3 text-[11.5px] w-auto rounded-xl bg-gradient-to-br from-[#ff5370] to-danger text-white border-none shadow-[0_12px_24px_rgba(255,83,112,0.24)] transition-all duration-[280ms] ease-in-out inline-flex justify-center items-center gap-2 hover:translate-y-[-2px] hover:shadow-[0_14px_28px_rgba(255,83,112,0.32)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed" onclick="deleteOutboundNode('${esc(node.id)}')" style="width:auto;">删除</button>
                             </div>
@@ -443,7 +421,7 @@
                 name: $("outbound_node_name").value.trim(),
                 type: "json-config",
                 json_config: jsonVal,
-                enabled: existing ? existing.enabled !== false : false
+                enabled: existing ? existing.enabled !== false : true
             };
             btn.disabled = true;
             btn.textContent = "添加中...";
@@ -582,7 +560,7 @@
             // Render active node details card
             const activeCardContainer = $("active_node_card");
             if (!vpngateFeatureEnabled) {
-                activeCardContainer.innerHTML = featureDisabledHtml("VPNGate 公益节点未开启", "打开开关后才会同步公益节点、检测可用出口并允许启动 OpenVPN。", "vpngate_enabled");
+                activeCardContainer.innerHTML = featureDisabledHtml("VPNGate 公益节点未启动", "点击右上角启动后会同步公益节点、检测可用出口并允许启动 OpenVPN。", "vpngate_enabled");
             } else if (state.is_connecting && !activeNode) {
                 activeCardContainer.innerHTML = `
                     <div class="active-card" style="border-color: var(--yellow); box-shadow: 0 8px 32px rgba(255, 159, 10, 0.12);">
@@ -909,7 +887,7 @@
 
             const btn = $("btn_batch_test");
             btn.disabled = true;
-            btn.innerHTML = `<svg style="animation: spin 1s linear infinite; width: 14px; height: 14px; display: inline-block; margin-right: 6px; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.2" fill="none"></circle><path d="M4 12a8 8 0 018-8" stroke="currentColor" fill="none"></path></svg>测试中...`;
+            btn.innerHTML = `<svg style="animation: spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.2" fill="none"></circle><path d="M4 12a8 8 0 018-8" stroke="currentColor" fill="none"></path></svg>`;
 
             pageNodes.forEach(n => testingNodeIds.add(n.id));
             render();
@@ -937,7 +915,7 @@
             stableSortNodes();
             render();
             btn.disabled = false;
-            btn.textContent = "批量测试本页";
+            btn.innerHTML = batchTestIconHtml;
         };
 
         const searchInput = $("search");

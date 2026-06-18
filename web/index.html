@@ -160,40 +160,6 @@
             </div>
           </div>
 
-          <!-- 功能开关 -->
-          <div class="feature-gate-grid" aria-label="功能开关">
-            <div class="feature-gate-card" data-feature-card="vpngate_enabled">
-              <div>
-                <strong>VPNGate 公益节点</strong>
-                <span class="desc">开启后同步公益节点并允许启动 OpenVPN 出口</span>
-              </div>
-              <label class="switch-toggle" title="开启或关闭 VPNGate 公益节点">
-                <input type="checkbox" id="feature_vpngate_enabled" onchange="setFeatureGate('vpngate_enabled', this.checked)">
-                <span></span>
-              </label>
-            </div>
-            <div class="feature-gate-card" data-feature-card="warp_enabled">
-              <div>
-                <strong>Cloudflare WARP</strong>
-                <span class="desc">开启后才注册、测试和写入 WARP 出站</span>
-              </div>
-              <label class="switch-toggle" title="开启或关闭 Cloudflare WARP">
-                <input type="checkbox" id="feature_warp_enabled" onchange="setFeatureGate('warp_enabled', this.checked)">
-                <span></span>
-              </label>
-            </div>
-            <div class="feature-gate-card" data-feature-card="custom_enabled">
-              <div>
-                <strong>自定义节点</strong>
-                <span class="desc">开启后才加载订阅/分享链接解析与自定义出站</span>
-              </div>
-              <label class="switch-toggle" title="开启或关闭自定义节点">
-                <input type="checkbox" id="feature_custom_enabled" onchange="setFeatureGate('custom_enabled', this.checked)">
-                <span></span>
-              </label>
-            </div>
-          </div>
-
           <div id="xray_error_box" class="service-alert" style="display:none;"></div>
 
           <div class="service-grid">
@@ -273,8 +239,12 @@
                 <p class="text-muted text-[13px] leading-relaxed">公益 OpenVPN 出口池，选择可用节点后作为落地 IP。</p>
               </div>
               <div class="flex gap-2.5 items-center flex-wrap">
-                <button onclick="openOpenvpnRoutingModal()" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text">OpenVPN 路由设置</button>
-                <button id="btn_batch_test" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text">批量测试本页</button>
+                <button type="button" data-feature-power="vpngate_enabled" onclick="toggleFeaturePower('vpngate_enabled')" class="feature-power-btn" aria-pressed="false">
+                  <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
+                  <span class="feature-power-label">启动</span>
+                </button>
+                <button onclick="openOpenvpnRoutingModal()" title="OpenVPN 路由设置" aria-label="OpenVPN 路由设置" class="icon-only-btn"><svg viewBox="0 0 24 24"><path d="M4 18V6"/><path d="M20 6v12"/><path d="M8 8h8"/><path d="M8 16h8"/><path d="m16 8 3-3"/><path d="m16 16 3 3"/></svg></button>
+                <button id="btn_batch_test" title="批量测试本页" aria-label="批量测试本页" class="icon-only-btn"><svg viewBox="0 0 24 24"><path d="M4 5h10"/><path d="M4 12h8"/><path d="M4 19h10"/><path d="m16 12 2 2 4-5"/></svg></button>
               </div>
             </div>
             <section id="active_node_card" class="mb-5"></section>
@@ -305,15 +275,15 @@
             <div class="flex justify-between items-start gap-5 mb-6 flex-wrap">
               <div>
                 <h3 class="!text-[18px] !font-bold mb-1">Cloudflare WARP</h3>
-                <p class="text-muted text-[13px] leading-relaxed">注册并管理 Cloudflare WARP 作为可选落地出口。</p>
+                <p class="text-muted text-[13px] leading-relaxed">启动后自动创建并测试 WARP 出站，关闭时自动删除配置。</p>
               </div>
-              <div class="flex gap-2.5">
-                <button id="btn_register_warp" onclick="registerWarpNode()" class="btn-primary-action py-2 px-5 rounded-lg text-[13px] font-bold">创建 WARP 出站</button>
-                <button id="btn_delete_warp" onclick="deleteWarpNode()" class="bg-gradient-to-br from-[#ff5370] to-danger text-white py-2 px-5 rounded-lg text-[13px] font-bold" style="display:none">删除 WARP 出站</button>
-              </div>
+              <button type="button" data-feature-power="warp_enabled" onclick="toggleWarpFeaturePower()" class="feature-power-btn" aria-pressed="false">
+                <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
+                <span class="feature-power-label">启动</span>
+              </button>
             </div>
 
-            <div id="warp_empty_state" class="compact-empty">未创建 WARP 出站节点。点击「创建 WARP 出站」按钮进行注册。</div>
+            <div id="warp_empty_state" class="compact-empty">WARP 尚未创建。点击右上角启动后会自动注册并测试。</div>
 
             <div id="warp_details_state" style="display:none">
               <div class="flex flex-col gap-3 mb-6">
@@ -341,11 +311,6 @@
                 <div class="flex justify-between items-center py-2.5 border-b border-[color-mix(in_srgb,var(--surface-line)_40%,transparent)]"><span class="text-muted text-[13.5px]">设备 ID（Account ID）</span><span id="warp_account_val" class="font-semibold text-[13.5px] font-mono">--</span></div>
                 <div class="flex justify-between items-center py-2.5"><span class="text-muted text-[13.5px]">WARP 出口 IP 测试</span><span id="warp_test_ip_val" class="font-semibold text-[13.5px]">未测试</span></div>
               </div>
-              <div class="flex gap-3 flex-wrap">
-                <button id="btn_toggle_warp" onclick="toggleWarpNode()" class="btn-primary-action py-2 px-5 rounded-lg text-[13px] font-bold">启用</button>
-                <button id="btn_test_warp" onclick="testWarpNode()" class="glass-card py-2 px-5 rounded-lg text-[13px] font-bold border border-border text-text">测试 WARP 出口 IP</button>
-                <button id="btn_rebuild_warp" onclick="registerWarpNode()" class="glass-card py-2 px-5 rounded-lg text-[13px] font-bold border border-border text-text">重建 WARP 配置</button>
-              </div>
             </div>
           </div>
         </div>
@@ -356,10 +321,14 @@
             <div class="flex justify-between items-start gap-5 mb-5 flex-wrap">
               <div>
                 <h3 class="!text-[18px] !font-bold mb-1">自定义节点</h3>
-                <p class="text-muted text-[13px] leading-relaxed">导入订阅、分享链接或 JSON 出站配置。</p>
+                <p class="text-muted text-[13px] leading-relaxed">支持 VMess、VLESS、Trojan、Shadowsocks、SOCKS、HTTP 以及 JSON 出站配置。</p>
               </div>
               <div class="flex gap-2.5 items-center flex-wrap">
-                <button onclick="loadOutboundNodes()" title="刷新" aria-label="刷新" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text inline-flex items-center gap-2"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>刷新</button>
+                <button type="button" data-feature-power="custom_enabled" onclick="toggleFeaturePower('custom_enabled')" class="feature-power-btn" aria-pressed="false">
+                  <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
+                  <span class="feature-power-label">启动</span>
+                </button>
+                <button onclick="loadOutboundNodes()" title="刷新" aria-label="刷新" class="icon-only-btn"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
                 <button onclick="openOutboundNodeModal()" title="添加/导入节点" class="btn-primary-action py-2 px-5 rounded-lg text-[13px] font-bold inline-flex items-center gap-2"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>添加/导入</button>
               </div>
             </div>
@@ -650,7 +619,7 @@
         <input type="hidden" id="outbound_node_id"><input type="hidden" id="outbound_node_created_at"><input type="hidden" id="outbound_node_type" value="json-config">
         <div class="flex flex-col gap-5">
           <div><label for="outbound_node_name" class="block text-[13px] font-semibold text-muted mb-2.5">显示名称</label><input id="outbound_node_name" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" required placeholder="例如：自定义节点-香港"></div>
-          <div><label for="outbound_node_input_source" class="block text-[13px] font-semibold text-muted mb-2.5">入站节点 / 订阅分组</label><div class="flex gap-2.5"><textarea id="outbound_node_input_source" rows="2" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none resize-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="请输入节点分享链接（vmess://、vless://、ss://、socks://）或订阅链接（http://...）"></textarea><button type="button" id="btn_fetch_convert" onclick="fetchAndConvertOutbound()" class="btn-primary-action py-3 rounded-xl text-[13px] font-bold flex-shrink-0" style="width:85px">获取</button></div></div>
+          <div><label for="outbound_node_input_source" class="block text-[13px] font-semibold text-muted mb-2.5">节点链接</label><div class="flex gap-2.5"><textarea id="outbound_node_input_source" rows="2" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none resize-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="请输入 vmess://、vless://、trojan://、ss://、socks://、http:// 等节点链接"></textarea><button type="button" id="btn_fetch_convert" onclick="fetchAndConvertOutbound()" class="btn-primary-action py-3 rounded-xl text-[13px] font-bold flex-shrink-0" style="width:85px">获取</button></div></div>
           <div><label for="outbound_node_json_config" class="block text-[13px] font-semibold text-muted mb-2.5">JSON 配置（将自动生成，也可在此直接输入或编辑 JSON）</label><textarea id="outbound_node_json_config" rows="8" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" required placeholder='{"protocol": "vmess", "settings": {...}}'></textarea></div>
         </div>
         <div id="outbound_node_error" class="service-alert" style="display:none"></div>

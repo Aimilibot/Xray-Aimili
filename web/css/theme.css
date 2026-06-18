@@ -474,6 +474,30 @@ thead th:last-child { border-top-right-radius:16px; }
 .icon-only-btn:hover { background:color-mix(in srgb, var(--primary) 8%, var(--glass)); color:var(--primary); }
 .icon-only-btn svg, .btn-icon { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 
+.feature-power-btn {
+  min-height:34px; padding:0 13px; border-radius:10px;
+  border:1px solid color-mix(in srgb, var(--muted) 20%, var(--border));
+  background:color-mix(in srgb, var(--glass-strong) 72%, transparent);
+  color:var(--muted); font-size:12px; font-weight:800;
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  cursor:pointer; transition:background .16s, color .16s, border-color .16s, transform .16s;
+}
+.feature-power-btn svg {
+  width:15px; height:15px; fill:none; stroke:currentColor;
+  stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round;
+}
+.feature-power-btn:hover {
+  color:var(--primary); border-color:color-mix(in srgb, var(--primary) 36%, var(--surface-line));
+  background:color-mix(in srgb, var(--primary) 8%, var(--glass));
+  transform:translateY(-1px);
+}
+.feature-power-btn.is-on {
+  color:#fff; border-color:transparent;
+  background:linear-gradient(145deg, var(--primary), var(--second));
+  box-shadow:0 10px 20px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+.feature-power-btn:disabled { opacity:.62; cursor:not-allowed; transform:none; }
+
 /* 行操作按钮 */
 .row-actions { display:flex; justify-content:flex-end; align-items:center; gap:6px; min-width:238px; }
 .row-action-btn {

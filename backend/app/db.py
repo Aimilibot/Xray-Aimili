@@ -19,8 +19,8 @@ _last_cleanup_time = 0.0
 XRAY_TRAFFIC_FILE = DATA_DIR / "client_traffic.json"
 DEFAULT_FEATURE_FLAGS = {
     "vpngate_enabled": False,
-    "warp_enabled": False,
-    "custom_enabled": False,
+    "warp_enabled": True,
+    "custom_enabled": True,
 }
 
 def write_json(path: Path, data: Any) -> None:

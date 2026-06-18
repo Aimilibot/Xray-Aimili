@@ -1787,7 +1787,7 @@ def validate_outbound_node_payload(payload: dict[str, Any], existing_nodes: list
         "name": name,
         "type": "json-config",
         "json_config": json_config,
-        "enabled": bool(payload.get("enabled", False)),
+        "enabled": payload.get("enabled", True) is not False,
         "created_at": str(payload.get("created_at") or now),
         "updated_at": now
     }, ""
@@ -1870,7 +1870,7 @@ def parse_share_link(link: str) -> tuple[str, str, str]:
     if not link:
         raise ValueError("链接不能为空")
 
-    known_prefixes = ("vless://", "vmess://", "ss://", "socks://", "socks5://", "trojan://")
+    known_prefixes = ("vless://", "vmess://", "ss://", "socks://", "socks5://", "trojan://", "http://", "https://")
 
     # 1. If the entire link is Base64 encoded, decode it and parse recursively
     if not any(link.startswith(prefix) for prefix in known_prefixes):
@@ -2175,6 +2175,40 @@ def parse_share_link(link: str) -> tuple[str, str, str]:
         }
         return proto, name, json.dumps(outbound, ensure_ascii=False, indent=2)
 
+    elif link.startswith("http://") or link.startswith("https://"):
+        parsed = urllib.parse.urlparse(link)
+        proto = "http"
+        address = parsed.hostname or ""
+        if not address:
+            raise ValueError("HTTP 代理链接格式错误：缺少服务器地址")
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        user = urllib.parse.unquote(parsed.username or "")
+        password = urllib.parse.unquote(parsed.password or "")
+        server: dict[str, Any] = {
+            "address": address,
+            "port": int(port)
+        }
+        if user:
+            server["users"] = [{
+                "user": user,
+                "pass": password
+            }]
+
+        outbound = {
+            "protocol": "http",
+            "settings": {
+                "servers": [server]
+            }
+        }
+        if parsed.scheme == "https":
+            outbound["streamSettings"] = {
+                "security": "tls",
+                "tlsSettings": {
+                    "serverName": address
+                }
+            }
+        return proto, name, json.dumps(outbound, ensure_ascii=False, indent=2)
+
     else:
         raise ValueError("不支持的分享链接协议类型")
 
@@ -2312,7 +2346,7 @@ def register_warp_account() -> dict[str, Any]:
         "peer_public_key": peer_pub,
         "token": token,
         "reserved": reserved,
-        "enabled": False,
+        "enabled": True,
         "created_at": current_timestamp(),
         "updated_at": current_timestamp()
     }

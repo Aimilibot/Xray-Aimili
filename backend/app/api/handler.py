@@ -777,18 +777,13 @@ class Handler(BaseHTTPRequestHandler):
                 elif key == "warp_enabled":
                     if not enabled:
                         nodes = read_json_list(OUTBOUND_NODES_FILE)
-                        changed = False
-                        for node in nodes:
-                            if node.get("type") == "warp" and node.get("enabled") is not False:
-                                node["enabled"] = False
-                                changed = True
-                        if changed:
-                            write_json(OUTBOUND_NODES_FILE, nodes)
+                        if any(node.get("type") == "warp" for node in nodes):
+                            write_json(OUTBOUND_NODES_FILE, [node for node in nodes if node.get("type") != "warp"])
                             try:
                                 sync_panel_subscription_nodes_to_xray(True)
                             except Exception as exc:
                                 xray_event("WARNING", f"WARP 关闭后同步 Xray 失败: {exc}")
-                    message = "Cloudflare WARP 已开启。" if enabled else "Cloudflare WARP 已关闭。"
+                    message = "Cloudflare WARP 已开启。" if enabled else "Cloudflare WARP 已关闭，出站配置已删除。"
                 else:
                     if not enabled:
                         nodes = read_json_list(OUTBOUND_NODES_FILE)
@@ -1078,6 +1073,7 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 ensure_panel_framework_files()
                 warp_node = register_warp_account()
+                warp_node["enabled"] = True
                 nodes = read_json_list(OUTBOUND_NODES_FILE)
                 nodes = [n for n in nodes if n.get("type") != "warp"]
                 nodes.append(warp_node)
