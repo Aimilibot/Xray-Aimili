@@ -634,6 +634,7 @@ def write_xray_config(cfg: dict) -> bool:
                 private_key = node.get("private_key") or ""
                 addresses = node.get("addresses") or []
                 endpoint = node.get("endpoint") or "engage.cloudflareclient.com:2408"
+                reserved = node.get("reserved") or [0, 0, 0]
                 
                 if not peer_pub or not private_key or not addresses:
                     xray_event("WARNING", f"WARP 出站节点配置不完整，已跳过")
@@ -648,7 +649,8 @@ def write_xray_config(cfg: dict) -> bool:
                                     "publicKey": peer_pub,
                                     "endpoint": endpoint
                                 }
-                            ]
+                            ],
+                            "reserved": reserved
                         },
                         "tag": node_id
                     }
@@ -2255,6 +2257,48 @@ def register_warp_account() -> dict[str, Any]:
             endpoint = peer_endpoint.get("host") or endpoint
         elif isinstance(peer_endpoint, str) and peer_endpoint:
             endpoint = peer_endpoint
+            
+    reserved = [0, 0, 0]
+    client_id_val = None
+    if isinstance(config_data, dict):
+        client_id_val = config_data.get("client", {}).get("client_id")
+        if not client_id_val:
+            client_id_val = config_data.get("client_id")
+    if not client_id_val and isinstance(resp_data, dict):
+        client_id_val = resp_data.get("client_id")
+
+    if client_id_val:
+        if isinstance(client_id_val, list):
+            try:
+                reserved = [int(x) for x in client_id_val[:3]]
+            except Exception:
+                pass
+        elif isinstance(client_id_val, str):
+            client_id_val = client_id_val.strip()
+            try:
+                missing_padding = len(client_id_val) % 4
+                b64_str = client_id_val
+                if missing_padding:
+                    b64_str += '=' * (4 - missing_padding)
+                decoded = base64.b64decode(b64_str)
+                if len(decoded) >= 3:
+                    reserved = list(decoded[:3])
+                elif len(decoded) > 0:
+                    reserved = list(decoded) + [0] * (3 - len(decoded))
+            except Exception:
+                try:
+                    if client_id_val.startswith("0x") or client_id_val.startswith("0X"):
+                        val = int(client_id_val, 16)
+                        reserved = list(val.to_bytes(3, byteorder="big"))
+                    elif len(client_id_val) == 6 and all(c in "0123456789abcdefABCDEF" for c in client_id_val):
+                        val = int(client_id_val, 16)
+                        reserved = list(val.to_bytes(3, byteorder="big"))
+                    else:
+                        parts = client_id_val.replace("[", "").replace("]", "").split(",")
+                        if len(parts) >= 3:
+                            reserved = [int(p.strip()) for p in parts[:3]]
+                except Exception:
+                    pass
         
     return {
         "id": "warp",
@@ -2267,6 +2311,7 @@ def register_warp_account() -> dict[str, Any]:
         "public_key": public_key,
         "peer_public_key": peer_pub,
         "token": token,
+        "reserved": reserved,
         "enabled": False,
         "created_at": current_timestamp(),
         "updated_at": current_timestamp()
@@ -2286,6 +2331,7 @@ def test_warp_via_proxy() -> dict[str, Any]:
     private_key = node.get("private_key") or ""
     addresses = node.get("addresses") or []
     endpoint = node.get("endpoint") or "engage.cloudflareclient.com:2408"
+    reserved = node.get("reserved") or [0, 0, 0]
 
     if not peer_pub or not private_key or not addresses:
         return {"ok": False, "error": "WARP 出站节点配置不完整，请先重新注册设备"}
@@ -2300,7 +2346,8 @@ def test_warp_via_proxy() -> dict[str, Any]:
                     "publicKey": peer_pub,
                     "endpoint": endpoint
                 }
-            ]
+            ],
+            "reserved": reserved
         },
         "tag": "test-warp"
     }
