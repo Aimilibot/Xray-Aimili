@@ -15,12 +15,57 @@ GITHUB_USER="${1:-${DEFAULT_USER}}"
 GITHUB_REPO="${2:-${DEFAULT_REPO}}"
 DEPLOY_BRANCH="${AIMILI_DEPLOY_BRANCH:-${3:-$DEFAULT_DEPLOY_BRANCH}}"
 GITHUB_URL="https://github.com/${GITHUB_USER}/${GITHUB_REPO}.git"
-CLEAN_INSTALL="${AIMILI_CLEAN_INSTALL:-1}"
+RESET_DOCKER_DATA="${AIMILI_RESET_DOCKER_DATA:-0}"
 
 TTY_DEVICE=""
 if [ -r /dev/tty ] && [ -w /dev/tty ]; then
     TTY_DEVICE="/dev/tty"
 fi
+PERSIST_BACKUP_DIR=""
+
+ensure_safe_install_dir() {
+    case "$INSTALL_DIR" in
+        ""|"/"|"/opt"|"/usr"|"/etc"|"/var"|"/root")
+            echo -e "${RED}错误: Docker 安装目录异常 (${INSTALL_DIR})，拒绝继续。${PLAIN}"
+            exit 1
+            ;;
+    esac
+}
+
+backup_persistent_data() {
+    if [ "$RESET_DOCKER_DATA" = "1" ] || [ ! -d "$INSTALL_DIR" ]; then
+        return
+    fi
+    if [ ! -d "${INSTALL_DIR}/vpngate_data" ] && [ ! -f "${INSTALL_DIR}/.env" ]; then
+        return
+    fi
+
+    PERSIST_BACKUP_DIR="$(mktemp -d /tmp/aimilivpn-docker-data.XXXXXX)"
+    if [ -d "${INSTALL_DIR}/vpngate_data" ]; then
+        cp -a "${INSTALL_DIR}/vpngate_data" "${PERSIST_BACKUP_DIR}/vpngate_data"
+    fi
+    if [ -f "${INSTALL_DIR}/.env" ]; then
+        cp -a "${INSTALL_DIR}/.env" "${PERSIST_BACKUP_DIR}/.env"
+    fi
+    echo -e "${GREEN}  -> 已临时保护现有 Docker 配置与数据。${PLAIN}"
+}
+
+restore_persistent_data() {
+    if [ -z "$PERSIST_BACKUP_DIR" ] || [ ! -d "$PERSIST_BACKUP_DIR" ]; then
+        return
+    fi
+    mkdir -p "$INSTALL_DIR"
+    if [ -d "${PERSIST_BACKUP_DIR}/vpngate_data" ]; then
+        rm -rf "${INSTALL_DIR}/vpngate_data"
+        cp -a "${PERSIST_BACKUP_DIR}/vpngate_data" "${INSTALL_DIR}/vpngate_data"
+    fi
+    if [ -f "${PERSIST_BACKUP_DIR}/.env" ]; then
+        cp -a "${PERSIST_BACKUP_DIR}/.env" "${INSTALL_DIR}/.env"
+    fi
+    rm -rf "$PERSIST_BACKUP_DIR"
+    PERSIST_BACKUP_DIR=""
+    echo -e "${GREEN}  -> 已恢复原有 Docker 配置与数据。${PLAIN}"
+}
 
 prompt_read() {
     local prompt="$1"
@@ -81,7 +126,8 @@ cat <<EOF
 4. 启动完整面板容器，包含 Web 面板、Xray、VPNGate/OpenVPN、本地代理和 WARP/自定义出站能力。
 
 本脚本不会清理宿主机已有 Xray，不会删除宿主机 systemd 服务。
-默认会清理 ${INSTALL_DIR} 内的旧 Docker 面板残留，确保重新安装干净。
+默认会保留 ${INSTALL_DIR}/vpngate_data 和 ${INSTALL_DIR}/.env，避免覆盖已有面板账号、端口、节点与订阅配置。
+如需彻底重置 Docker 面板数据，请显式使用：AIMILI_RESET_DOCKER_DATA=1
 
 EOF
 
@@ -235,12 +281,7 @@ cleanup_existing_install() {
     # Call the host conflict cleanup first
     cleanup_host_conflicts_and_residuals
 
-    if [ "$CLEAN_INSTALL" != "1" ]; then
-        echo -e "\n${YELLOW}[4/6] 已跳过旧 Docker 面板目录清理。${PLAIN}"
-        return
-    fi
-
-    echo -e "\n${YELLOW}[4/6] 正在清理旧 Docker 面板残留...${PLAIN}"
+    echo -e "\n${YELLOW}[4/6] 正在停止旧 Docker 面板容器...${PLAIN}"
     if [ -d "$INSTALL_DIR" ]; then
         if [ -f "${INSTALL_DIR}/docker-compose.yml" ] && command -v docker >/dev/null 2>&1; then
             (
@@ -248,12 +289,15 @@ cleanup_existing_install() {
                 docker compose down --remove-orphans >/dev/null 2>&1 || true
             )
         fi
-        docker rm -f aimilivpn-full aimili-vpn-panel aimili-vpngate >/dev/null 2>&1 || true
+    fi
+    docker rm -f aimilivpn-full aimili-vpn-panel aimili-vpngate >/dev/null 2>&1 || true
+
+    if [ "$RESET_DOCKER_DATA" = "1" ]; then
+        echo -e "${YELLOW}  -> 已启用 AIMILI_RESET_DOCKER_DATA=1，正在删除 ${INSTALL_DIR} 全部数据。${PLAIN}"
+        ensure_safe_install_dir
         rm -rf "$INSTALL_DIR"
-        echo -e "${GREEN}  -> 已删除旧目录 ${INSTALL_DIR}。${PLAIN}"
     else
-        docker rm -f aimilivpn-full aimili-vpn-panel aimili-vpngate >/dev/null 2>&1 || true
-        echo -e "${GREEN}  -> 未发现旧目录，继续全新安装。${PLAIN}"
+        echo -e "${GREEN}  -> 已停止旧容器，并保留 ${INSTALL_DIR}/vpngate_data 与 .env。${PLAIN}"
     fi
 }
 
@@ -262,6 +306,7 @@ deploy_source() {
     
     if [ -d "$INSTALL_DIR" ] && [ ! -d "${INSTALL_DIR}/.git" ] && [ ! -f "${INSTALL_DIR}/docker-compose.yml" ]; then
         echo -e "  -> 检测到非空且非有效安装目录 ${INSTALL_DIR}，正在清理以重新克隆..."
+        ensure_safe_install_dir
         rm -rf "$INSTALL_DIR"
     fi
 
@@ -301,16 +346,32 @@ json_value_or_default() {
     fi
 }
 
+env_value_or_default() {
+    local file="$1"
+    local key="$2"
+    local default_value="$3"
+    if [ -f "$file" ]; then
+        local line
+        line="$(grep -E "^${key}=" "$file" 2>/dev/null | tail -n 1 || true)"
+        if [ -n "$line" ]; then
+            printf '%s\n' "${line#*=}"
+            return
+        fi
+    fi
+    echo "$default_value"
+}
+
 write_env_file() {
     echo -e "\n${YELLOW}[6/6] 正在生成 Docker 环境配置...${PLAIN}"
     mkdir -p "${INSTALL_DIR}/vpngate_data"
     AUTH_FILE="${INSTALL_DIR}/vpngate_data/ui_auth.json"
+    ENV_FILE="${INSTALL_DIR}/.env"
 
-    DEFAULT_UI_PORT="${AIMILI_UI_PORT:-$(json_value_or_default "$AUTH_FILE" port 8787)}"
-    DEFAULT_PROXY_PORT="${AIMILI_PROXY_PORT:-$(json_value_or_default "$AUTH_FILE" proxy_port 7928)}"
-    DEFAULT_SECRET="${AIMILI_SECRET_PATH:-$(json_value_or_default "$AUTH_FILE" secret_path "$(random_token)")}"
-    DEFAULT_USER="${AIMILI_UI_USERNAME:-$(json_value_or_default "$AUTH_FILE" username "$(random_token)")}"
-    DEFAULT_PASS="${AIMILI_UI_PASSWORD:-$(json_value_or_default "$AUTH_FILE" password "$(random_token)")}"
+    DEFAULT_UI_PORT="${AIMILI_UI_PORT:-$(json_value_or_default "$AUTH_FILE" port "$(env_value_or_default "$ENV_FILE" UI_PORT 8787)")}"
+    DEFAULT_PROXY_PORT="${AIMILI_PROXY_PORT:-$(json_value_or_default "$AUTH_FILE" proxy_port "$(env_value_or_default "$ENV_FILE" LOCAL_PROXY_PORT 7928)")}"
+    DEFAULT_SECRET="${AIMILI_SECRET_PATH:-$(json_value_or_default "$AUTH_FILE" secret_path "$(env_value_or_default "$ENV_FILE" SECRET_PATH "$(random_token)")")}"
+    DEFAULT_USER="${AIMILI_UI_USERNAME:-$(json_value_or_default "$AUTH_FILE" username "$(env_value_or_default "$ENV_FILE" UI_USERNAME "$(random_token)")")}"
+    DEFAULT_PASS="${AIMILI_UI_PASSWORD:-$(json_value_or_default "$AUTH_FILE" password "$(env_value_or_default "$ENV_FILE" UI_PASSWORD "$(random_token)")")}"
 
     if [ -z "$TTY_DEVICE" ] && [ ! -t 0 ]; then
         echo -e "${YELLOW}  -> 管道安装模式：端口、后缀、账号和密码将自动生成或使用环境变量。${PLAIN}"
@@ -403,8 +464,10 @@ public_ip() {
 install_base_packages
 install_docker
 ensure_tun_device
+backup_persistent_data
 cleanup_existing_install
 deploy_source
+restore_persistent_data
 write_env_file
 start_stack
 create_host_menu_launcher
