@@ -917,6 +917,9 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 host = get_public_ip_or_domain()
                 link = generate_panel_node_share_link(node, host)
+                if link and (link.startswith("vless://") or link.startswith("socks://") or link.startswith("ss://") or link.startswith("trojan://")):
+                    import base64
+                    link = base64.b64encode(link.encode("utf-8")).decode("utf-8")
                 self.send_json({
                     "ok": True,
                     "node": {

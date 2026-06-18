@@ -511,27 +511,22 @@
             }
         }
 
-        function copyLogContent() {
+        async function copyLogContent() {
             const term = $("log_terminal_container");
             if (!term) return;
 
             const text = term.innerText || term.textContent;
             if (!text || text.includes("暂无今日") || text.includes("暂无该类型") || text.includes("正在读取")) {
-                alert("当前没有可供复制的日志。");
+                showGlobalToast("当前没有可供复制的日志。", "danger");
                 return;
             }
 
-            navigator.clipboard.writeText(text).then(() => {
-                alert("日志内容已成功复制到剪贴板！");
-            }).catch(err => {
-                const ta = document.createElement("textarea");
-                ta.value = text;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand("copy");
-                document.body.removeChild(ta);
-                alert("日志内容已复制到剪贴板！");
-            });
+            try {
+                await copyToClipboard(text);
+                showGlobalToast("日志内容已成功复制到剪贴板！", "success");
+            } catch (err) {
+                showGlobalToast("复制失败，请重试", "danger");
+            }
         }
 
         function exportLogContent() {

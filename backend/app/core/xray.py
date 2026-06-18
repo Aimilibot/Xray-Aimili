@@ -1761,7 +1761,15 @@ def parse_share_link(link: str) -> tuple[str, str, str]:
     link = link.strip()
     if not link:
         raise ValueError("链接不能为空")
-        
+
+    known_prefixes = ("vless://", "vmess://", "ss://", "socks://", "socks5://", "trojan://")
+
+    # 1. If the entire link is Base64 encoded, decode it and parse recursively
+    if not any(link.startswith(prefix) for prefix in known_prefixes):
+        decoded = safe_b64decode(link)
+        if decoded and any(decoded.startswith(prefix) for prefix in known_prefixes):
+            return parse_share_link(decoded)
+
     name = "Imported Node"
     proto = ""
     
@@ -1769,6 +1777,19 @@ def parse_share_link(link: str) -> tuple[str, str, str]:
     if "#" in link:
         link, hash_part = link.split("#", 1)
         name = urllib.parse.unquote(hash_part).strip()
+
+    # 2. Support prefix + Base64 format (e.g. vless://[BASE64])
+    for prefix in ("vless://", "trojan://", "socks://", "socks5://", "ss://"):
+        if link.startswith(prefix) and "@" not in link:
+            content = link[len(prefix):].strip()
+            decoded = safe_b64decode(content)
+            if decoded:
+                if any(decoded.startswith(p) for p in known_prefixes):
+                    suffix = f"#{hash_part}" if hash_part else ""
+                    return parse_share_link(f"{decoded}{suffix}")
+                elif "@" in decoded:
+                    suffix = f"#{hash_part}" if hash_part else ""
+                    return parse_share_link(f"{prefix}{decoded}{suffix}")
         
     if link.startswith("vmess://"):
         proto = "vmess"

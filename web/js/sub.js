@@ -11,6 +11,12 @@
             });
         }
 
+        function encodeBase64(str) {
+            const utf8Bytes = new TextEncoder().encode(str);
+            const binaryStr = Array.from(utf8Bytes).map(b => String.fromCharCode(b)).join("");
+            return btoa(binaryStr);
+        }
+
         function openShareModal(ibIdx, clientIdx) {
             if (!xrayConfig) return;
             const inbound = xrayConfig.inbounds[ibIdx];
@@ -30,9 +36,10 @@
 
             let nodeUrl = "";
             if (protocol === "vless") {
-                nodeUrl = `vless://${clientSecret}@${host}:${port}?type=${network}&security=none`;
-                if (network === "ws") nodeUrl += `&path=${encodeURIComponent(ws_path)}`;
-                nodeUrl += `#${encodeURIComponent(remark)}`;
+                let rawUrl = `vless://${clientSecret}@${host}:${port}?type=${network}&security=none`;
+                if (network === "ws") rawUrl += `&path=${encodeURIComponent(ws_path)}`;
+                rawUrl += `#${encodeURIComponent(remark)}`;
+                nodeUrl = encodeBase64(rawUrl);
             } else if (protocol === "vmess") {
                 const vmessJson = {
                     v: "2",
@@ -52,16 +59,18 @@
                 const binaryStr = Array.from(utf8Bytes).map(b => String.fromCharCode(b)).join("");
                 nodeUrl = "vmess://" + btoa(binaryStr);
             } else if (protocol === "trojan") {
-                nodeUrl = `trojan://${clientSecret}@${host}:${port}?type=${network}&security=none`;
-                if (network === "ws") nodeUrl += `&path=${encodeURIComponent(ws_path)}`;
-                nodeUrl += `#${encodeURIComponent(remark)}`;
+                let rawUrl = `trojan://${clientSecret}@${host}:${port}?type=${network}&security=none`;
+                if (network === "ws") rawUrl += `&path=${encodeURIComponent(ws_path)}`;
+                rawUrl += `#${encodeURIComponent(remark)}`;
+                nodeUrl = encodeBase64(rawUrl);
             } else if (protocol === "shadowsocks") {
                 const cipher = inbound.encryption || "aes-256-gcm";
                 const credentials = `${cipher}:${clientSecret}`;
                 const utf8Bytes = new TextEncoder().encode(credentials);
                 const binaryStr = Array.from(utf8Bytes).map(b => String.fromCharCode(b)).join("");
                 const b64Cred = btoa(binaryStr).replace(/=/g, "");
-                nodeUrl = `ss://${b64Cred}@${host}:${port}#${encodeURIComponent(remark)}`;
+                const rawUrl = `ss://${b64Cred}@${host}:${port}#${encodeURIComponent(remark)}`;
+                nodeUrl = encodeBase64(rawUrl);
             }
 
             const subUrl = `${location.origin}/api/xray/subscribe?token=${clientSecret}`;
@@ -122,10 +131,10 @@
             const urlEl = $("qrcode-view-url");
             if (!urlEl) return;
             try {
-                await navigator.clipboard.writeText(urlEl.value);
-                alert("链接已成功复制到剪贴板！");
+                await copyToClipboard(urlEl.value);
+                showToast("链接已成功复制到剪贴板！", "success");
             } catch (e) {
-                window.prompt("请手动复制链接：", urlEl.value);
+                showToast("复制失败，请重试", "error");
             }
         }
 
@@ -145,12 +154,12 @@
                 });
                 const data = await res.json();
                 if (!res.ok || !data.ok || !data.node || !data.node.link) {
-                    alert(data.error || "获取节点分享链接失败");
+                    showToast(data.error || "获取节点分享链接失败", "error");
                     return;
                 }
                 showQRCodeViewModal(`“${data.node.name || '节点'}” 二维码`, data.node.link);
             } catch (e) {
-                alert("无法连接后端接口");
+                showToast("无法连接后端接口", "error");
             }
         }
 
@@ -176,7 +185,6 @@
             "www.cisco.com",
             "www.samsung.com",
             "www.hp.com",
-            "www.dell.com",
             "www.tesla.com",
             "www.paypal.com",
             "www.speedtest.net",
@@ -188,8 +196,7 @@
             "www.ebay.com",
             "www.ibm.com",
             "www.visa.com",
-            "www.mastercard.com",
-            "cdnjs.cloudflare.com"
+            "www.mastercard.com"
         ];
 
         function selectedSubscriptionLink() {
@@ -589,13 +596,13 @@
                 });
                 const data = await res.json();
                 if (!res.ok || !data.ok) {
-                    alert(data.error || "删除订阅链接失败");
+                    showToast(data.error || "删除订阅链接失败", "error");
                     return;
                 }
                 if (selectedSubscriptionLinkId === linkId) selectedSubscriptionLinkId = "";
                 await loadSubscriptionWorkspace();
             } catch (e) {
-                alert("无法连接后端接口");
+                showToast("无法连接后端接口", "error");
             }
         }
 
@@ -608,12 +615,12 @@
                 });
                 const data = await res.json();
                 if (!res.ok || !data.ok) {
-                    alert(data.error || "更新订阅链接状态失败");
+                    showToast(data.error || "更新订阅链接状态失败", "error");
                     return;
                 }
                 await loadSubscriptionWorkspace();
             } catch (e) {
-                alert("无法连接后端接口");
+                showToast("无法连接后端接口", "error");
             }
         }
 
@@ -621,21 +628,21 @@
             const link = subscriptionLinks.find(item => item.id === linkId);
             const url = subscriptionUrl(link);
             if (!url) {
-                alert("订阅链接不可用");
+                showToast("订阅链接不可用", "warning");
                 return;
             }
             try {
-                await navigator.clipboard.writeText(url);
-                alert("订阅链接已复制");
+                await copyToClipboard(url);
+                showToast("订阅链接已复制", "success");
             } catch (e) {
-                window.prompt("复制订阅链接", url);
+                showToast("复制失败，请重试", "error");
             }
         }
 
         function copySelectedSubscriptionUrl() {
             const link = selectedSubscriptionLink();
             if (!link) {
-                alert("请先选择订阅链接");
+                showToast("请先选择订阅链接", "warning");
                 return;
             }
             copySubscriptionUrl(link.id);
@@ -650,17 +657,17 @@
                 });
                 const data = await res.json();
                 if (!res.ok || !data.ok || !data.node || !data.node.link) {
-                    alert(data.error || "节点链接生成失败");
+                    showToast(data.error || "节点链接生成失败", "error");
                     return;
                 }
                 try {
-                    await navigator.clipboard.writeText(data.node.link);
-                    alert("节点链接已复制");
+                    await copyToClipboard(data.node.link);
+                    showToast("节点链接已复制", "success");
                 } catch (e) {
-                    window.prompt("复制节点链接", data.node.link);
+                    showToast("复制失败，请重试", "error");
                 }
             } catch (e) {
-                alert("无法连接后端接口");
+                showToast("无法连接后端接口", "error");
             }
         }
 
