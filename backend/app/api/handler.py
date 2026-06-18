@@ -39,6 +39,7 @@ from backend.app.core.xray import (
     parse_share_link, test_outbound_node_via_temp_xray, register_warp_account,
     sync_panel_subscription_nodes_to_xray, test_warp_via_proxy, stop_xray, start_xray,
     bg_install_xray, query_xray_client_stats, clean_hostname, xray_event,
+    is_valid_warp_node,
     get_public_ip_or_domain
 )
 from backend.app.core.vpn import (
@@ -275,6 +276,13 @@ class Handler(BaseHTTPRequestHandler):
             nodes = read_json_list(OUTBOUND_NODES_FILE)
             if not flags.get("warp_enabled", False):
                 nodes = [item for item in nodes if item.get("type") != "warp"]
+            else:
+                invalid_warp_ids = [item.get("id") for item in nodes if item.get("type") == "warp" and not is_valid_warp_node(item)]
+                if invalid_warp_ids:
+                    nodes = [item for item in nodes if item.get("type") != "warp" or is_valid_warp_node(item)]
+                    write_json(OUTBOUND_NODES_FILE, nodes)
+                else:
+                    nodes = [item for item in nodes if item.get("type") != "warp" or is_valid_warp_node(item)]
             if not flags.get("custom_enabled", False):
                 nodes = [item for item in nodes if item.get("type") not in ("custom-node", "subscription", "json-config")]
             self.send_json({"ok": True, "nodes": nodes, "features": flags})

@@ -13,6 +13,7 @@ import socket
 import urllib.request
 import urllib.parse
 import urllib.error
+import ipaddress
 from pathlib import Path
 from typing import Any
 from http import HTTPStatus
@@ -574,7 +575,7 @@ def write_xray_config(cfg: dict) -> bool:
         warp_enabled = False
         warp_node = None
         for n in outbound_nodes:
-            if n.get("type") == "warp" and n.get("enabled"):
+            if n.get("type") == "warp" and n.get("enabled") and is_valid_warp_node(n):
                 warp_enabled = True
                 warp_node = n
                 break
@@ -630,33 +631,10 @@ def write_xray_config(cfg: dict) -> bool:
                     xray_event("WARNING", f"出站节点 {node.get('name')} 的 JSON 配置解析失败: {e}")
             
             elif node.get("type") == "warp":
-                peer_pub = node.get("peer_public_key") or ""
-                private_key = node.get("private_key") or ""
-                addresses = node.get("addresses") or []
-                endpoint = node.get("endpoint") or "engage.cloudflareclient.com:2408"
-                reserved = node.get("reserved") or [0, 0, 0]
-                
-                if not peer_pub or not private_key or not addresses:
-                    xray_event("WARNING", f"WARP 出站节点配置不完整，已跳过")
+                if not is_valid_warp_node(node):
+                    xray_event("WARNING", f"WARP 出站节点配置无效或不完整，已跳过")
                 else:
-                    warp_outbound = {
-                        "protocol": "wireguard",
-                        "settings": {
-                            "secretKey": private_key,
-                            "address": addresses,
-                            "peers": [
-                                {
-                                    "publicKey": peer_pub,
-                                    "endpoint": endpoint
-                                }
-                            ],
-                            "reserved": reserved
-                        },
-                        "tag": node_id
-                    }
-                    if cfg.get("require_vpn", False):
-                        inject_outbound_sockopt(warp_outbound, outbound_interface)
-                    xray_outbounds.append(warp_outbound)
+                    xray_outbounds.append(build_warp_outbound(node, node_id))
 
         xray_routing_rules = [
             {
@@ -1764,6 +1742,68 @@ def inject_outbound_sockopt(outbound: dict, interface: str) -> None:
     sockopt = stream_settings.setdefault("sockopt", {})
     sockopt["interface"] = interface
 
+def valid_wireguard_key(value: Any) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        raw = base64.b64decode(value.strip(), validate=True)
+        return len(raw) == 32
+    except Exception:
+        return False
+
+def valid_warp_address(value: Any) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        ipaddress.ip_interface(value.strip())
+        return True
+    except Exception:
+        return False
+
+def is_valid_warp_node(node: dict[str, Any] | None) -> bool:
+    if not isinstance(node, dict) or node.get("type") != "warp":
+        return False
+    endpoint = str(node.get("endpoint") or "").strip()
+    addresses = node.get("addresses") or []
+    return (
+        valid_wireguard_key(node.get("private_key"))
+        and valid_wireguard_key(node.get("peer_public_key"))
+        and isinstance(addresses, list)
+        and any(valid_warp_address(item) for item in addresses)
+        and ":" in endpoint
+    )
+
+def build_warp_outbound(node: dict[str, Any], tag: str) -> dict[str, Any]:
+    endpoint = str(node.get("endpoint") or "engage.cloudflareclient.com:2408").strip()
+    reserved = node.get("reserved") or [0, 0, 0]
+    try:
+        reserved = [int(x) for x in reserved[:3]]
+    except Exception:
+        reserved = [0, 0, 0]
+    if len(reserved) < 3:
+        reserved = reserved + [0] * (3 - len(reserved))
+
+    return {
+        "protocol": "wireguard",
+        "settings": {
+            "secretKey": str(node.get("private_key") or "").strip(),
+            "address": [str(item).strip() for item in (node.get("addresses") or []) if valid_warp_address(item)],
+            "peers": [
+                {
+                    "publicKey": str(node.get("peer_public_key") or "").strip(),
+                    "endpoint": endpoint,
+                    "allowedIPs": ["0.0.0.0/0", "::/0"],
+                    "keepAlive": 25
+                }
+            ],
+            "reserved": reserved[:3],
+            "mtu": 1280,
+            "noKernelTun": True,
+            "domainStrategy": "ForceIPv4"
+        },
+        "tag": tag
+    }
+
 def validate_outbound_node_payload(payload: dict[str, Any], existing_nodes: list[dict[str, Any]]) -> tuple[dict[str, Any] | None, str]:
     name = str(payload.get("name") or "").strip()
     json_config = str(payload.get("json_config") or "").strip()
@@ -2352,44 +2392,18 @@ def register_warp_account() -> dict[str, Any]:
     }
 
 def test_warp_via_proxy() -> dict[str, Any]:
-    binary_path = xray_binary_path()
-    if not binary_path:
-        return {"ok": False, "error": "未检测到 Xray Core，无法进行测试"}
-
     nodes = read_json_list(OUTBOUND_NODES_FILE)
     node = next((item for item in nodes if item.get("type") == "warp"), None)
     if not node:
         return {"ok": False, "error": "WARP 配置不存在，请先注册设备"}
+    if not is_valid_warp_node(node):
+        return {"ok": False, "error": "WARP 配置无效，请重新启动生成真实配置"}
 
-    peer_pub = node.get("peer_public_key") or ""
-    private_key = node.get("private_key") or ""
-    addresses = node.get("addresses") or []
-    endpoint = node.get("endpoint") or "engage.cloudflareclient.com:2408"
-    reserved = node.get("reserved") or [0, 0, 0]
+    binary_path = xray_binary_path()
+    if not binary_path:
+        return {"ok": False, "error": "未检测到 Xray Core，无法进行测试"}
 
-    if not peer_pub or not private_key or not addresses:
-        return {"ok": False, "error": "WARP 出站节点配置不完整，请先重新注册设备"}
-
-    warp_outbound = {
-        "protocol": "wireguard",
-        "settings": {
-            "secretKey": private_key,
-            "address": addresses,
-            "peers": [
-                {
-                    "publicKey": peer_pub,
-                    "endpoint": endpoint
-                }
-            ],
-            "reserved": reserved
-        },
-        "tag": "test-warp"
-    }
-
-    cfg = load_xray_cfg()
-    outbound_interface = str(cfg.get("outbound_interface") or "tun0")
-    if cfg.get("require_vpn", False):
-        inject_outbound_sockopt(warp_outbound, outbound_interface)
+    warp_outbound = build_warp_outbound(node, "test-warp")
 
     port = free_local_port()
     config_path = DATA_DIR / f"xray_warp_test_{uuid.uuid4().hex[:8]}.json"
@@ -2439,25 +2453,7 @@ def test_warp_via_proxy() -> dict[str, Any]:
                 pass
             return {"ok": False, "error": diagnose_xray_failure(output.splitlines(), "测试 Xray 进程启动失败")}
 
-        proxy_url = f"http://127.0.0.1:{port}"
-        opener = urllib.request.build_opener(urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}))
-        started = time.time()
-        req = urllib.request.Request("http://ip-api.com/json", headers={"User-Agent": "Mozilla/5.0"})
-        with opener.open(req, timeout=12) as response:
-            latency = int((time.time() - started) * 1000)
-            data = json.loads(response.read().decode("utf-8"))
-        if data.get("status") == "success":
-            return {
-                "ok": True,
-                "ip": data.get("query", ""),
-                "location": f"{data.get('country', '')} {data.get('city', '')}".strip(),
-                "latency_ms": latency
-            }
-        else:
-            return {
-                "ok": False,
-                "error": data.get("message", "IP lookup failed")
-            }
+        return test_ip_lookup_via_http_proxy(f"http://127.0.0.1:{port}")
     except Exception as e:
         return {
             "ok": False,
@@ -2477,6 +2473,34 @@ def test_warp_via_proxy() -> dict[str, Any]:
             config_path.unlink(missing_ok=True)
         except Exception:
             pass
+
+def test_ip_lookup_via_http_proxy(proxy_url: str) -> dict[str, Any]:
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}))
+    checks = [
+        ("https://api.ipify.org?format=json", lambda data: {"ip": data.get("ip", ""), "location": ""}),
+        ("https://ipinfo.io/json", lambda data: {"ip": data.get("ip", ""), "location": " ".join(str(data.get(k) or "") for k in ("country", "city")).strip()}),
+        ("http://ip-api.com/json", lambda data: {"ip": data.get("query", ""), "location": f"{data.get('country', '')} {data.get('city', '')}".strip()}),
+    ]
+    errors: list[str] = []
+    for url, parser in checks:
+        started = time.time()
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with opener.open(req, timeout=12) as response:
+                latency = int((time.time() - started) * 1000)
+                data = json.loads(response.read().decode("utf-8"))
+            parsed = parser(data)
+            if parsed.get("ip"):
+                return {
+                    "ok": True,
+                    "ip": parsed.get("ip", ""),
+                    "location": parsed.get("location", ""),
+                    "latency_ms": latency
+                }
+            errors.append(f"{url}: 未返回出口 IP")
+        except Exception as exc:
+            errors.append(f"{url}: {exc}")
+    return {"ok": False, "error": "出口 IP 查询失败: " + " | ".join(errors[-3:])}
 
 def free_local_port() -> int:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -2558,21 +2582,7 @@ def test_outbound_node_via_temp_xray(node_id: str) -> dict[str, Any]:
                 pass
             return {"ok": False, "error": diagnose_xray_failure(output.splitlines(), "测试 Xray 进程启动失败")}
 
-        proxy_url = f"http://127.0.0.1:{port}"
-        opener = urllib.request.build_opener(urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url}))
-        started = time.time()
-        req = urllib.request.Request("http://ip-api.com/json", headers={"User-Agent": "Mozilla/5.0"})
-        with opener.open(req, timeout=12) as response:
-            latency = int((time.time() - started) * 1000)
-            data = json.loads(response.read().decode("utf-8"))
-        if data.get("status") == "success":
-            return {
-                "ok": True,
-                "ip": data.get("query", ""),
-                "location": f"{data.get('country', '')} {data.get('city', '')}".strip(),
-                "latency_ms": latency
-            }
-        return {"ok": False, "error": data.get("message") or "IP 查询失败"}
+        return test_ip_lookup_via_http_proxy(f"http://127.0.0.1:{port}")
     except Exception as exc:
         return {"ok": False, "error": f"测试请求失败: {exc}"}
     finally:

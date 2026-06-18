@@ -123,6 +123,7 @@
                 if (powerBtn) powerBtn.disabled = false;
                 if (label) label.textContent = originalLabel || (isFeatureEnabled("warp_enabled") ? "关闭" : "启动");
                 renderFeatureGateSwitches();
+                renderWarpPowerButton();
             }
         }
 

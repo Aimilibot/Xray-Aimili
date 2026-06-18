@@ -19,7 +19,7 @@ _last_cleanup_time = 0.0
 XRAY_TRAFFIC_FILE = DATA_DIR / "client_traffic.json"
 DEFAULT_FEATURE_FLAGS = {
     "vpngate_enabled": False,
-    "warp_enabled": True,
+    "warp_enabled": False,
     "custom_enabled": True,
 }
 
@@ -75,6 +75,7 @@ def load_feature_flags() -> dict[str, bool]:
     if isinstance(raw, dict):
         for key in flags:
             flags[key] = raw.get(key) is True
+    flags["custom_enabled"] = True
     return flags
 
 def save_feature_flags(flags: dict[str, Any]) -> dict[str, bool]:
@@ -82,6 +83,7 @@ def save_feature_flags(flags: dict[str, Any]) -> dict[str, bool]:
     if isinstance(flags, dict):
         for key in normalized:
             normalized[key] = flags.get(key) is True
+    normalized["custom_enabled"] = True
     DATA_DIR.mkdir(exist_ok=True, parents=True)
     write_json(FEATURE_FLAGS_FILE, normalized)
     return normalized

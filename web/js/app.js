@@ -66,7 +66,7 @@
         let nodes = [], state = {}, testingNodeIds = new Set(), stats_cache = null;
         let featureGates = {
             vpngate_enabled: false,
-            warp_enabled: true,
+            warp_enabled: false,
             custom_enabled: true
         };
         let currentPage = 1;
