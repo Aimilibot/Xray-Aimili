@@ -15,7 +15,7 @@
   curl -fsSL https://raw.githubusercontent.com/Aimilibot/Xray-Aimili/main/install.sh | bash
   ```
 
-安装完成后可使用：
+安装完成：
 
 ```bash
 ml
