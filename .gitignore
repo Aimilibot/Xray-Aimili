@@ -123,5 +123,5 @@ ui_preview.html
 .DS_Store
 Thumbs.db
 Desktop.ini
-docs/
+*dev-progress-and-bugs.zh*
 *ai-instructions*
