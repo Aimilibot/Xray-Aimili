@@ -131,3 +131,6 @@ ui_preview.html
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Project specific AI Prompt / Instructions
+*ai-instructions*
