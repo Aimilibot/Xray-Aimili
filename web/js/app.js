@@ -75,6 +75,7 @@
 
         const $ = id => document.getElementById(id);
         const esc = s => String(s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c]));
+        const jsArg = s => JSON.stringify(String(s ?? ""));
         const base = p => (p || "").split(/[\/]/).pop();
         const formatDatePickerDate = (ts) => {
             if (!ts || ts <= 0) return "";

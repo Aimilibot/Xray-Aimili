@@ -75,16 +75,16 @@ def load_feature_flags() -> dict[str, bool]:
     flags = DEFAULT_FEATURE_FLAGS.copy()
     if isinstance(raw, dict):
         for key in flags:
-            flags[key] = raw.get(key) is True
-    flags["custom_enabled"] = True
+            if key in raw:
+                flags[key] = raw.get(key) is True
     return flags
 
 def save_feature_flags(flags: dict[str, Any]) -> dict[str, bool]:
     normalized = DEFAULT_FEATURE_FLAGS.copy()
     if isinstance(flags, dict):
         for key in normalized:
-            normalized[key] = flags.get(key) is True
-    normalized["custom_enabled"] = True
+            if key in flags:
+                normalized[key] = flags.get(key) is True
     DATA_DIR.mkdir(exist_ok=True, parents=True)
     write_json(FEATURE_FLAGS_FILE, normalized)
     return normalized

@@ -353,7 +353,7 @@
             };
             
             const actionButton = (label, icon, onclick, danger = false, showText = false, extraClass = '') => `
-                <button type="button" class="row-action-btn ${extraClass}${danger ? " is-danger" : ""}${showText ? " row-action-btn--text" : ""}" onclick="${onclick}" title="${esc(label)}" aria-label="${esc(label)}">
+                <button type="button" class="row-action-btn ${extraClass}${danger ? " is-danger" : ""}${showText ? " row-action-btn--text" : ""}" onclick="${esc(onclick)}" title="${esc(label)}" aria-label="${esc(label)}">
                     ${rowIcon(icon)}${showText ? `<span class="row-action__label">${esc(label)}</span>` : ""}
                 </button>
             `;
@@ -369,11 +369,11 @@
                     : (node.outbound_node_id ? outboundLabelById(node.outbound_node_id) : "未绑定");
 
                 const actionsHtml = [
-                    actionButton("复制链接", "copy", `copySubscriptionNodeUrl('${esc(node.id)}')`),
-                    actionButton("二维码", "qr", `showSubscriptionNodeQRCode('${esc(node.id)}')`),
-                    actionButton("编辑", "edit", `editSubscriptionNode('${esc(node.id)}')`),
-                    actionButton(enabled ? "停用" : "启用", "power", `toggleSubscriptionNode('${esc(node.id)}', ${enabled ? "false" : "true"})`, false, false, enabled ? 'text-success' : 'text-muted'),
-                    actionButton("删除", "trash", `deleteSubscriptionNode('${esc(node.id)}')`, true)
+                    actionButton("复制链接", "copy", `copySubscriptionNodeUrl(${jsArg(node.id)})`),
+                    actionButton("二维码", "qr", `showSubscriptionNodeQRCode(${jsArg(node.id)})`),
+                    actionButton("编辑", "edit", `editSubscriptionNode(${jsArg(node.id)})`),
+                    actionButton(enabled ? "停用" : "启用", "power", `toggleSubscriptionNode(${jsArg(node.id)}, ${enabled ? "false" : "true"})`, false, false, enabled ? 'text-success' : 'text-muted'),
+                    actionButton("删除", "trash", `deleteSubscriptionNode(${jsArg(node.id)})`, true)
                 ].join("");
 
                 return `
@@ -432,7 +432,7 @@
                                 <span class="text-[13.5px] font-mono text-muted font-bold flex-none">${idx}</span>
                                 
                                 <!-- Expand Button -->
-                                <button type="button" class="w-6 h-6 flex items-center justify-center rounded-md bg-glass border border-border text-muted transition-all duration-200 hover:text-primary hover:border-primary flex-none" onclick="toggleSubscriptionExpand('${esc(link.id)}', event)" aria-label="${expanded ? '折叠' : '展开'}">
+                                <button type="button" class="w-6 h-6 flex items-center justify-center rounded-md bg-glass border border-border text-muted transition-all duration-200 hover:text-primary hover:border-primary flex-none" onclick="${esc(`toggleSubscriptionExpand(${jsArg(link.id)}, event)`)}" aria-label="${expanded ? '折叠' : '展开'}">
                                     ${expandIcon}
                                 </button>
                                 
@@ -753,6 +753,10 @@
             } else {
                 const link = subscriptionLinks.find(item => item.id === select.value);
                 if (link) {
+                    $("subscription_node_protocol").value = link.protocol || "vless-reality";
+                    $("subscription_node_port").value = link.port || "";
+                    $("subscription_node_camouflage").value = link.protocol === "socks5" ? "" : (link.camouflage_host || "");
+                    handleSubscriptionProtocolChange(link.protocol || "vless-reality");
                     hintText = `保存后会加入“${link.name || link.id}”订阅链接；节点本身仍是独立记录，可单独启停、编辑和删除。`;
                     if (title && !$("subscription_node_id").value) title.textContent = `给“${link.name || link.id}”新建节点`;
                 } else {
@@ -768,8 +772,15 @@
         function handleSubscriptionJoinChange(checked) {
             const select = $("subscription_node_subscription_id");
             if (!select) return;
+            const portGroup = $("subscription_node_port_group");
+            const protocolGroup = $("subscription_node_protocol_group");
+            const portInput = $("subscription_node_port");
             select.disabled = !checked;
             select.style.opacity = checked ? "1" : ".55";
+            if (portGroup) portGroup.style.display = checked ? "none" : "";
+            if (protocolGroup) protocolGroup.style.display = checked ? "none" : "";
+            if (portInput) portInput.required = !checked;
+            if (!checked && !portInput.value) generateSubscriptionPort();
             updateSubscriptionNodeJoinHint();
         }
 
@@ -1147,7 +1158,7 @@
                                             </div>
                                             <div style="display:flex; gap:4px; justify-content:center;">
                                                 <button type="button" class="test-btn" onclick="openShareModal(${ibIdx}, ${clientIdx})" style="height:32px; padding:0 8px; width:auto; font-size:11px; margin-bottom:0; color:var(--primary); border-radius:6px;" title="分享节点与订阅">分享</button>
-                                                <button type="button" class="test-btn" onclick="resetClientTraffic('${esc(client.name)}')" style="height:32px; padding:0 8px; width:auto; font-size:11px; margin-bottom:0; color:var(--primary); border-radius:6px;" title="重置已用流量">重置</button>
+                                                <button type="button" class="test-btn" onclick="${esc(`resetClientTraffic(${jsArg(client.name)})`)}" style="height:32px; padding:0 8px; width:auto; font-size:11px; margin-bottom:0; color:var(--primary); border-radius:6px;" title="重置已用流量">重置</button>
                                                 <button type="button" class="w-full min-h-[32px] py-2 px-4 bg-gradient-to-br from-[#ff5370] to-danger border-none rounded-xl text-white font-bold cursor-pointer shadow-[0_12px_24px_rgba(255,83,112,0.24)] transition-all duration-[280ms] ease inline-flex justify-center items-center gap-2 hover:translate-y-[-2px] hover:shadow-[0_14px_28px_rgba(255,83,112,0.32)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed" onclick="removeClientFromInbound(${ibIdx}, ${clientIdx})" style="height:32px; padding:0 8px; width:auto; font-size:11px; margin-bottom:0; border-radius:6px;">删除</button>
                                             </div>
                                         </div>

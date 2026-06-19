@@ -18,6 +18,8 @@ IP_CACHE_FILE = DATA_DIR / "ip_cache.json"
 
 ACTIVE_TUN_DEVICE = "tun0"
 ip_cache_lock = threading.RLock()
+DEFAULT_SOCKS_PROXY_PORT = 1080
+DEFAULT_HTTP_PROXY_PORT = 80
 
 COUNTRY_TRANSLATIONS = {
     "Japan": "日本",
@@ -87,6 +89,35 @@ COUNTRY_TRANSLATIONS = {
     "Luxembourg": "卢森堡",
 }
 
+def _parsed_proxy_port(parsed: urllib.parse.SplitResult, default_port: int) -> int | None:
+    try:
+        return parsed.port or default_port
+    except ValueError:
+        return None
+
+def _split_proxy_host_port(value: str, default_port: int) -> tuple[str, int] | None:
+    value = value.strip()
+    if not value:
+        return None
+    if value.startswith("["):
+        host_part, sep, rest = value.partition("]")
+        host = host_part.lstrip("[")
+        port = default_port
+        if sep and rest.startswith(":"):
+            try:
+                port = int(rest[1:])
+            except ValueError:
+                return None
+        return (host, port) if host else None
+    if value.count(":") == 1:
+        host, _, port_text = value.rpartition(":")
+        try:
+            port = int(port_text)
+        except ValueError:
+            return None
+        return (host, port) if host else None
+    return value, default_port
+
 def get_upstream_proxy() -> tuple[str | None, str | None, int | None]:
     """
     Returns (proxy_type, host, port) from environment variables.
@@ -97,28 +128,27 @@ def get_upstream_proxy() -> tuple[str | None, str | None, int | None]:
         if "://" in socks_env:
             parsed = urllib.parse.urlsplit(socks_env)
             if parsed.hostname:
-                port = parsed.port or 10808
-                return "socks", parsed.hostname, port
+                port = _parsed_proxy_port(parsed, DEFAULT_SOCKS_PROXY_PORT)
+                if port:
+                    return "socks", parsed.hostname, port
         else:
-            parts = socks_env.split(":")
-            if len(parts) == 2:
-                return "socks", parts[0], int(parts[1])
-            elif len(parts) == 1:
-                return "socks", parts[0], 10808
+            parsed_host = _split_proxy_host_port(socks_env, DEFAULT_SOCKS_PROXY_PORT)
+            if parsed_host:
+                return "socks", parsed_host[0], parsed_host[1]
 
     http_env = os.environ.get("OPENVPN_UPSTREAM_HTTP")
     if http_env:
         if "://" in http_env:
             parsed = urllib.parse.urlsplit(http_env)
             if parsed.hostname:
-                port = parsed.port or 10808
-                return "http", parsed.hostname, port
+                default_port = 443 if parsed.scheme == "https" else DEFAULT_HTTP_PROXY_PORT
+                port = _parsed_proxy_port(parsed, default_port)
+                if port:
+                    return "http", parsed.hostname, port
         else:
-            parts = http_env.split(":")
-            if len(parts) == 2:
-                return "http", parts[0], int(parts[1])
-            elif len(parts) == 1:
-                return "http", parts[0], 10808
+            parsed_host = _split_proxy_host_port(http_env, DEFAULT_HTTP_PROXY_PORT)
+            if parsed_host:
+                return "http", parsed_host[0], parsed_host[1]
 
     for env_name in ["http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY"]:
         val = os.environ.get(env_name)
@@ -128,12 +158,17 @@ def get_upstream_proxy() -> tuple[str | None, str | None, int | None]:
             parsed = urllib.parse.urlsplit(val)
             ptype = "socks" if parsed.scheme.startswith("socks") else "http"
             if parsed.hostname:
-                port = parsed.port or 10808
-                return ptype, parsed.hostname, port
+                if ptype == "socks":
+                    default_port = DEFAULT_SOCKS_PROXY_PORT
+                else:
+                    default_port = 443 if parsed.scheme == "https" else DEFAULT_HTTP_PROXY_PORT
+                port = _parsed_proxy_port(parsed, default_port)
+                if port:
+                    return ptype, parsed.hostname, port
         else:
-            parts = val.split(":")
-            if len(parts) == 2:
-                return "http", parts[0], int(parts[1])
+            parsed_host = _split_proxy_host_port(val, DEFAULT_HTTP_PROXY_PORT)
+            if parsed_host:
+                return "http", parsed_host[0], parsed_host[1]
     return None, None, None
 
 def is_config_tcp(config_text: str) -> bool:

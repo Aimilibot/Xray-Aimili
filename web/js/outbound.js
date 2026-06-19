@@ -283,9 +283,9 @@
                         </td>
                         <td>
                             <div class="flex gap-2 justify-end flex-wrap">
-                                <button type="button" class="min-h-[30px] py-1 px-3 text-[11.5px] w-auto rounded-xl bg-glass border border-border text-text shadow-none hover:bg-glass-strong hover:shadow-none inline-flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed" onclick="testOutboundNode('${esc(node.id)}')" style="width:auto;">测试</button>
-                                <button type="button" class="min-h-[30px] py-1 px-3 text-[11.5px] w-auto rounded-xl bg-glass border border-border text-text shadow-none hover:bg-glass-strong hover:shadow-none inline-flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed" onclick="editOutboundNode('${esc(node.id)}')" style="width:auto;">编辑</button>
-                                <button type="button" class="min-h-[30px] py-1 px-3 text-[11.5px] w-auto rounded-xl bg-gradient-to-br from-[#ff5370] to-danger text-white border-none shadow-[0_12px_24px_rgba(255,83,112,0.24)] transition-all duration-[280ms] ease-in-out inline-flex justify-center items-center gap-2 hover:translate-y-[-2px] hover:shadow-[0_14px_28px_rgba(255,83,112,0.32)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed" onclick="deleteOutboundNode('${esc(node.id)}')" style="width:auto;">删除</button>
+                                <button type="button" class="min-h-[30px] py-1 px-3 text-[11.5px] w-auto rounded-xl bg-glass border border-border text-text shadow-none hover:bg-glass-strong hover:shadow-none inline-flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed" onclick="${esc(`testOutboundNode(${jsArg(node.id)})`)}" style="width:auto;">测试</button>
+                                <button type="button" class="min-h-[30px] py-1 px-3 text-[11.5px] w-auto rounded-xl bg-glass border border-border text-text shadow-none hover:bg-glass-strong hover:shadow-none inline-flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed" onclick="${esc(`editOutboundNode(${jsArg(node.id)})`)}" style="width:auto;">编辑</button>
+                                <button type="button" class="min-h-[30px] py-1 px-3 text-[11.5px] w-auto rounded-xl bg-gradient-to-br from-[#ff5370] to-danger text-white border-none shadow-[0_12px_24px_rgba(255,83,112,0.24)] transition-all duration-[280ms] ease-in-out inline-flex justify-center items-center gap-2 hover:translate-y-[-2px] hover:shadow-[0_14px_28px_rgba(255,83,112,0.32)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed" onclick="${esc(`deleteOutboundNode(${jsArg(node.id)})`)}" style="width:auto;">删除</button>
                             </div>
                         </td>
                     </tr>
@@ -748,13 +748,13 @@
                     const isTesting = testingNodeIds.has(n.id);
                     const testSpinner = `<svg style="animation: spin 1s linear infinite; width: 12px; height: 12px; display: inline-block; margin-right: 4px; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.2" fill="none"></circle><path d="M4 12a8 8 0 018-8" stroke="currentColor" fill="none"></path></svg>`;
                     const testBtnText = isTesting ? `${testSpinner}检测中` : '检测';
-                    const testBtn = `<button class="test-btn" data-node-id="${esc(n.id)}" ${isTesting ? 'disabled' : ''} onclick="testNode(this, '${esc(n.id)}', event)">${testBtnText}</button>`;
+                    const testBtn = `<button class="test-btn" data-node-id="${esc(n.id)}" ${isTesting ? 'disabled' : ''} onclick="${esc(`testNode(this, ${jsArg(n.id)}, event)`)}">${testBtnText}</button>`;
 
                     const isUnavailable = n.probe_status === "unavailable";
                     const connectLabel = openvpnEnabled ? "切换" : "启动";
                     const connectBtn = isCurrentlyActive
                         ? `<button class="w-full min-h-[32px] py-2 px-4 bg-gradient-to-br from-primary to-second border-none rounded-xl text-white font-bold cursor-pointer shadow-[0_12px_24px_color-mix(in_srgb,var(--primary)_24%,transparent)] transition-all duration-[280ms] ease inline-flex justify-center items-center gap-2 hover:translate-y-[-2px] hover:shadow-[0_14px_28px_color-mix(in_srgb,var(--primary)_34%,transparent)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed" disabled style="background: var(--primary); color: white; cursor: default; border:none; opacity:1;">已连接</button>`
-                        : `<button class="connect-btn" ${(isUnavailable || state.is_connecting) ? 'disabled' : ''} onclick="connectNode('${esc(n.id)}')">${connectLabel}</button>`;
+                        : `<button class="connect-btn" ${(isUnavailable || state.is_connecting) ? 'disabled' : ''} onclick="${esc(`connectNode(${jsArg(n.id)})`)}">${connectLabel}</button>`;
 
                     return `<tr ${rowClass}>
                         <td>

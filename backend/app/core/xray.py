@@ -557,6 +557,153 @@ def write_xray_config(cfg: dict) -> bool:
                 }
                 xray_inbounds.append(inbound_entry)
 
+        independent_nodes_changed = False
+        for node in [item for item in sub_nodes if item.get("enabled") and not item.get("subscription_id")]:
+            protocol = str(node.get("protocol") or "").strip().lower()
+            port = int(node.get("port") or 0)
+            if not port:
+                xray_event("WARNING", f"独立节点 {node.get('name') or node.get('id')} 缺少端口，已跳过")
+                continue
+            node_id = str(node.get("id") or "").strip()
+            if not node_id:
+                continue
+            name = str(node.get("name") or node_id).strip()
+            camouflage_host = clean_hostname(node.get("camouflage_host"))
+
+            if protocol == "vless-reality":
+                uuid_value = str(node.get("uuid") or "").strip()
+                if not uuid_value:
+                    continue
+
+                private_key = str(node.get("reality_private_key") or "").strip()
+                public_key = str(node.get("reality_public_key") or "").strip()
+                short_id = str(node.get("reality_short_id") or "").strip()
+                mldsa_seed = str(node.get("reality_mldsa65_seed") or "").strip()
+                spider_x = str(node.get("reality_spider_x") or "").strip()
+
+                if not private_key or not public_key:
+                    priv, pub = generate_reality_keys()
+                    if priv and pub:
+                        node["reality_private_key"] = priv
+                        node["reality_public_key"] = pub
+                        private_key = priv
+                        public_key = pub
+                        independent_nodes_changed = True
+                if not short_id:
+                    import secrets
+                    short_id = secrets.token_hex(8)
+                    node["reality_short_id"] = short_id
+                    independent_nodes_changed = True
+                if not spider_x:
+                    import random
+                    rand_hex = "".join(random.choice("0123456789abcdef") for _ in range(random.randint(8, 16)))
+                    spider_x = f"/{rand_hex}"
+                    node["reality_spider_x"] = spider_x
+                    independent_nodes_changed = True
+                if not private_key:
+                    xray_event("WARNING", f"独立节点 {name} 缺少 Reality 私钥，已跳过")
+                    continue
+
+                reality_settings = {
+                    "show": False,
+                    "dest": f"{camouflage_host}:443" if camouflage_host else "www.microsoft.com:443",
+                    "xver": 0,
+                    "serverNames": [camouflage_host or "www.microsoft.com"],
+                    "privateKey": private_key,
+                    "shortIds": [short_id] if short_id else [],
+                    "spiderX": spider_x or "/"
+                }
+                if mldsa_seed:
+                    reality_settings["mldsa65Seed"] = mldsa_seed
+
+                xray_inbounds.append({
+                    "listen": "0.0.0.0",
+                    "port": port,
+                    "protocol": "vless",
+                    "tag": node_id,
+                    "settings": {
+                        "clients": [{
+                            "id": uuid_value,
+                            "flow": "xtls-rprx-vision",
+                            "level": 0,
+                            "email": name
+                        }],
+                        "decryption": "none"
+                    },
+                    "streamSettings": {
+                        "network": "tcp",
+                        "security": "reality",
+                        "realitySettings": reality_settings
+                    }
+                })
+
+            elif protocol == "vmess-ws-tls":
+                ui_cfg = load_ui_config()
+                cert_file = ""
+                key_file = ""
+                if camouflage_host == str(ui_cfg.get("domain", "")).strip():
+                    cert_file = str(ui_cfg.get("tls_cert_file", "")).strip()
+                    key_file = str(ui_cfg.get("tls_key_file", "")).strip()
+                if not cert_file or not key_file:
+                    for item in ui_cfg.get("domain_certs", []):
+                        if camouflage_host == str(item.get("domain", "")).strip():
+                            cert_file = str(item.get("tls_cert_file", "")).strip()
+                            key_file = str(item.get("tls_key_file", "")).strip()
+                            break
+                if not cert_file or not key_file or not os.path.exists(cert_file) or not os.path.exists(key_file):
+                    xray_event("WARNING", f"独立节点 {name} 的 TLS 证书文件不存在，已跳过以防止 Xray 启动失败")
+                    continue
+                uuid_value = str(node.get("uuid") or "").strip()
+                if not uuid_value:
+                    continue
+                ws_path = str(node.get("ws_path") or "/").strip()
+                if not ws_path.startswith("/"):
+                    ws_path = "/" + ws_path
+                xray_inbounds.append({
+                    "listen": "0.0.0.0",
+                    "port": port,
+                    "protocol": "vmess",
+                    "tag": node_id,
+                    "settings": {
+                        "clients": [{
+                            "id": uuid_value,
+                            "level": 0,
+                            "alterId": 0,
+                            "email": name
+                        }]
+                    },
+                    "streamSettings": {
+                        "network": "ws",
+                        "security": "tls",
+                        "wsSettings": {"path": ws_path},
+                        "tlsSettings": {
+                            "certificates": [{
+                                "certificateFile": cert_file,
+                                "keyFile": key_file
+                            }]
+                        }
+                    }
+                })
+
+            elif protocol == "socks5":
+                socks_username = str(node.get("socks_username") or node.get("username") or "").strip()
+                socks_password = str(node.get("socks_password") or node.get("password") or "").strip()
+                accounts = [{"user": socks_username, "pass": socks_password}] if socks_username and socks_password else []
+                xray_inbounds.append({
+                    "listen": "0.0.0.0",
+                    "port": port,
+                    "protocol": "socks",
+                    "tag": node_id,
+                    "settings": {
+                        "auth": "password" if accounts else "noauth",
+                        "accounts": accounts,
+                        "udp": True
+                    }
+                })
+
+        if independent_nodes_changed:
+            write_json(SUBSCRIPTION_NODES_FILE, sub_nodes)
+
         xray_inbounds.append({
             "listen": "127.0.0.1",
             "port": 10085,
@@ -1389,6 +1536,10 @@ def validate_subscription_link_payload(payload: dict[str, Any], existing_links: 
         if item_id != current_id and int(item.get("port") or 0) == port:
             return None, f"端口 {port} 已被其他订阅占用"
 
+    for item in read_json_list(SUBSCRIPTION_NODES_FILE):
+        if not item.get("subscription_id") and int(item.get("port") or 0) == port:
+            return None, f"端口 {port} 已被独立节点占用"
+
     if protocol not in {item["id"] for item in ALLOWED_SUBSCRIPTION_PROTOCOLS}:
         return None, f"协议类型不支持: {protocol}"
 
@@ -1529,6 +1680,10 @@ def ensure_default_subscription_link() -> dict[str, Any]:
         "name": "默认订阅",
         "token": f"sub_{uuid.uuid4().hex}",
         "remark": "自动创建的默认订阅链接",
+        "port": 10086,
+        "protocol": "vless-reality",
+        "camouflage_host": "www.microsoft.com",
+        "ws_path": "/",
         "enabled": True,
         "status": "draft",
         "status_text": "订阅链接已创建，节点启用后会进入订阅内容",
@@ -1590,22 +1745,42 @@ def set_subscription_link_enabled(link_id: str, enabled: bool) -> tuple[dict[str
 
 def validate_subscription_node_payload(payload: dict[str, Any], existing_nodes: list[dict[str, Any]]) -> tuple[dict[str, Any] | None, str]:
     subscription_id = str(payload.get("subscription_id") or "").strip()
+    add_to_subscription = payload.get("add_to_subscription") is not False
     links = read_json_list(SUBSCRIPTION_LINKS_FILE)
-    if not subscription_id:
+    if add_to_subscription and not subscription_id:
         subscription_id = str(ensure_default_subscription_link().get("id") or "")
         links = read_json_list(SUBSCRIPTION_LINKS_FILE)
     
-    link = next((item for item in links if item.get("id") == subscription_id), None)
-    if not link:
-        return None, "订阅链接不存在"
-
     name = str(payload.get("name") or "").strip()
     if not name:
         return None, "节点名称不能为空"
 
-    protocol = str(link.get("protocol") or "vless-reality").strip().lower()
-    port = int(link.get("port") or 10086)
-    camouflage_host = clean_hostname(link.get("camouflage_host"))
+    link = next((item for item in links if item.get("id") == subscription_id), None) if add_to_subscription else None
+    if add_to_subscription and not link:
+        return None, "订阅链接不存在"
+
+    if link:
+        protocol = str(link.get("protocol") or "vless-reality").strip().lower()
+        port = int(link.get("port") or 10086)
+        camouflage_host = clean_hostname(link.get("camouflage_host"))
+    else:
+        protocol = str(payload.get("protocol") or "vless-reality").strip().lower()
+        if protocol not in {item["id"] for item in ALLOWED_SUBSCRIPTION_PROTOCOLS}:
+            return None, f"协议类型不支持: {protocol}"
+        try:
+            port = int(payload.get("port"))
+        except (TypeError, ValueError):
+            return None, "独立节点端口必须是数字"
+        if not (1 <= port <= 65535):
+            return None, "独立节点端口必须在 1 至 65535 之间"
+        current_id = str(payload.get("id") or "").strip()
+        for item in links:
+            if int(item.get("port") or 0) == port:
+                return None, f"端口 {port} 已被订阅链接占用"
+        for item in existing_nodes:
+            if str(item.get("id") or "") != current_id and not item.get("subscription_id") and int(item.get("port") or 0) == port:
+                return None, f"端口 {port} 已被其他独立节点占用"
+        camouflage_host = clean_hostname(payload.get("camouflage_host"))
 
     uuid_value = str(payload.get("uuid") or "").strip()
     socks_username = clean_proxy_credential(payload.get("socks_username") or payload.get("username"))
@@ -1630,17 +1805,50 @@ def validate_subscription_node_payload(payload: dict[str, Any], existing_nodes: 
             uuid_value = str(uuid.UUID(uuid_value))
         except ValueError:
             return None, "UUID 格式不正确"
+        if protocol == "vless-reality":
+            if not camouflage_host:
+                return None, "独立 VLESS-Reality 节点的伪装网址不能为空"
+            if not re.match(r"^[a-z0-9.-]+$", camouflage_host):
+                return None, "伪装网址只允许填写域名"
 
     now = current_timestamp()
     node_id = str(payload.get("id") or "") or f"subnode-{uuid.uuid4().hex[:12]}"
+    existing = next((item for item in existing_nodes if str(item.get("id") or "") == node_id), {})
+    reality_private_key = str(payload.get("reality_private_key") or existing.get("reality_private_key") or "").strip()
+    reality_public_key = str(payload.get("reality_public_key") or existing.get("reality_public_key") or "").strip()
+    reality_short_id = str(payload.get("reality_short_id") or existing.get("reality_short_id") or "").strip()
+    reality_mldsa65_seed = str(payload.get("reality_mldsa65_seed") or existing.get("reality_mldsa65_seed") or "").strip()
+    reality_mldsa65_verify = str(payload.get("reality_mldsa65_verify") or existing.get("reality_mldsa65_verify") or "").strip()
+    reality_spider_x = str(payload.get("reality_spider_x") or existing.get("reality_spider_x") or "").strip()
+    if not link and protocol == "vless-reality":
+        if not reality_private_key or not reality_public_key:
+            priv, pub = generate_reality_keys()
+            if priv and pub:
+                reality_private_key = priv
+                reality_public_key = pub
+        if not reality_short_id:
+            import secrets
+            reality_short_id = secrets.token_hex(8)
+        if not reality_spider_x:
+            import random
+            rand_hex = "".join(random.choice("0123456789abcdef") for _ in range(random.randint(8, 16)))
+            reality_spider_x = f"/{rand_hex}"
+
     return {
         "id": node_id,
-        "subscription_id": subscription_id,
+        "subscription_id": subscription_id if link else "",
         "name": name,
         "protocol": protocol,
         "port": port,
         "uuid": uuid_value,
         "camouflage_host": camouflage_host,
+        "ws_path": str(payload.get("ws_path") or existing.get("ws_path") or "/"),
+        "reality_private_key": reality_private_key,
+        "reality_public_key": reality_public_key,
+        "reality_short_id": reality_short_id,
+        "reality_mldsa65_seed": reality_mldsa65_seed,
+        "reality_mldsa65_verify": reality_mldsa65_verify,
+        "reality_spider_x": reality_spider_x,
         "socks_username": socks_username,
         "socks_password": socks_password,
         "enabled": bool(payload.get("enabled", True)),

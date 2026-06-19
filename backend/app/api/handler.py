@@ -93,20 +93,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def validate_path(self) -> str:
         parsed_url = urllib.parse.urlparse(self.path)
-        if parsed_url.path == "/api/xray/subscribe":
+        request_path = parsed_url.path
+        if request_path == "/api/xray/subscribe":
             return "/api/xray/subscribe"
 
         secret_path = self.get_secret_path()
         if not secret_path:
-            return self.path
-        if self.path == f"/{secret_path}":
+            return request_path
+        if request_path == f"/{secret_path}":
             self.send_response(HTTPStatus.FOUND)
             self.send_header("Location", f"/{secret_path}/")
             self.end_headers()
             return ""
         prefix = f"/{secret_path}/"
-        if self.path.startswith(prefix):
-            return "/" + self.path[len(prefix):]
+        if request_path.startswith(prefix):
+            return "/" + request_path[len(prefix):]
         self.send_response(HTTPStatus.NOT_FOUND)
         self.end_headers()
         return ""
@@ -906,6 +907,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"ok": True, "node": node, "message": "订阅节点状态已更新。"})
             except Exception as exc:
                 self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+
         if effective_path == "/api/panel/subscription-nodes/share-link":
             try:
                 ensure_panel_framework_files()
