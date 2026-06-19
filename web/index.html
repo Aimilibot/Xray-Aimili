@@ -190,6 +190,20 @@
           </div>
         </div>
 
+        <!-- 分层健康检测 -->
+        <div class="glass-card rounded-[28px] p-6">
+          <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
+            <div>
+              <h3 class="text-base font-bold">分层健康检测状况</h3>
+              <p class="text-xs text-muted mt-1">系统全链路多层次状态实时监控（包含 API、节点池、网卡、策略路由与本地代理）</p>
+            </div>
+            <button id="btn_refresh_layered_health" onclick="testLayeredHealth(true)" class="btn-primary-action py-1.5 px-4 rounded-lg text-xs font-bold">一键自检</button>
+          </div>
+          <div id="layered_health_dashboard" class="grid grid-cols-1 sm:grid-cols-5 gap-5">
+            <div class="col-span-5 text-center text-muted py-6 text-sm">正在加载自检指标...</div>
+          </div>
+        </div>
+
         <!-- 流量监控 -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div class="glass-card rounded-[28px] p-6 flex flex-col">
@@ -478,6 +492,12 @@
 
         <!-- 服务自检 -->
         <div id="subsetting-diagnostics" class="subsettings-content hidden">
+          <div class="glass-card rounded-[28px] p-6 mb-6">
+            <h3 class="!text-[18px] !font-bold mb-5">分层健康检测状态</h3>
+            <div id="layered_health_list" class="grid grid-cols-[repeat(auto-fit,minmax(290px,1fr))] gap-5">
+              <div class="col-span-full text-center text-muted py-6 text-sm">正在加载自检指标...</div>
+            </div>
+          </div>
           <div class="glass-card rounded-[28px] p-6">
             <h3 class="!text-[18px] !font-bold mb-5">网关服务自检状态</h3>
             <div id="gateway_services_list" class="grid grid-cols-[repeat(auto-fit,minmax(290px,1fr))] gap-5"></div>

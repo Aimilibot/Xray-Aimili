@@ -381,3 +381,87 @@ function toggleVPSModal() {
                 alert("Xray 操作请求失败。");
             }
         }
+
+        async function testLayeredHealth(force = false) {
+            const container = $("layered_health_dashboard");
+            if (!container) return;
+            
+            const btn = $("btn_refresh_layered_health");
+            if (force && btn) {
+                btn.disabled = true;
+                btn.textContent = "自检中...";
+            }
+            
+            try {
+                const res = await fetch("./api/layered_health", { method: "POST" });
+                const data = await res.json();
+                renderLayeredHealthDashboard(data);
+                if (window.renderLayeredHealthList) {
+                    window.renderLayeredHealthList(data);
+                }
+            } catch (e) {
+                container.innerHTML = `<div class="col-span-5 text-center text-red-500 py-6 text-sm">自检接口错误: ${esc(e.message || e)}</div>`;
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = "一键自检";
+                }
+            }
+        }
+
+        function renderLayeredHealthDashboard(data) {
+            const container = $("layered_health_dashboard");
+            if (!container) return;
+            
+            const layers = [
+                { key: "api_connectivity", name: "API 源通畅度" },
+                { key: "node_pool", name: "节点池可用性" },
+                { key: "openvpn_interface", name: "OpenVPN网卡" },
+                { key: "policy_routing", name: "策略路由" },
+                { key: "local_proxy", name: "本地代理出口" }
+            ];
+            
+            container.innerHTML = layers.map(layer => {
+                const info = data[layer.key] || { ok: false, details: "未检测" };
+                let badgeClass = "unavailable";
+                let badgeText = "异常";
+                
+                if (info.ok) {
+                    badgeClass = "available";
+                    badgeText = "正常";
+                } else if (info.details === "未启用" || info.details === "未启动" || info.details === "未检测" || info.details === "OpenVPN 连接未启动" || info.details === "Xray 代理服务未运行" || info.details.includes("未运行")) {
+                    badgeClass = "not_checked";
+                    badgeText = "未就绪";
+                } else if (info.details.includes("免检") || info.details.includes("跳过") || info.details.includes("无需配置")) {
+                    badgeClass = "not_checked";
+                    badgeText = "跳过";
+                }
+                
+                const statusPulse = info.ok ? '<span class="badge-pulse"></span>' : '';
+                
+                return `
+                    <div class="glass p-4 rounded-[20px] flex flex-col gap-2 border border-border" style="background: var(--control);">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-muted font-bold">${esc(layer.name)}</span>
+                            <span class="badge ${badgeClass}" style="padding: 1px 6.5px; font-size:10.5px; display:inline-flex; align-items:center;">${statusPulse}${badgeText}</span>
+                        </div>
+                        <p class="text-[12px] text-text font-medium leading-normal mt-1 break-words" title="${esc(info.details)}">
+                            ${esc(info.details)}
+                        </p>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        window.testLayeredHealth = testLayeredHealth;
+        window.renderLayeredHealthDashboard = renderLayeredHealthDashboard;
+        
+        let _first_health_done = false;
+        const _orig_fetchStats = fetchStats;
+        fetchStats = async function() {
+            await _orig_fetchStats();
+            if (!_first_health_done) {
+                _first_health_done = true;
+                testLayeredHealth(false);
+            }
+        };

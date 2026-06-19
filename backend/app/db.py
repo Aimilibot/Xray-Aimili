@@ -59,10 +59,11 @@ def ensure_panel_framework_files() -> None:
 def ensure_dirs() -> None:
     DATA_DIR.mkdir(exist_ok=True, parents=True)
     CONFIG_DIR.mkdir(exist_ok=True, parents=True)
-    if not AUTH_FILE.exists():
-        AUTH_FILE.write_text(f"{OPENVPN_AUTH_USER}\n{OPENVPN_AUTH_PASS}\n", encoding="utf-8")
+    # Deprecated writing plain credentials to disk for security.
+    # Pass via in-memory stdin pipe to OpenVPN instead.
+    if AUTH_FILE.exists():
         try:
-            AUTH_FILE.chmod(0o600)
+            AUTH_FILE.unlink()
         except OSError:
             pass
     if not FEATURE_FLAGS_FILE.exists():

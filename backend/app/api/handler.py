@@ -46,7 +46,7 @@ from backend.app.core.vpn import (
     active_openvpn_running, get_tun_stats, maintain_valid_nodes,
     test_multiple_nodes, start_openvpn_service, stop_openvpn_service,
     connect_node, test_node_by_id, check_proxy_health, normalize_force_country,
-    parse_int
+    parse_int, check_layered_health
 )
 from utils import vpn as vpn_utils
 
@@ -494,7 +494,8 @@ class Handler(BaseHTTPRequestHandler):
             connection_count = 1 if active_openvpn_running() else 0
             
             # Calculate traffic statistics
-            tun_rx, tun_tx = get_tun_stats("tun0")
+            active_dev = getattr(vpn_utils, 'ACTIVE_TUN_DEVICE', 'tun0')
+            tun_rx, tun_tx = get_tun_stats(active_dev)
             session_rx = max(0, tun_rx - state.session_rx_start) if active_openvpn_running() else 0
             session_tx = max(0, tun_tx - state.session_tx_start) if active_openvpn_running() else 0
             
@@ -631,8 +632,9 @@ class Handler(BaseHTTPRequestHandler):
             if ovpn_ok:
                 ovpn_details = f"已连接节点: {state.active_openvpn_node_id}"
                 if sys.platform.startswith("linux"):
-                    if not Path("/sys/class/net/tun0").exists():
-                        ovpn_err = "[警告] 虚拟网卡 (tun0) 未启用，可能存在策略路由配置问题。"
+                    active_dev = getattr(vpn_utils, 'ACTIVE_TUN_DEVICE', 'tun0')
+                    if not Path(f"/sys/class/net/{active_dev}").exists():
+                        ovpn_err = f"[警告] 虚拟网卡 ({active_dev}) 未启用，可能存在策略路由配置问题。"
             else:
                 if state.active_openvpn_node_id:
                     ovpn_err = "连接已中断或 OpenVPN 核心程序异常退出。"
@@ -1476,6 +1478,15 @@ class Handler(BaseHTTPRequestHandler):
                         proxy_latency_ms=0,
                         proxy_error=result.get("error", "未知错误")
                     )
+                self.send_json(result)
+            except Exception as exc:
+                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+        elif effective_path == "/api/layered_health":
+            try:
+                length = parse_int(self.headers.get("Content-Length"))
+                if length > 0:
+                    self.rfile.read(length)
+                result = check_layered_health()
                 self.send_json(result)
             except Exception as exc:
                 self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)

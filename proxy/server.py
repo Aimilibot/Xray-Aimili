@@ -71,15 +71,16 @@ def resolve_dns_over_tun0(host: str, dns_servers: list[str] = ["8.8.8.8", "1.1.1
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             sock.settimeout(timeout)
-            try:
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, b"tun0")
-            except OSError as e:
-                if "operation not permitted" in str(e).lower() or e.errno == 1:
-                    print("[DNS 绑定失败] [错误代码 3006] DNS 解析绑定 tun0 权限不足，请确保程序以 root 权限运行！", flush=True)
-                elif "no such device" in str(e).lower() or e.errno == 19:
-                    print("[DNS 绑定失败] [错误代码 3004] DNS 解析绑定 tun0 失败，网卡设备不存在，请检查 VPN 连接！", flush=True)
-                sock.close()
-                return None
+            active_dev = getattr(vpn_utils, 'ACTIVE_TUN_DEVICE', 'tun0')
+            SO_BINDTODEVICE = getattr(socket, "SO_BINDTODEVICE", None)
+            if SO_BINDTODEVICE is not None:
+                try:
+                    sock.setsockopt(socket.SOL_SOCKET, SO_BINDTODEVICE, active_dev.encode("utf-8"))
+                except OSError as e:
+                    if "operation not permitted" in str(e).lower() or e.errno == 1:
+                        print(f"[DNS 绑定警告] DNS 解析绑定 {active_dev} 权限不足，降级为默认路由路径进行查询。", flush=True)
+                    elif "no such device" in str(e).lower() or e.errno == 19:
+                        print(f"[DNS 绑定警告] DNS 解析绑定 {active_dev} 设备不存在，降级为默认路由路径进行查询。", flush=True)
             sock.sendto(packet, (dns_server, 53))
             resp, _ = sock.recvfrom(2048)
             
@@ -142,26 +143,72 @@ def resolve_dns_over_tun0(host: str, dns_servers: list[str] = ["8.8.8.8", "1.1.1
 
 def create_connection(address: tuple[str, int], timeout: float = 20) -> socket.socket:
     host, port = address
+    ptype, phost, pport = vpn_utils.get_upstream_proxy()
+    SO_BINDTODEVICE = getattr(socket, "SO_BINDTODEVICE", None)
+
+    # 1. macOS / Developer Environment SOCKS5 / HTTP dynamic forwarding fallback
+    if SO_BINDTODEVICE is None and ptype in ("socks", "http") and phost and pport:
+        try:
+            print(f"[Proxy Upstream] 非 Linux 环境使用上游 {ptype} 代理 ({phost}:{pport}) 动态转发至 {host}:{port}", flush=True)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout)
+            sock.connect((phost, pport))
+            if ptype == "socks":
+                sock.sendall(b"\x05\x01\x00")
+                resp = recv_exact(sock, 2)
+                if resp[0] != 5 or resp[1] != 0:
+                    raise RuntimeError("SOCKS5 认证失败或不支持该认证方式")
+                host_bytes = host.encode("idna")
+                req = b"\x05\x01\x00\x03" + bytes([len(host_bytes)]) + host_bytes + port.to_bytes(2, "big")
+                sock.sendall(req)
+                resp_header = recv_exact(sock, 4)
+                if resp_header[0] != 5 or resp_header[1] != 0:
+                    raise RuntimeError(f"SOCKS5 代理建立连接请求被拒绝: {resp_header[1]}")
+                atyp = resp_header[3]
+                if atyp == 1:
+                    recv_exact(sock, 6)
+                elif atyp == 3:
+                    addr_len = recv_exact(sock, 1)[0]
+                    recv_exact(sock, addr_len + 2)
+                elif atyp == 4:
+                    recv_exact(sock, 18)
+                else:
+                    raise RuntimeError(f"未知的 SOCKS5 ATYP: {atyp}")
+            else: # http
+                req_str = f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\nUser-Agent: Mozilla/5.0 vpngate-openvpn-manager/2.0\r\nProxy-Connection: Keep-Alive\r\n\r\n"
+                sock.sendall(req_str.encode('ascii'))
+                resp = sock.recv(4096)
+                if not (b"200" in resp or b"established" in resp.lower() or b"ok" in resp.lower()):
+                    raise RuntimeError(f"HTTP CONNECT 隧道连接失败: {resp.decode('utf-8', errors='replace')}")
+            return sock
+        except Exception as e:
+            print(f"[Proxy Warning] 上游代理动态转发失败: {e}，将降级至普通直连网关模式", flush=True)
+
+    # 2. Ordinary Gateway Proxy Mode / direct connection fallback
     resolved_ip = resolve_dns_over_tun0(host)
     if resolved_ip:
-        host = resolved_ip
+        target_host = resolved_ip
+    else:
+        target_host = host
 
     err = None
-    for res in socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM):
+    for res in socket.getaddrinfo(target_host, port, 0, socket.SOCK_STREAM):
         af, socktype, proto, canonname, sa = res
         sock = None
+        active_dev = getattr(vpn_utils, 'ACTIVE_TUN_DEVICE', 'tun0')
         try:
             sock = socket.socket(af, socktype, proto)
             sock.settimeout(timeout)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, b"tun0")
+            if SO_BINDTODEVICE is not None:
+                try:
+                    sock.setsockopt(socket.SOL_SOCKET, SO_BINDTODEVICE, active_dev.encode("utf-8"))
+                except OSError as e:
+                    # setsockopt SO_BINDTODEVICE failed (e.g. no root permission or tun dev missing), fallback gracefully
+                    print(f"[Proxy Warning] 绑定虚拟网卡 {active_dev} 失败: {e}，将安全降级到普通网关模式。", flush=True)
             sock.connect(sa)
             return sock
         except OSError as e:
             err = e
-            if "operation not permitted" in str(e).lower() or e.errno == 1:
-                err = OSError(f"[错误代码 3006] [ERR_PROXY_BIND_TUN_PERM_DENIED] 绑定虚拟网卡 tun0 失败，权限不足！必须以 root 权限运行，或者进程缺少 CAP_NET_RAW 权限。")
-            elif "no such device" in str(e).lower() or e.errno == 19:
-                err = OSError(f"[错误代码 3004] [ERR_ROUTE_DEV_NOT_FOUND] 绑定虚拟网卡 tun0 失败，找不到设备！这通常是因为 OpenVPN 核心未能成功连接或已被异常终止。")
             if sock is not None:
                 sock.close()
     if err is not None:

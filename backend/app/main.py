@@ -168,8 +168,6 @@ def main() -> None:
     threading.Thread(target=background_proxy_checker, daemon=True).start()
     threading.Thread(target=active_node_pinger, daemon=True).start()
 
-    ui_host = ui_cfg.get("host", UI_HOST)
-    ui_port = int(ui_cfg.get("port", UI_PORT))
     secret_path = ui_cfg.get("secret_path", "")
 
     # Clean display of UI address (handle IPv6 host formatting)

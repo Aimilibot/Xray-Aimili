@@ -62,7 +62,8 @@ def record_session_traffic_start(interface: str = "tun0") -> None:
 
 def save_session_traffic_to_total() -> None:
     if active_openvpn_running():
-        rx, tx = get_tun_stats("tun0")
+        active_dev = getattr(vpn_utils, 'ACTIVE_TUN_DEVICE', 'tun0')
+        rx, tx = get_tun_stats(active_dev)
         session_rx = max(0, rx - state.session_rx_start)
         session_tx = max(0, tx - state.session_tx_start)
         if session_rx > 0 or session_tx > 0:
@@ -88,15 +89,38 @@ def fetch_api_text_via_proxy(url: str, ptype: str, phost: str, pport: int, use_s
         s.connect((phost, pport))
         if ptype == "socks":
             s.sendall(b"\x05\x01\x00")
-            resp = s.recv(2)
-            if len(resp) < 2 or resp[0] != 5 or resp[1] != 0:
+            
+            def _recv_exact(sock, size):
+                data = b""
+                while len(data) < size:
+                    chunk = sock.recv(size - len(data))
+                    if not chunk:
+                        raise RuntimeError("SOCKS5 connection closed prematurely")
+                    data += chunk
+                return data
+
+            resp = _recv_exact(s, 2)
+            if resp[0] != 5 or resp[1] != 0:
                 raise RuntimeError("SOCKS5 authentication failed or unsupported")
             domain_bytes = domain.encode('ascii')
             req = b"\x05\x01\x00\x03" + bytes([len(domain_bytes)]) + domain_bytes + port.to_bytes(2, 'big')
             s.sendall(req)
-            resp = s.recv(10)
-            if len(resp) < 4 or resp[1] != 0:
-                raise RuntimeError("SOCKS5 connection request rejected")
+            
+            resp_header = _recv_exact(s, 4)
+            if resp_header[0] != 5 or resp_header[1] != 0:
+                raise RuntimeError(f"SOCKS5 connection request rejected: code {resp_header[1]}")
+            
+            atyp = resp_header[3]
+            if atyp == 1:
+                _recv_exact(s, 6) # 4 bytes IPv4 + 2 bytes Port
+            elif atyp == 3:
+                addr_len = _recv_exact(s, 1)[0]
+                _recv_exact(s, addr_len + 2)
+            elif atyp == 4:
+                _recv_exact(s, 18) # 16 bytes IPv6 + 2 bytes Port
+            else:
+                raise RuntimeError(f"Unknown SOCKS5 ATYP: {atyp}")
+
             if is_https:
                 ctx = ssl.create_default_context() if use_ssl_verify else ssl._create_unverified_context()
                 s = ctx.wrap_socket(s, server_hostname=domain)
@@ -378,8 +402,6 @@ def openvpn_command(config_file: str, route_nopull: bool, dev: str = "tun0") -> 
             "--connect-timeout",
             "15",
             "--auth-user-pass",
-            str(AUTH_FILE),
-            "--auth-nocache",
         ]
     )
 
@@ -458,6 +480,7 @@ def run_openvpn_until_ready(config_file: str, keep_alive: bool, route_nopull: bo
     try:
         process = subprocess.Popen(
             command,
+            stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -465,6 +488,9 @@ def run_openvpn_until_ready(config_file: str, keep_alive: bool, route_nopull: bo
             errors="replace",
             cwd=str(ROOT_DIR),
         )
+        if process.stdin:
+            process.stdin.write(f"{OPENVPN_AUTH_USER}\n{OPENVPN_AUTH_PASS}\n")
+            process.stdin.flush()
     except FileNotFoundError:
         log_to_json("ERROR", "VPN", f"OpenVPN 启动失败: 未找到命令 {command[0] if command else OPENVPN_CMD}")
         return False, "[错误代码 2001] [ERR_OVPN_CMD_NOT_FOUND] 未找到 openvpn 命令。原因: 系统未安装 openvpn，或 PATH 环境变量不正确。", None
@@ -513,6 +539,12 @@ def run_openvpn_until_ready(config_file: str, keep_alive: bool, route_nopull: bo
         lower = line.lower()
         if keep_alive:
             update_handshake_status(lower)
+            # Parse dynamic device name allocated by OpenVPN
+            match = re.search(r"tun/tap device (\w+) opened", lower) or re.search(r"opened tun device (\w+)", lower)
+            if match:
+                allocated_dev = match.group(1)
+                vpn_utils.ACTIVE_TUN_DEVICE = allocated_dev
+                print(f"[OpenVPN] 解析到分配的实际网卡: {allocated_dev}", flush=True)
         if "initialization sequence completed" in lower:
             ok = True
             message = f"OpenVPN connected in {int((time.time() - started) * 1000)} ms."
@@ -598,6 +630,7 @@ def stop_active_openvpn(clear_connecting: bool = True, stop_xray_service: bool =
     stop_process(state.active_openvpn_process)
     state.active_openvpn_process = None
     state.active_openvpn_node_id = ""
+    vpn_utils.ACTIVE_TUN_DEVICE = "tun0"
     if clear_connecting:
         state.is_connecting = False
     kill_existing_openvpn_processes()
@@ -652,7 +685,9 @@ def test_node_by_id(node_id: str) -> dict[str, Any]:
         p = parse_int(node.get("remote_port"))
         fallback_ping = parse_int(node.get("ping"))
 
-    temp_path = Path(config_file)
+    import uuid
+    temp_config_file = str(Path(config_file).with_name(f"{node_id}_test_{uuid.uuid4().hex[:8]}.ovpn"))
+    temp_path = Path(temp_config_file)
     try:
         CONFIG_DIR.mkdir(exist_ok=True, parents=True)
         temp_path.write_text(config_text, encoding="utf-8")
@@ -663,7 +698,7 @@ def test_node_by_id(node_id: str) -> dict[str, Any]:
 
     idx = get_free_test_index()
     try:
-        ok, message, _ = run_openvpn_until_ready(config_file, keep_alive=False, route_nopull=True, timeout=12, dev=f"tun{idx}")
+        ok, message, _ = run_openvpn_until_ready(temp_config_file, keep_alive=False, route_nopull=True, timeout=12, dev=f"tun{idx}")
     finally:
         release_test_index(idx)
 
@@ -727,7 +762,9 @@ def test_multiple_nodes(node_ids: list[str]) -> list[dict[str, Any]]:
         p = parse_int(n_info.get("remote_port"))
         fallback_ping = parse_int(n_info.get("ping"))
 
-        temp_path = Path(config_file)
+        import uuid
+        temp_config_file = str(Path(config_file).with_name(f"{node_id}_test_{uuid.uuid4().hex[:8]}.ovpn"))
+        temp_path = Path(temp_config_file)
         try:
             CONFIG_DIR.mkdir(exist_ok=True, parents=True)
             temp_path.write_text(config_text, encoding="utf-8")
@@ -738,7 +775,7 @@ def test_multiple_nodes(node_ids: list[str]) -> list[dict[str, Any]]:
         tun_idx = get_free_test_index()
         dev_name = f"tun{tun_idx}"
         try:
-            ok, message, _ = run_openvpn_until_ready(config_file, keep_alive=False, route_nopull=True, timeout=12, dev=dev_name)
+            ok, message, _ = run_openvpn_until_ready(temp_config_file, keep_alive=False, route_nopull=True, timeout=12, dev=dev_name)
         finally:
             release_test_index(tun_idx)
 
@@ -949,8 +986,9 @@ def connect_node(node_id: str) -> str:
             raise RuntimeError("OpenVPN 已停止")
 
         set_state(active_node_latency="配置路由", last_check_message="正在配置策略路由规则与流量转发...")
-        setup_policy_routing("tun0")
-        record_session_traffic_start("tun0")
+        active_dev = getattr(vpn_utils, 'ACTIVE_TUN_DEVICE', 'tun0')
+        setup_policy_routing(active_dev)
+        record_session_traffic_start(active_dev)
 
         state.last_active_ping_time = time.time()
         state.last_active_latency = 0
@@ -1273,11 +1311,12 @@ def check_proxy_health() -> dict[str, Any]:
         except Exception:
             pass
 
-    tun_path = Path("/sys/class/net/tun0")
+    active_dev = getattr(vpn_utils, 'ACTIVE_TUN_DEVICE', 'tun0')
+    tun_path = Path(f"/sys/class/net/{active_dev}")
     if sys.platform.startswith("linux") and not tun_path.exists():
         return {
             "ok": False,
-            "error": "[错误代码 3004] [ERR_ROUTE_DEV_NOT_FOUND] VPN 虚拟网卡 (tun0) 未启用，请确保当前已成功连接 VPN 节点"
+            "error": f"[错误代码 3004] [ERR_ROUTE_DEV_NOT_FOUND] VPN 虚拟网卡 ({active_dev}) 未启用，请确保当前已成功连接 VPN 节点"
         }
 
     def _curl_check_ip(url: str) -> dict[str, Any] | None:
@@ -1332,6 +1371,268 @@ def check_proxy_health() -> dict[str, Any]:
     except Exception as e:
         return {"ok": False, "error": f"出口连接测试异常: {e}"}
 
+def test_socks5_exit(dns_local: bool, test_https: bool = False) -> tuple[bool, str]:
+    import ssl
+    is_ipv6 = ":" in LOCAL_PROXY_HOST
+    af = socket.AF_INET6 if is_ipv6 else socket.AF_INET
+    s = socket.socket(af, socket.SOCK_STREAM)
+    s.settimeout(4.0)
+    try:
+        connect_host = LOCAL_PROXY_HOST
+        if connect_host in ("::", "0.0.0.0", ""):
+            connect_host = "::1" if is_ipv6 else "127.0.0.1"
+        try:
+            s.connect((connect_host, LOCAL_PROXY_PORT))
+        except Exception:
+            if connect_host == "::1":
+                s.close()
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(4.0)
+                s.connect(("127.0.0.1", LOCAL_PROXY_PORT))
+            else:
+                raise
+        
+        # SOCKS5 Greeting
+        s.sendall(b"\x05\x01\x00")
+        resp = s.recv(2)
+        if len(resp) < 2 or resp[0] != 5 or resp[1] != 0:
+            return False, "SOCKS5 handshake greeting failed"
+        
+        target_domain = "api.ipify.org"
+        target_port = 443 if test_https else 80
+        
+        if dns_local:
+            try:
+                addr_info = socket.getaddrinfo(target_domain, target_port, socket.AF_INET, socket.SOCK_STREAM)
+                ip = addr_info[0][4][0]
+            except Exception as e:
+                return False, f"Local DNS resolution failed: {e}"
+            ip_bytes = socket.inet_aton(ip)
+            req = b"\x05\x01\x00\x01" + ip_bytes + target_port.to_bytes(2, "big")
+        else:
+            domain_bytes = target_domain.encode('ascii')
+            req = b"\x05\x01\x00\x03" + bytes([len(domain_bytes)]) + domain_bytes + target_port.to_bytes(2, "big")
+            
+        s.sendall(req)
+        resp_header = s.recv(4)
+        if len(resp_header) < 4 or resp_header[0] != 5 or resp_header[1] != 0:
+            return False, f"SOCKS5 connection request failed (code: {resp_header[1] if len(resp_header) >= 2 else 'unknown'})"
+        
+        # Consume bind address
+        atyp = resp_header[3]
+        if atyp == 1:
+            s.recv(6)
+        elif atyp == 3:
+            addr_len = s.recv(1)[0]
+            s.recv(addr_len + 2)
+        elif atyp == 4:
+            s.recv(18)
+        
+        if test_https:
+            try:
+                ctx = ssl._create_unverified_context()
+                ssl_sock = ctx.wrap_socket(s, server_hostname=target_domain)
+                ssl_sock.close()
+            except Exception as e:
+                return False, f"TLS_INTERFERENCE: {e}"
+        else:
+            s.close()
+            
+        return True, "Success"
+    except Exception as e:
+        return False, str(e)
+
+def check_layered_health() -> dict[str, Any]:
+    # 1. API Connectivity (api_connectivity)
+    api_ok = False
+    api_details = "连接正常"
+    api_err_code = 0
+    try:
+        parsed = urllib.parse.urlsplit(API_URL)
+        domain = parsed.hostname or "www.vpngate.net"
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        socket.getaddrinfo(domain, port, 0, socket.SOCK_STREAM)
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(2.5)
+        s.connect((domain, port))
+        s.close()
+        api_ok = True
+    except Exception:
+        err_code, diag = vpn_utils.diagnose_api_failure(API_URL)
+        api_err_code = err_code
+        api_details = diag
+        
+    # 2. Node Pool Ratio (node_pool)
+    np_ok = False
+    np_avail = 0
+    np_total = 0
+    np_ratio = 0.0
+    np_details = ""
+    try:
+        nodes = read_json(NODES_FILE, [])
+        np_total = len(nodes)
+        np_avail = sum(1 for n in nodes if n.get("probe_status") == "available")
+        if np_total > 0:
+            np_ratio = np_avail / np_total
+            if np_avail > 0:
+                np_ok = True
+                np_details = f"正常连通，可用率 {np_ratio:.1%} ({np_avail}/{np_total})"
+            else:
+                np_details = "节点池内所有备选节点检测为不可用，请同步节点或更新配置"
+        else:
+            np_details = "节点池为空，请点击主页的「同步节点」获取备选服务器"
+    except Exception as e:
+        np_details = f"读取节点池异常: {e}"
+
+    # 3. OpenVPN Interface (openvpn_interface)
+    ovpn_ok = False
+    ovpn_details = "未启动"
+    ovpn_err_type = ""
+    active_dev = getattr(vpn_utils, 'ACTIVE_TUN_DEVICE', 'tun0')
+    is_linux = sys.platform.startswith("linux")
+    
+    if active_openvpn_running():
+        if is_linux:
+            if Path(f"/sys/class/net/{active_dev}").exists():
+                ovpn_ok = True
+                ovpn_details = f"网卡 {active_dev} 已启用且正常工作"
+            else:
+                if not Path("/dev/net/tun").exists():
+                    ovpn_err_type = "TUN_DRIVER_MISSING"
+                    ovpn_details = "TUN 驱动缺失。系统 /dev/net/tun 设备不存在，可能内核未加载 tun 模块或 Docker 容器缺少 --device=/dev/net/tun 设备挂载与 NET_ADMIN 权限。"
+                else:
+                    ovpn_err_type = "NOT_CONNECTED"
+                    ovpn_details = f"虚拟网卡 {active_dev} 未就绪。OpenVPN 进程在运行，但未建立隧道连接。请检查日志确定是否账号认证失败或协商超时。"
+        else:
+            ovpn_ok = True
+            ovpn_details = "非 Linux 系统，免检网卡，OpenVPN 进程运行正常"
+    else:
+        ovpn_err_type = "SERVICE_NOT_RUNNING"
+        ovpn_details = "OpenVPN 连接未启动"
+
+    # 4. Policy Routing Health (policy_routing)
+    pr_ok = False
+    pr_details = "正常"
+    pr_err_type = ""
+    if is_linux:
+        has_table_100 = False
+        try:
+            res = subprocess.run(["ip", "rule", "show"], capture_output=True, text=True, timeout=2)
+            if res.returncode == 0 and ("100" in res.stdout or "lookup 100" in res.stdout):
+                has_table_100 = True
+        except Exception:
+            pass
+            
+        rp_strict = False
+        rp_val = "0"
+        for p in ["/proc/sys/net/ipv4/conf/all/rp_filter", "/proc/sys/net/ipv4/conf/default/rp_filter"]:
+            rp_path = Path(p)
+            if rp_path.exists():
+                try:
+                    val = rp_path.read_text(encoding="utf-8").strip()
+                    if val == "1":
+                        rp_strict = True
+                        rp_val = val
+                except Exception:
+                    pass
+                    
+        if not has_table_100:
+            pr_err_type = "TABLE_100_MISSING"
+            pr_details = "策略路由规则缺失。系统路由表中找不到 table 100 策略规则，流量无法分流至 VPN 网卡，请尝试重启服务以自动配置路由。"
+        elif rp_strict:
+            pr_err_type = "RP_FILTER_STRICT"
+            pr_details = f"反向路径过滤 rp_filter 处于严格模式({rp_val})。这会导致通过 tun 网卡的回包被内核判定为非对称路由而被静默丢弃，请将 net.ipv4.conf.all.rp_filter 设为 2 或 0。"
+        else:
+            pr_ok = True
+            pr_details = "策略路由表与反向过滤策略配置正确"
+    else:
+        pr_ok = True
+        pr_details = "非 Linux 系统，无需配置策略路由"
+
+    # 5. Local Proxy Connectivity (local_proxy)
+    lp_ok = False
+    lp_details = "未检测"
+    lp_err_type = ""
+    
+    is_ipv6 = ":" in LOCAL_PROXY_HOST
+    af = socket.AF_INET6 if is_ipv6 else socket.AF_INET
+    s = socket.socket(af, socket.SOCK_STREAM)
+    s.settimeout(1.5)
+    try:
+        connect_host = LOCAL_PROXY_HOST
+        if connect_host in ("::", "0.0.0.0", ""):
+            connect_host = "::1" if is_ipv6 else "127.0.0.1"
+        try:
+            s.connect((connect_host, LOCAL_PROXY_PORT))
+            connected = True
+        except Exception:
+            if connect_host == "::1":
+                s.close()
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(1.5)
+                s.connect(("127.0.0.1", LOCAL_PROXY_PORT))
+                connected = True
+            else:
+                raise
+    except Exception:
+        connected = False
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
+            
+    if not connected:
+        s = socket.socket(af, socket.SOCK_STREAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            s.bind((LOCAL_PROXY_HOST, LOCAL_PROXY_PORT))
+            occupied = False
+        except OSError:
+            occupied = True
+        finally:
+            try:
+                s.close()
+            except Exception:
+                pass
+        if occupied:
+            lp_err_type = "PORT_COLLISION"
+            lp_details = f"端口占用。本地代理端口 {LOCAL_PROXY_PORT} 已被其他程序强行占领，导致 Xray 网关服务无法监听该端口，请使用 lsof 释放端口。"
+        else:
+            lp_err_type = "XRAY_NOT_RUNNING"
+            lp_details = f"代理服务未运行。Xray 监听端口 {LOCAL_PROXY_PORT} 未开启且未被占用，可能是服务被停止或异常崩溃。"
+    else:
+        s5h_ok, s5h_err = test_socks5_exit(dns_local=False, test_https=False)
+        if s5h_ok:
+            s5_ok, s5_err = test_socks5_exit(dns_local=True, test_https=False)
+            tls_ok, tls_err = test_socks5_exit(dns_local=False, test_https=True)
+            
+            if not s5_ok:
+                lp_err_type = "DNS_POLLUTION"
+                lp_details = f"DNS 污染。本地 DNS 无法解析或返回了被污染的 IP ({s5_err})。但通过代理网关的远程 DNS 解析能正常访问。建议为系统配置干净的 DNS。"
+            elif not tls_ok:
+                lp_err_type = "TLS_INTERFERENCE"
+                lp_details = f"TLS 干扰。代理网关建立 TCP 连接成功，但 TLS 安全握手被断开或超时 ({tls_err})，表明当前节点的 TLS 证书特征正遭到防火墙审查或干扰。"
+            else:
+                lp_ok = True
+                res_check = check_proxy_health()
+                if res_check["ok"]:
+                    lp_details = f"连通性正常，延迟 {res_check.get('latency_ms', 0)} ms，出口 IP: {res_check.get('ip', '-')}"
+                else:
+                    lp_details = "连通性正常，出口测试完成"
+        else:
+            lp_err_type = "NODE_DOWN"
+            lp_details = f"出口连通性失败。当前代理节点无法穿透或已失效。错误详情: {s5h_err}"
+
+    return {
+        "ok": api_ok and np_ok and ovpn_ok and pr_ok and lp_ok,
+        "api_connectivity": {"ok": api_ok, "details": api_details, "error_code": api_err_code},
+        "node_pool": {"ok": np_ok, "details": np_details, "avail": np_avail, "total": np_total, "ratio": np_ratio},
+        "openvpn_interface": {"ok": ovpn_ok, "details": ovpn_details, "error_type": ovpn_err_type},
+        "policy_routing": {"ok": pr_ok, "details": pr_details, "error_type": pr_err_type},
+        "local_proxy": {"ok": lp_ok, "details": lp_details, "error_type": lp_err_type}
+    }
+
 def background_proxy_checker() -> None:
     from backend.app.core.xray import active_xray_running, query_xray_client_stats, update_and_accumulate_client_traffic, enforce_client_quotas, load_xray_cfg, start_xray
     time.sleep(30)
@@ -1339,7 +1640,8 @@ def background_proxy_checker() -> None:
         state.last_checker_heartbeat = time.time()
         try:
             stats_data = load_traffic_stats()
-            tun_rx, tun_tx = get_tun_stats("tun0")
+            active_dev = getattr(vpn_utils, 'ACTIVE_TUN_DEVICE', 'tun0')
+            tun_rx, tun_tx = get_tun_stats(active_dev)
             session_rx = max(0, tun_rx - state.session_rx_start) if active_openvpn_running() else 0
             session_tx = max(0, tun_tx - state.session_tx_start) if active_openvpn_running() else 0
             total_bytes = stats_data.get("accumulated_rx", 0) + stats_data.get("accumulated_tx", 0) + session_rx + session_tx

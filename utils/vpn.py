@@ -16,6 +16,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT_DIR / "vpngate_data"
 IP_CACHE_FILE = DATA_DIR / "ip_cache.json"
 
+ACTIVE_TUN_DEVICE = "tun0"
 ip_cache_lock = threading.RLock()
 
 COUNTRY_TRANSLATIONS = {
@@ -95,8 +96,9 @@ def get_upstream_proxy() -> tuple[str | None, str | None, int | None]:
     if socks_env:
         if "://" in socks_env:
             parsed = urllib.parse.urlsplit(socks_env)
-            if parsed.hostname and parsed.port:
-                return "socks", parsed.hostname, parsed.port
+            if parsed.hostname:
+                port = parsed.port or 10808
+                return "socks", parsed.hostname, port
         else:
             parts = socks_env.split(":")
             if len(parts) == 2:
@@ -108,8 +110,9 @@ def get_upstream_proxy() -> tuple[str | None, str | None, int | None]:
     if http_env:
         if "://" in http_env:
             parsed = urllib.parse.urlsplit(http_env)
-            if parsed.hostname and parsed.port:
-                return "http", parsed.hostname, parsed.port
+            if parsed.hostname:
+                port = parsed.port or 10808
+                return "http", parsed.hostname, port
         else:
             parts = http_env.split(":")
             if len(parts) == 2:
@@ -124,8 +127,9 @@ def get_upstream_proxy() -> tuple[str | None, str | None, int | None]:
         if "://" in val:
             parsed = urllib.parse.urlsplit(val)
             ptype = "socks" if parsed.scheme.startswith("socks") else "http"
-            if parsed.hostname and parsed.port:
-                return ptype, parsed.hostname, parsed.port
+            if parsed.hostname:
+                port = parsed.port or 10808
+                return ptype, parsed.hostname, port
         else:
             parts = val.split(":")
             if len(parts) == 2:
@@ -200,10 +204,12 @@ def tcp_latency_ms(host: str, port: int, dev: str | None = None) -> int:
     try:
         s.settimeout(5)
         if dev:
-            try:
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, dev.encode("utf-8"))
-            except OSError:
-                pass
+            SO_BINDTODEVICE = getattr(socket, "SO_BINDTODEVICE", None)
+            if SO_BINDTODEVICE is not None:
+                try:
+                    s.setsockopt(socket.SOL_SOCKET, SO_BINDTODEVICE, dev.encode("utf-8"))
+                except OSError:
+                    pass
         s.connect((host, port))
         return max(1, int((time.time() - started) * 1000))
     except OSError:
