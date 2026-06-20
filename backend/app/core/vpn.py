@@ -396,6 +396,14 @@ def openvpn_preflight_error() -> str | None:
 
     return None
 
+def ensure_openvpn_auth_file() -> None:
+    AUTH_FILE.parent.mkdir(parents=True, exist_ok=True)
+    AUTH_FILE.write_text(f"{OPENVPN_AUTH_USER}\n{OPENVPN_AUTH_PASS}\n", encoding="utf-8")
+    try:
+        AUTH_FILE.chmod(0o600)
+    except OSError:
+        pass
+
 def is_openvpn_environment_error(message: str) -> bool:
     return any(
         token in (message or "")
@@ -437,6 +445,7 @@ def openvpn_command(config_file: str, route_nopull: bool, dev: str = "tun0") -> 
             "--connect-timeout",
             "15",
             "--auth-user-pass",
+            str(AUTH_FILE),
         ]
     )
 
@@ -516,6 +525,11 @@ def run_openvpn_until_ready(config_file: str, keep_alive: bool, route_nopull: bo
         log_to_json("ERROR", "VPN", f"OpenVPN 环境预检失败: {preflight_error}")
         return False, preflight_error, None
 
+    try:
+        ensure_openvpn_auth_file()
+    except OSError as exc:
+        return False, f"[错误代码 2012] [ERR_OVPN_AUTH_FILE_FAILED] 无法写入 OpenVPN 认证文件: {exc}", None
+
     command = openvpn_command(config_file, route_nopull, dev)
     try:
         process = subprocess.Popen(
@@ -528,9 +542,6 @@ def run_openvpn_until_ready(config_file: str, keep_alive: bool, route_nopull: bo
             errors="replace",
             cwd=str(ROOT_DIR),
         )
-        if process.stdin:
-            process.stdin.write(f"{OPENVPN_AUTH_USER}\n{OPENVPN_AUTH_PASS}\n")
-            process.stdin.flush()
     except FileNotFoundError:
         log_to_json("ERROR", "VPN", f"OpenVPN 启动失败: 未找到命令 {command[0] if command else OPENVPN_CMD}")
         return False, "[错误代码 2001] [ERR_OVPN_CMD_NOT_FOUND] 未找到 openvpn 命令。原因: 系统未安装 openvpn，或 PATH 环境变量不正确。", None

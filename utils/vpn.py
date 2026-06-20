@@ -574,6 +574,9 @@ def diagnose_openvpn_failure(log_tail: list[str]) -> tuple[int, str]:
     if "auth_failed" in joined_log or "authentication failed" in joined_log:
         return 2005, "[ERR_OVPN_AUTH_FAILED] OpenVPN 身份验证失败。原因: 节点配置的用户名密码不正确，或者该免费节点已失效/限制连接。"
 
+    if "can't ask for 'enter auth username" in joined_log or "neither stdin nor stderr are a tty device" in joined_log:
+        return 2012, "[ERR_OVPN_AUTH_PROMPT_UNAVAILABLE] OpenVPN 无法在后台服务中交互式询问用户名。原因: 当前进程没有 TTY，必须通过 --auth-user-pass 指定认证文件，而不是等待命令行输入。"
+
     if "cannot resolve host address" in joined_log or "resolve: host name" in joined_log:
         return 2003, "[ERR_OVPN_DNS_RESOLVE] 节点服务器域名解析失败。原因: 本地 DNS 解析异常，或者节点域名已失效。"
 

@@ -107,10 +107,10 @@
       </div>
     </aside>
 
-    <!-- 产品推荐浮动按钮 -->
-    <button id="vps-floating-trigger" onclick="toggleVPSModal()" title="产品推荐">
+    <!-- VPS -->
+    <button id="vps-floating-trigger" onclick="toggleVPSModal()" title="VPS">
       <span>★</span>
-      <strong>产品推荐</strong>
+      <strong>VPS</strong>
     </button>
 
     <!-- ═══ 右侧主内容区 ═══ -->
@@ -122,7 +122,6 @@
         <!-- 页头 -->
         <div class="flex justify-between items-center pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
           <h2 class="!text-[22px] !font-extrabold tracking-[-0.3px]">控制台</h2>
-          <button id="refresh" onclick="load()" class="btn btn-primary">同步节点</button>
         </div>
 
         <!-- 硬件资源监控 -->
@@ -154,12 +153,11 @@
           <div class="service-overview__header">
             <div>
               <h3>服务概览</h3>
-              <p>核心服务、VPNGate 出口与系统信息</p>
             </div>
             <div class="service-actions">
-              <button id="xray_start_btn" onclick="xrayAction('start')" class="btn-primary-action py-2 px-4 rounded-lg text-[13px] font-bold">启动</button>
-              <button id="xray_stop_btn" onclick="xrayAction('stop')" disabled class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text opacity-60 cursor-not-allowed">停止</button>
-              <button id="xray_restart_btn" onclick="xrayAction('restart')" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text">重启</button>
+              <button id="xray_start_btn" onclick="xrayAction('start')" class="btn btn-primary">启动</button>
+              <button id="xray_stop_btn" onclick="xrayAction('stop')" disabled class="btn btn-secondary">停止</button>
+              <button id="xray_restart_btn" onclick="xrayAction('restart')" class="btn btn-secondary"><span class="btn-icon icon-refresh" aria-hidden="true"></span>重启</button>
             </div>
           </div>
 
@@ -198,9 +196,8 @@
           <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
             <div>
               <h3 class="text-base font-bold">分层健康检测状况</h3>
-              <p class="text-xs text-muted mt-1">系统全链路多层次状态实时监控（包含 API、节点池、网卡、策略路由与本地代理）</p>
             </div>
-            <button id="btn_refresh_layered_health" onclick="testLayeredHealth(true)" class="btn-primary-action py-1.5 px-4 rounded-lg text-xs font-bold">一键自检</button>
+            <button id="btn_refresh_layered_health" onclick="testLayeredHealth(true)" class="btn btn-primary btn-sm"><span class="btn-icon icon-refresh" aria-hidden="true"></span>一键自检</button>
           </div>
           <div id="layered_health_dashboard" class="grid grid-cols-1 sm:grid-cols-5 gap-5">
             <div class="col-span-5 text-center text-muted py-6 text-sm">正在加载自检指标...</div>
@@ -250,17 +247,15 @@
         <!-- VPNGate -->
         <div id="outbound-vpngate-panel" class="outbound-mode-panel">
           <div class="glass-card rounded-[28px] p-6">
-            <div class="flex justify-between items-start gap-5 mb-5 flex-wrap">
-              <div>
-                <h3 class="!text-[18px] !font-bold mb-1">VPNGate 公益节点</h3>
-                <p class="text-muted text-[13px] leading-relaxed">公益 OpenVPN 出口池，选择可用节点后作为落地 IP。</p>
+            <div class="outbound-panel-header">
+              <div class="outbound-panel-title">
+                <h3 class="!text-[18px] !font-bold">VPNGate 公益节点</h3>
+                <span id="vpngate_status_badge" class="status-badge inactive"><span class="status-dot"></span>未启动</span>
               </div>
-              <div class="flex gap-2.5 items-center flex-wrap">
+              <div class="outbound-panel-actions">
                 <button type="button" data-feature-power="vpngate_enabled" onclick="toggleFeaturePower('vpngate_enabled')" class="feature-power-btn" aria-pressed="false">
-                  <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
                   <span class="feature-power-label">启动</span>
                 </button>
-                <button type="button" id="vpngate_sync_btn" onclick="syncVpngateNodes()" class="btn btn-secondary">同步节点</button>
               </div>
             </div>
             <section id="active_node_card" class="mb-5"></section>
@@ -288,22 +283,21 @@
         <!-- WARP -->
         <div id="outbound-warp-panel" class="outbound-mode-panel" style="display:none">
           <div class="glass-card rounded-[28px] p-6">
-            <div class="flex justify-between items-start gap-5 mb-6 flex-wrap">
-              <div>
-                <h3 class="!text-[18px] !font-bold mb-1">Cloudflare WARP</h3>
-                <p class="text-muted text-[13px] leading-relaxed">启动后自动创建并测试 WARP 出站，重置时重新生成配置。</p>
+            <div class="outbound-panel-header">
+              <div class="outbound-panel-title">
+                <h3 class="!text-[18px] !font-bold">Cloudflare WARP</h3>
+                <span id="warp_header_status_badge" class="status-badge inactive"><span class="status-dot"></span>未启动</span>
               </div>
-              <div class="flex gap-2.5 items-center flex-wrap justify-end">
-                <button type="button" id="warp_reset_btn" onclick="refreshWarpNode()" title="重置 WARP 配置" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text" style="display:none">重置</button>
-                <button type="button" id="warp_test_btn" onclick="testWarpNode()" title="测试 WARP 出口" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text" style="display:none">测试</button>
+              <div class="outbound-panel-actions">
+                <button type="button" id="warp_reset_btn" onclick="refreshWarpNode()" title="重置 WARP 配置" class="btn btn-secondary" style="display:none"><span class="btn-icon icon-refresh" aria-hidden="true"></span>重置</button>
+                <button type="button" id="warp_test_btn" onclick="testWarpNode()" title="测试 WARP 出口" class="btn btn-secondary" style="display:none">测试</button>
                 <button type="button" data-feature-power="warp_enabled" onclick="toggleWarpFeaturePower()" class="feature-power-btn" aria-pressed="false">
-                  <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
                   <span class="feature-power-label">启动</span>
                 </button>
               </div>
             </div>
 
-            <div id="warp_empty_state" class="compact-empty">WARP 尚未创建。点击右上角启动后会自动注册并测试。</div>
+            <div id="warp_empty_state" class="outbound-state-panel">WARP 未启动</div>
 
             <div id="warp_details_state" style="display:none">
               <div class="flex flex-col gap-3 mb-6">
@@ -323,8 +317,8 @@
                   <span class="text-muted text-[13.5px]">修改 Cloudflare 节点</span>
                   <span class="font-semibold flex items-center gap-2.5 flex-1 max-w-[420px]">
                     <input type="text" id="warp_endpoint_input" class="flex-1 py-2 px-3.5 bg-glass border border-border rounded-lg text-text text-[13px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="engage.cloudflareclient.com:2408">
-                    <button onclick="saveWarpEndpoint()" class="btn-primary-action py-1.5 px-4 rounded-lg text-xs font-bold">保存</button>
-                    <button onclick="toggleEditWarpEndpoint(false)" class="glass-card py-1.5 px-4 rounded-lg text-xs font-bold border border-border text-text">取消</button>
+                    <button onclick="saveWarpEndpoint()" class="btn btn-primary btn-sm">保存</button>
+                    <button onclick="toggleEditWarpEndpoint(false)" class="btn btn-secondary btn-sm">取消</button>
                   </span>
                 </div>
 
@@ -338,22 +332,21 @@
         <!-- 自定义节点 -->
         <div id="outbound-custom-panel" class="outbound-mode-panel" style="display:none">
           <div class="glass-card rounded-[28px] p-6">
-            <div class="flex justify-between items-start gap-5 mb-5 flex-wrap">
-              <div>
-                <h3 class="!text-[18px] !font-bold mb-1">自定义节点</h3>
-                <p class="text-muted text-[13px] leading-relaxed">支持 VMess、VLESS、Trojan、Shadowsocks、SOCKS、HTTP 以及 JSON 出站配置。</p>
+            <div class="outbound-panel-header">
+              <div class="outbound-panel-title">
+                <h3 class="!text-[18px] !font-bold">自定义节点</h3>
               </div>
-              <div class="flex gap-2.5 items-center flex-wrap">
-                <button type="button" onclick="testAllCustomOutboundNodes()" title="测试全部自定义节点" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text">测试</button>
-                <button type="button" onclick="openOutboundAddModal()" title="添加 JSON 配置" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text">添加</button>
-                <button type="button" onclick="openOutboundImportModal()" title="导入节点链接或订阅" class="btn-primary-action py-2 px-5 rounded-lg text-[13px] font-bold inline-flex items-center gap-2"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>导入</button>
+              <div class="outbound-panel-actions">
+                <button type="button" id="custom_test_btn" onclick="testAllCustomOutboundNodes()" title="测试全部自定义节点" class="btn btn-secondary" style="display:none">测试</button>
+                <button type="button" id="custom_add_btn" onclick="openOutboundNodeModal()" title="添加或导入节点" class="btn btn-primary"><span class="btn-icon icon-plus" aria-hidden="true"></span>添加节点</button>
               </div>
             </div>
-            <div id="custom_disabled_state" style="display:none"></div>
-            <div class="overflow-x-auto rounded-2xl">
+            <div id="custom_disabled_state" class="outbound-state-panel" style="display:none"></div>
+            <div id="custom_empty_state" class="outbound-state-panel" style="display:none"></div>
+            <div id="custom_table_wrap" class="overflow-x-auto rounded-2xl">
               <table id="custom_outbound_table" class="w-full border-collapse min-w-[1000px]">
                 <thead><tr><th style="width:110px">类型</th><th style="width:110px">状态</th><th>名称</th><th>节点 / 订阅</th><th style="width:220px;text-align:right">操作</th></tr></thead>
-                <tbody id="custom_outbound_rows"><tr><td colspan="5" class="compact-empty">暂无自定义节点</td></tr></tbody>
+                <tbody id="custom_outbound_rows"><tr><td colspan="5" class="compact-empty">暂未添加自定义节点</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -366,13 +359,13 @@
           <h2 class="!text-[22px] !font-extrabold tracking-[-0.3px]">路由规则</h2>
           <div class="flex gap-2.5 items-center">
             <button onclick="showTab('tab-xray')" title="返回入站列表" aria-label="返回入站列表" class="icon-only-btn"><svg viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></button>
-            <button onclick="openRoutingRuleModal()" title="创建规则" class="btn-primary-action py-2 px-5 rounded-lg text-[13px] font-bold inline-flex items-center gap-2"><svg class="btn-icon" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>创建规则</button>
+            <button onclick="openRoutingRuleModal()" title="创建规则" class="btn btn-primary"><span class="btn-icon icon-plus" aria-hidden="true"></span>创建规则</button>
           </div>
         </div>
         <div class="glass-card rounded-[28px] p-6">
           <div class="flex justify-between items-center gap-4 mb-5">
             <h3 class="!text-[18px] !font-bold">规则列表</h3>
-            <button onclick="loadRoutingRules()" title="刷新" aria-label="刷新" class="icon-only-btn"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
+            <button onclick="loadRoutingRules()" title="刷新" aria-label="刷新" class="icon-only-btn"><span class="btn-icon icon-refresh" aria-hidden="true"></span></button>
           </div>
           <div class="overflow-x-auto rounded-2xl">
             <table class="w-full border-collapse min-w-[1000px]">
@@ -387,12 +380,12 @@
       <section id="tab-xray" class="hidden animate-[panelIn_420ms_cubic-bezier(0.2,0.8,0.2,1)_both] flex flex-col gap-6">
         <div class="flex justify-between items-center pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
           <h2 class="!text-[22px] !font-extrabold tracking-[-0.3px]">入站列表</h2>
-          <button onclick="openSubscriptionLinkModal('')" title="添加入站" aria-label="添加入站" class="btn-primary-action py-2 px-5 rounded-lg text-[13px] font-bold inline-flex items-center gap-2"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>添加入站</button>
+          <button onclick="openSubscriptionLinkModal('')" title="添加入站" aria-label="添加入站" class="btn btn-primary"><span class="btn-icon icon-plus" aria-hidden="true"></span>添加入站</button>
         </div>
         <div class="glass-card rounded-[28px] p-6">
           <div class="flex justify-between items-center gap-4 mb-5">
-            <div><h3 class="!text-[18px] !font-bold">入站列表</h3><p id="subscription_items_hint" class="text-xs text-muted mt-1">订阅分组可展开查看节点链接</p></div>
-            <button onclick="loadSubscriptionWorkspace()" title="刷新入站列表" aria-label="刷新入站列表" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text inline-flex items-center gap-2"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>刷新</button>
+            <div><h3 class="!text-[18px] !font-bold">入站列表</h3><p id="subscription_items_hint" class="text-xs text-muted mt-1"></p></div>
+            <button onclick="loadSubscriptionWorkspace()" title="刷新入站列表" aria-label="刷新入站列表" class="btn btn-secondary"><span class="btn-icon icon-refresh" aria-hidden="true"></span>刷新</button>
           </div>
           <div id="subscription_items_container" class="flex flex-col gap-5"><div class="text-center py-12 text-muted text-[13.5px]">正在加载入站列表...</div></div>
         </div>
@@ -403,8 +396,8 @@
         <div class="flex justify-between items-center pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
           <h2 class="!text-[22px] !font-extrabold tracking-[-0.3px]">面板与系统设置</h2>
           <div class="flex gap-3">
-            <button onclick="globalSaveSettings(false)" class="glass-card py-2 px-5 rounded-lg text-[13px] font-bold border border-border text-text">应用并保存</button>
-            <button onclick="globalSaveSettings(true)" class="btn-primary-action py-2 px-5 rounded-lg text-[13px] font-bold">保存并重启</button>
+            <button onclick="globalSaveSettings(false)" class="btn btn-secondary">应用并保存</button>
+            <button onclick="globalSaveSettings(true)" class="btn btn-primary"><span class="btn-icon icon-refresh" aria-hidden="true"></span>保存并重启</button>
           </div>
         </div>
 
@@ -465,7 +458,7 @@
         <div id="subsetting-domain-certs" class="subsettings-content hidden">
           <div class="domain-cert-card glass-card rounded-[28px] p-7" style="max-width:680px">
             <div class="domain-cert-card__header">
-              <div><h3 id="dc_form_title" class="!text-[18px] !font-bold">域名与证书配置</h3><p class="text-muted text-xs mt-1.5 leading-relaxed">为 VMess + WS + TLS 入站绑定域名与证书来源。</p></div>
+              <div><h3 id="dc_form_title" class="!text-[18px] !font-bold">域名与证书配置</h3></div>
               <span class="domain-cert-card__badge">TLS</span>
             </div>
             <form id="domain_certs_form" onsubmit="addOrUpdateDomainCert(event)">
@@ -490,8 +483,8 @@
                 <div class="domain-cert-field"><label for="net_key_content">私钥内容（PEM 格式）</label><textarea id="net_key_content" rows="7" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13px] font-mono outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></div>
               </div>
               <div class="flex gap-3 mt-6 justify-end">
-                <button type="button" id="dc_clear_btn" onclick="clearDomainCertConfig()" class="glass-card py-2.5 px-5 rounded-lg text-[13px] font-bold border border-border text-text">清除配置</button>
-                <button type="submit" id="dc_submit_btn" class="btn-primary-action py-2.5 px-5 rounded-lg text-[13px] font-bold">保存配置并生效</button>
+                <button type="button" id="dc_clear_btn" onclick="clearDomainCertConfig()" class="btn btn-secondary">清除配置</button>
+                <button type="submit" id="dc_submit_btn" class="btn btn-primary">保存配置并生效</button>
               </div>
             </form>
           </div>
@@ -529,9 +522,9 @@
               <div id="log_terminal_container" class="bg-[#0b0f19] text-gray-300 p-5 font-mono text-sm leading-relaxed h-[420px] overflow-y-auto whitespace-pre-wrap break-all">正在读取日志中，请稍候...</div>
             </div>
             <div class="flex gap-3 mt-5 flex-wrap">
-              <button onclick="copyLogContent()" class="glass-card py-2 px-5 rounded-lg text-[13px] font-bold border border-border text-text">一键复制</button>
-              <button onclick="exportLogContent()" class="glass-card py-2 px-5 rounded-lg text-[13px] font-bold border border-border text-text">导出日志</button>
-              <button onclick="clearLogContent()" class="bg-gradient-to-br from-[#ff5370] to-danger text-white py-2 px-5 rounded-lg text-[13px] font-bold">清除日志</button>
+              <button onclick="copyLogContent()" class="btn btn-secondary">一键复制</button>
+              <button onclick="exportLogContent()" class="btn btn-secondary">导出日志</button>
+              <button onclick="clearLogContent()" class="btn btn-danger">清除日志</button>
             </div>
           </div>
         </div>
@@ -551,15 +544,15 @@
       <div class="flex flex-col gap-4">
         <button onclick="createNodeFromChooser('vless-reality')" class="flex items-start gap-4 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-card text-text rounded-xl p-5 text-left cursor-pointer hover:border-second hover:-translate-y-0.5 transition-all w-full">
           <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] text-primary flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 11 2 2 4-4"/></svg></div>
-          <div class="flex-1"><div class="flex items-center justify-between gap-2 mb-1.5"><span class="text-sm font-bold text-text">VLESS-Reality</span><span class="text-[11px] font-semibold py-0.5 px-2.5 rounded-md bg-[color-mix(in_srgb,var(--second)_10%,transparent)] text-second">最安全 / 推荐</span></div><span class="block text-[12.5px] text-muted leading-relaxed">（推荐）直接创建节点，利用 Reality 协议进行最真实合法的网站域名伪装。无须自备域名，防探测防封锁能力最强，是最安全的协议方案。</span></div>
+          <div class="flex-1"><div class="flex items-center justify-between gap-2"><span class="text-sm font-bold text-text">VLESS-Reality</span></div></div>
         </button>
         <button onclick="createNodeFromChooser('vmess-ws-tls')" class="flex items-start gap-4 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-card text-text rounded-xl p-5 text-left cursor-pointer hover:border-third hover:-translate-y-0.5 transition-all w-full">
           <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] text-primary flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19A5.5 5.5 0 0 0 22 13.5A5.5 5.5 0 0 0 16.5 8h-1.39a8 8 0 1 0-13.34 7.21"/></svg></div>
-          <div class="flex-1"><div class="flex items-center justify-between gap-2 mb-1.5"><span class="text-sm font-bold text-text">VMess + WS + TLS</span><span class="text-[11px] font-semibold py-0.5 px-2.5 rounded-md bg-[color-mix(in_srgb,var(--third)_10%,transparent)] text-third">需自备域名</span></div><span class="block text-[12.5px] text-muted leading-relaxed">通过 VMess 协议搭配 WebSocket 和 TLS。需要自备域名并在 Cloudflare 等平台进行 CDN 代理/解析，适合使用 CDN 中转以挽救被封 IP 的场景。</span></div>
+          <div class="flex-1"><div class="flex items-center justify-between gap-2"><span class="text-sm font-bold text-text">VMess + WS + TLS</span></div></div>
         </button>
         <button onclick="createNodeFromChooser('socks5')" class="flex items-start gap-4 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-card text-text rounded-xl p-5 text-left cursor-pointer hover:border-warning hover:-translate-y-0.5 transition-all w-full">
           <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] text-primary flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
-          <div class="flex-1"><div class="flex items-center justify-between gap-2 mb-1.5"><span class="text-sm font-bold text-text">SOCKS5</span><span class="text-[11px] font-semibold py-0.5 px-2.5 rounded-md bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] text-warning">仅链式落地</span></div><span class="block text-[12.5px] text-muted leading-relaxed">原生的 SOCKS5 协议。不提供任何传输加密和流量伪装，仅建议用于内部局域网传输、链式代理（Chained Outbound）落地或前置中转。</span></div>
+          <div class="flex-1"><div class="flex items-center justify-between gap-2"><span class="text-sm font-bold text-text">SOCKS5</span></div></div>
         </button>
       </div>
     </div>
@@ -745,26 +738,24 @@
     </div>
   </div>
 
-  <!-- VPS 产品推荐 -->
+  <!-- VPS -->
   <div id="vps-modal" class="modal-overlay" onclick="closeVPSModal()">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
-        <h3 class="!text-[20px] !font-extrabold">产品推荐（VPS 购买推荐）</h3>
+        <h3 class="!text-[20px] !font-extrabold">VPS</h3>
         <button onclick="closeVPSModal()" class="modal-close">×</button>
       </div>
       <div class="flex flex-col gap-5">
         <div class="border border-border bg-glass rounded-xl p-5 hover:bg-glass-strong hover:border-primary hover:-translate-y-0.5 transition-all">
-          <span class="text-[11px] font-bold py-1 px-2.5 rounded-md inline-block mb-3 bg-[rgba(0,168,150,0.15)] text-primary border border-[rgba(0,168,150,0.2)]">普通用户推荐</span>
-          <p class="text-[13.5px] text-text leading-relaxed mb-4">RackNerd — 超低折扣价格，日常使用实惠方便，海外多机房可选，推荐普通家庭或低频用户。</p>
-          <a href="https://my.racknerd.com/aff.php?aff=18708" target="_blank" class="btn-primary-action inline-flex items-center gap-2 py-2 px-5 rounded-lg text-[13px] font-bold no-underline">点击进入官网</a>
+          <div class="text-[14px] font-bold text-text mb-4">RackNerd</div>
+          <a href="https://my.racknerd.com/aff.php?aff=18708" target="_blank" class="btn-primary-action inline-flex items-center gap-2 py-2 px-5 rounded-lg text-[13px] font-bold no-underline">打开</a>
         </div>
         <div class="border border-border bg-glass rounded-xl p-5 hover:bg-glass-strong hover:border-primary hover:-translate-y-0.5 transition-all">
-          <span class="text-[11px] font-bold py-1 px-2.5 rounded-md inline-block mb-3 bg-[rgba(59,130,246,0.15)] text-blue-500 border border-[rgba(59,130,246,0.2)]">高端企业推荐</span>
-          <p class="text-[13.5px] text-text leading-relaxed mb-4">BandwagonHost（搬瓦工）— 直连三网顶级专线，经典高带宽 CN2 GIA 线路，超凡稳定速度。</p>
-          <a href="https://bandwagonhost.com/aff.php?aff=81790" target="_blank" class="btn-primary-action inline-flex items-center gap-2 py-2 px-5 rounded-lg text-[13px] font-bold no-underline">点击进入官网</a>
+          <div class="text-[14px] font-bold text-text mb-4">BandwagonHost</div>
+          <a href="https://bandwagonhost.com/aff.php?aff=81790" target="_blank" class="btn-primary-action inline-flex items-center gap-2 py-2 px-5 rounded-lg text-[13px] font-bold no-underline">打开</a>
         </div>
         <div class="text-center text-[13px] text-muted border-t border-dashed border-[color-mix(in_srgb,var(--muted)_20%,transparent)] pt-4">
-          官方技术支持及优质资源交流论坛：<a href="https://339936.xyz/" target="_blank" class="text-primary font-bold no-underline">339936.xyz</a>
+          <a href="https://339936.xyz/" target="_blank" class="text-primary font-bold no-underline">339936.xyz</a>
         </div>
       </div>
     </div>

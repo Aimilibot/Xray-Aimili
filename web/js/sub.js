@@ -462,7 +462,7 @@
             };
 
             if (!subscriptionLinks.length && !subscriptionNodes.length) {
-                container.innerHTML = `<div class="text-center py-10 text-muted bg-glass border border-dashed border-border rounded-[22px]">暂无入站；点击右上角添加入站</div>`;
+                container.innerHTML = `<div class="text-center py-10 text-muted bg-glass border border-dashed border-border rounded-[22px]">暂无入站</div>`;
                 return;
             }
 
@@ -1175,7 +1175,7 @@
                     <div class="xray-inbound-card" data-index="${ibIdx}">
                         <div class="xray-inbound-card-header">
                             <h4 style="font-size:14.5px; font-weight:700; color:var(--text);">${esc(ib.remark || ib.protocol.toUpperCase() + " 入站")}</h4>
-                            <button type="button" class="w-full min-h-[32px] py-2 px-4 bg-gradient-to-br from-[#ff5370] to-danger border-none rounded-xl text-white font-bold cursor-pointer shadow-[0_12px_24px_rgba(255,83,112,0.24)] transition-all duration-[280ms] ease inline-flex justify-center items-center gap-2 hover:translate-y-[-2px] hover:shadow-[0_14px_28px_rgba(255,83,112,0.32)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed" onclick="removeXrayInbound(${ibIdx})" style="width:auto; height:28px; padding:0 12px; font-size:12px; margin-bottom: 0; border-radius:6px;">删除入站</button>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="removeXrayInbound(${ibIdx})" style="height:28px; padding:0 12px; font-size:12px; margin-bottom:0;">删除入站</button>
                         </div>
                         <div class="xray-inbound-card-grid">
                             <div class="mb-[22px] text-left">

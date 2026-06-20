@@ -389,7 +389,8 @@ function toggleVPSModal() {
             const btn = $("btn_refresh_layered_health");
             if (force && btn) {
                 btn.disabled = true;
-                btn.textContent = "自检中...";
+                btn.classList.add("is-loading");
+                btn.innerHTML = `<span class="btn-icon icon-refresh" aria-hidden="true"></span>自检中`;
             }
             
             try {
@@ -404,7 +405,8 @@ function toggleVPSModal() {
             } finally {
                 if (btn) {
                     btn.disabled = false;
-                    btn.textContent = "一键自检";
+                    btn.classList.remove("is-loading");
+                    btn.innerHTML = `<span class="btn-icon icon-refresh" aria-hidden="true"></span>一键自检`;
                 }
             }
         }
