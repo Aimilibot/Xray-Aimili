@@ -19,7 +19,7 @@
                 renderRoutingRules();
             } catch (e) {
                 const tbody = $("routing_rules_rows");
-                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="compact-empty">路由规则加载失败</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-muted text-center py-9 px-4 bg-gradient-to-br from-glass-strong/50 to-page-a/40 rounded-2xl font-[650] h-[118px]">路由规则加载失败</td></tr>`;
             }
         }
 
@@ -160,7 +160,7 @@
             const tbody = $("routing_rules_rows");
             if (!tbody) return;
             if (!routingRules.length) {
-                tbody.innerHTML = `<tr><td colspan="6" class="compact-empty">暂无路由规则</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-muted text-center py-9 px-4 bg-gradient-to-br from-glass-strong/50 to-page-a/40 rounded-2xl font-[650] h-[118px]">暂无路由规则</td></tr>`;
                 return;
             }
             tbody.innerHTML = routingRules.map(rule => {

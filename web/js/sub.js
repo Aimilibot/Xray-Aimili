@@ -221,55 +221,14 @@
             return `${window.location.origin}/api/xray/subscribe?token=${encodeURIComponent(link.token)}`;
         }
 
-        function openCreateLinkModal(preferredSubscriptionId = "") {
-            createLinkPreferredSubscriptionId = preferredSubscriptionId || "";
-            if (createLinkPreferredSubscriptionId) {
-                selectedSubscriptionLinkId = createLinkPreferredSubscriptionId;
-                renderSubscriptionItems();
-            }
-            const modal = $("create-link-modal");
-            if (modal) modal.style.display = "flex";
-        }
 
         function closeCreateLinkModal() {
             const modal = $("create-link-modal");
             if (modal) modal.style.display = "none";
         }
 
-        function createNodeFromChooser(protocol) {
-            const linkId = createLinkPreferredSubscriptionId;
-            closeCreateLinkModal();
-            openSubscriptionNodeModal("", linkId, protocol);
-        }
 
-        async function loadSubscriptionLinks() {
-            const container = $("subscription_items_container");
-            if (container) container.innerHTML = `<div class="text-center py-8 text-muted">正在加载入站列表...</div>`;
-            try {
-                const res = await fetch("./api/panel/subscription-links");
-                const data = await res.json();
-                subscriptionLinks = Array.isArray(data.subscriptions) ? data.subscriptions : [];
-                if (subscriptionLinks.length && !subscriptionLinks.some(item => item.id === selectedSubscriptionLinkId)) {
-                    selectedSubscriptionLinkId = subscriptionLinks[0].id;
-                }
-                if (!subscriptionLinks.length) selectedSubscriptionLinkId = "";
-                renderSubscriptionItems();
-            } catch (e) {
-                if (container) container.innerHTML = `<div class="text-center py-8 text-danger">入站列表加载失败</div>`;
-            }
-        }
 
-        async function loadSubscriptionNodes() {
-            try {
-                const res = await fetch("./api/panel/subscription-nodes");
-                const data = await res.json();
-                subscriptionNodes = Array.isArray(data.nodes) ? data.nodes : [];
-                renderSubscriptionItems();
-            } catch (e) {
-                const container = $("subscription_items_container");
-                if (container) container.innerHTML = `<div class="text-center py-8 text-danger">入站列表加载失败</div>`;
-            }
-        }
 
         async function loadSubscriptionWorkspace() {
             const container = $("subscription_items_container");
@@ -379,7 +338,7 @@
                 ].join("");
 
                 return `
-                    <div class="node-card bg-[rgba(255,255,255,0.015)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] rounded-lg py-1.5 px-3 flex items-center justify-between gap-3 hover:bg-[rgba(255,255,255,0.04)] transition-all duration-200 w-full">
+                    <div class="bg-white/5 border border-border/20 rounded-xl py-1.5 px-3 transition-colors duration-200 hover:bg-white/10 bg-[rgba(255,255,255,0.015)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] rounded-lg py-1.5 px-3 flex items-center justify-between gap-3 hover:bg-[rgba(255,255,255,0.04)] transition-all duration-200 w-full">
                         <div class="flex items-center gap-2.5 min-w-0">
                             <!-- Status dot -->
                             <span class="w-2 h-2 rounded-full ${enabled ? 'bg-[var(--success)] shadow-[0_0_6px_var(--success)]' : 'bg-[var(--muted)]'} flex-none" title="${statusText}"></span>
@@ -426,7 +385,7 @@
                     : `<div class="text-center py-3 text-muted text-[12.5px] bg-[rgba(0,0,0,0.01)] rounded-lg border border-dashed border-border">这个订阅链接下还没有节点链接</div>`;
 
                 return `
-                    <div class="sub-link-card bg-glass border border-border rounded-2xl p-4 shadow-soft-shadow hover:shadow-shadow transition-all duration-300 flex flex-col gap-3">
+                    <div class="bg-glass border border-border rounded-2xl p-4 shadow-soft-shadow transition-shadow duration-300 hover:shadow-shadow bg-glass border border-border rounded-2xl p-4 shadow-soft-shadow hover:shadow-shadow transition-all duration-300 flex flex-col gap-3">
                         <!-- Card Header -->
                         <div class="flex items-center justify-between gap-3 w-full">
                             <div class="flex items-center gap-3 min-w-0">
@@ -453,7 +412,7 @@
                         
                         <!-- Collapsible Body -->
                         ${expanded ? `
-                        <div class="sub-card-nodes-list border-t border-[color-mix(in_srgb,var(--surface-line)_50%,transparent)] pt-3 flex flex-col gap-2.5 animate-[fadeIn_200ms_ease]">
+                        <div class="border-t border-surface-line/50 pt-3 border-t border-[color-mix(in_srgb,var(--surface-line)_50%,transparent)] pt-3 flex flex-col gap-2.5 animate-[fadeIn_200ms_ease]">
                             ${nodesListHtml}
                         </div>
                         ` : ''}
@@ -492,18 +451,8 @@
             container.innerHTML = cards.join("");
         }
 
-        function renderSubscriptionLinks() {
-            renderSubscriptionItems();
-        }
 
-        function renderSubscriptionNodes() {
-            renderSubscriptionItems();
-        }
 
-        function selectSubscriptionLink(linkId) {
-            selectedSubscriptionLinkId = linkId || "";
-            renderSubscriptionItems();
-        }
 
         function toggleSubscriptionExpand(linkId, event) {
             if (event) event.stopPropagation();
@@ -696,14 +645,6 @@
             }
         }
 
-        function copySelectedSubscriptionUrl() {
-            const link = selectedSubscriptionLink();
-            if (!link) {
-                showToast("请先选择订阅链接", "warning");
-                return;
-            }
-            copySubscriptionUrl(link.id);
-        }
 
         async function copySubscriptionNodeUrl(nodeId) {
             try {
@@ -1051,9 +992,6 @@
             };
         }
 
-        function xraySecretValue(ib) {
-            return ib.protocol === "vless" || ib.protocol === "vmess" ? (ib.uuid || "") : (ib.password || "");
-        }
 
         async function resetClientTraffic(name) {
             if (!confirm(`确定要重置客户端 ${name} 的已用流量吗？
@@ -1109,13 +1047,13 @@
                     `;
                 } else {
                     clientsHtml = `
-                        <div class="clients-section">
+                        <div class="mt-3">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
                                 <strong style="font-size: 13.5px; color: var(--text);">客户端账户授权列表 (${ib.protocol.toUpperCase()})</strong>
                                 <button type="button" class="btn btn-secondary btn-sm" onclick="addClientToInbound(${ibIdx})" style="height:28px; width:auto; margin-bottom:0;">新增客户端</button>
                             </div>
                             <div style="border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: rgba(0,0,0,0.02); overflow-x:auto;">
-                                <div class="client-header-row">
+                                <div class="grid grid-cols-[1fr_1.5fr_0.55fr_0.7fr_0.6fr_0.6fr_0.6fr_0.5fr] gap-2 py-1.5 px-2 mb-1.5 text-[11px] font-semibold text-muted border-b border-border text-center [&>div:first-child]:text-left">
                                     <div style="text-align:left;">账户备注</div>
                                     <div style="text-align:left;">UUID / 密钥</div>
                                     <div>限额 (GB)</div>
@@ -1130,7 +1068,7 @@
                         const uploaded = client.uploaded || 0;
                         const downloaded = client.downloaded || 0;
                         return `
-                                        <div class="client-row" data-client-index="${clientIdx}" data-client-name="${esc(client.name)}">
+                                        <div class="grid grid-cols-[1fr_1.5fr_0.55fr_0.7fr_0.6fr_0.6fr_0.6fr_0.5fr] gap-2 items-center p-2 border-b border-border/40 last:border-0 hover:bg-primary/5" data-client-index="${clientIdx}" data-client-name="${esc(client.name)}">
                                             <div class="mb-[22px] text-left">
                                                 <input type="text" placeholder="账户备注" class="form-input client-name" value="${esc(client.name)}" style="height:32px; font-size:12.5px;">
                                             </div>
@@ -1172,12 +1110,12 @@
                 }
 
                 return `
-                    <div class="xray-inbound-card" data-index="${ibIdx}">
-                        <div class="xray-inbound-card-header">
+                    <div class="bg-glass border border-border rounded-2xl p-4 mb-3.5 shadow-soft-shadow" data-index="${ibIdx}">
+                        <div class="bg-glass border border-border rounded-2xl p-4 mb-3.5 shadow-soft-shadow-header">
                             <h4 style="font-size:14.5px; font-weight:700; color:var(--text);">${esc(ib.remark || ib.protocol.toUpperCase() + " 入站")}</h4>
                             <button type="button" class="btn btn-danger btn-sm" onclick="removeXrayInbound(${ibIdx})" style="height:28px; padding:0 12px; font-size:12px; margin-bottom:0;">删除入站</button>
                         </div>
-                        <div class="xray-inbound-card-grid">
+                        <div class="bg-glass border border-border rounded-2xl p-4 mb-3.5 shadow-soft-shadow-grid">
                             <div class="mb-[22px] text-left">
                                 <label>入站协议</label>
                                 <select class="form-input xray-protocol" onchange="syncXrayInboundFromDom(); renderXrayInbounds();" style="height:36px; padding:0 8px;">
@@ -1210,7 +1148,7 @@
 
         function syncXrayInboundFromDom() {
             if (!xrayConfig) return;
-            const cards = document.querySelectorAll(".xray-inbound-card");
+            const cards = document.querySelectorAll(".bg-glass border border-border rounded-2xl p-4 mb-3.5 shadow-soft-shadow");
             xrayConfig.inbounds = Array.from(cards).map((card, ibIdx) => {
                 const protocol = card.querySelector(".xray-protocol").value;
                 const port = parseInt(card.querySelector(".xray-port").value, 10);
@@ -1225,7 +1163,7 @@
                     const secret = secretInput ? secretInput.value.trim() : "defaultpassword";
                     clients = [{ name: "client-01", uuid: "", password: secret, status: "active" }];
                 } else {
-                    const clientRows = card.querySelectorAll(".client-row");
+                    const clientRows = card.querySelectorAll(".grid grid-cols-[1fr_1.5fr_0.55fr_0.7fr_0.6fr_0.6fr_0.6fr_0.5fr] gap-2 items-center p-2 border-b border-border/40 last:border-0 hover:bg-primary/5");
                     clients = Array.from(clientRows).map((row, clientIdx) => {
                         const name = row.querySelector(".client-name").value.trim();
                         const secret = row.querySelector(".client-secret").value.trim();
@@ -1272,12 +1210,6 @@
             });
         }
 
-        function addXrayInbound() {
-            syncXrayInboundFromDom();
-            if (!xrayConfig) xrayConfig = { enabled: true, require_vpn: false, outbound_interface: "tun0", loglevel: "warning", inbounds: [] };
-            xrayConfig.inbounds.push(defaultXrayInbound());
-            renderXrayInbounds();
-        }
 
         function removeXrayInbound(idx) {
             syncXrayInboundFromDom();
@@ -1313,109 +1245,4 @@
             }
         }
 
-        async function saveXrayConfig(e) {
-            e.preventDefault();
-            const errDiv = $("xray_form_error");
-            const okDiv = $("xray_form_success");
-            errDiv.style.display = "none";
-            okDiv.style.display = "none";
-            syncXrayInboundFromDom();
-            const enabledRadio = document.querySelector('input[name="xray_enabled"]:checked');
-            xrayConfig.enabled = enabledRadio ? enabledRadio.value === "true" : false;
-            xrayConfig.outbound_interface = $("xray_outbound_interface").value.trim() || "tun0";
-            xrayConfig.loglevel = $("xray_loglevel").value;
-            xrayConfig.require_vpn = $("xray_require_vpn").checked;
 
-            if (!xrayConfig.inbounds.length) {
-                errDiv.textContent = "至少需要一个 Xray 入站配置。";
-                errDiv.style.display = "block";
-                return;
-            }
-            for (const ib of xrayConfig.inbounds) {
-                if (!ib.port || ib.port < 1 || ib.port > 65535) {
-                    errDiv.textContent = "入站端口必须在 1 至 65535 之间。";
-                    errDiv.style.display = "block";
-                    return;
-                }
-                for (const c of ib.clients) {
-                    const val = ib.protocol === "vless" || ib.protocol === "vmess" ? c.uuid : c.password;
-                    if (!val || !val.trim()) {
-                        errDiv.textContent = `在入站端口 ${ib.port} 下的客户端密码/UUID不能为空。`;
-                        errDiv.style.display = "block";
-                        return;
-                    }
-                }
-            }
-
-            const btn = $("xray_save_btn");
-            btn.disabled = true;
-            btn.textContent = "正在保存...";
-            try {
-                const res = await fetch("./api/xray/config", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(xrayConfig)
-                });
-                const data = await res.json();
-                if (res.ok && data.ok) {
-                    okDiv.textContent = data.message || "Xray 配置保存成功并已重载服务。";
-                    okDiv.style.display = "block";
-                    setTimeout(() => {
-                        okDiv.style.display = "none";
-                        loadXrayPanel();
-                    }, 2000);
-                } else {
-                    errDiv.textContent = data.error || "保存 Xray 配置失败。";
-                    errDiv.style.display = "block";
-                }
-            } catch (err) {
-                errDiv.textContent = "保存 Xray 配置时无法连接后端。";
-                errDiv.style.display = "block";
-            } finally {
-                btn.disabled = false;
-                btn.textContent = "保存入站配置";
-            }
-        }
-
-        async function saveXraySettingsOnly(e) {
-            if (e) e.preventDefault();
-            const errDiv = $("xray_settings_error");
-            const okDiv = $("xray_settings_success");
-            errDiv.style.display = "none";
-            okDiv.style.display = "none";
-
-            const enabledRadio = document.querySelector('input[name="xray_enabled"]:checked');
-            xrayConfig.enabled = enabledRadio ? enabledRadio.value === "true" : false;
-            xrayConfig.outbound_interface = $("xray_outbound_interface").value.trim() || "tun0";
-            xrayConfig.loglevel = $("xray_loglevel").value;
-            xrayConfig.require_vpn = $("xray_require_vpn").checked;
-
-            const btn = $("xray_settings_save_btn");
-            btn.disabled = true;
-            btn.textContent = "正在保存...";
-            try {
-                const res = await fetch("./api/xray/config", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(xrayConfig)
-                });
-                const data = await res.json();
-                if (res.ok && data.ok) {
-                    okDiv.textContent = data.message || "Xray 服务设置保存成功并已重载服务。";
-                    okDiv.style.display = "block";
-                    setTimeout(() => {
-                        okDiv.style.display = "none";
-                        loadXrayPanel();
-                    }, 2000);
-                } else {
-                    errDiv.textContent = data.error || "保存 Xray 服务设置失败。";
-                    errDiv.style.display = "block";
-                }
-            } catch (err) {
-                errDiv.textContent = "保存 Xray 服务设置时无法连接后端。";
-                errDiv.style.display = "block";
-            } finally {
-                btn.disabled = false;
-                btn.textContent = "保存服务设置";
-            }
-        }

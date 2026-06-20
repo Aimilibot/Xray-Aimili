@@ -248,32 +248,6 @@
             }
         }
 
-        async function deleteWarpNode() {
-            if (!currentWarpNode && !isFeatureEnabled("warp_enabled")) {
-                showToast("WARP 当前没有可删除的配置", "warning");
-                return;
-            }
-            if (!confirm("确定删除 WARP 配置并关闭 WARP 功能吗？")) return;
-            try {
-                await setFeatureGate("warp_enabled", false);
-                const res = await fetch("./api/panel/outbound-nodes/warp/delete", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" }
-                });
-                const data = await res.json();
-                if (!res.ok || !data.ok) {
-                    showToast(data.error || "删除 WARP 失败", "error");
-                    return;
-                }
-                currentWarpNode = null;
-                showToast(data.message || "WARP 已删除", "success");
-                await loadWarpState();
-                await loadOutboundNodes();
-                if (typeof loadRoutingRules === "function") await loadRoutingRules();
-            } catch (e) {
-                showToast("无法连接 WARP 删除接口: " + e, "error");
-            }
-        }
 
         function toggleEditWarpEndpoint(show) {
             const row = $("warp_endpoint_row");
@@ -638,28 +612,6 @@
             }
         }
 
-        async function toggleOutboundNode(nodeId, enabled) {
-            if (!isFeatureEnabled("custom_enabled")) {
-                showToast("请先开启自定义节点功能", "warning");
-                return;
-            }
-            try {
-                const res = await fetch("./api/panel/outbound-nodes/toggle", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: nodeId, enabled })
-                });
-                const data = await res.json();
-                if (!res.ok || !data.ok) {
-                    alert(data.error || "更新出站节点状态失败");
-                    return;
-                }
-                await loadOutboundNodes();
-                await loadRoutingRules();
-            } catch (e) {
-                alert("无法连接后端接口");
-            }
-        }
         function closeOpenvpnRoutingModal() {
             const modal = $("openvpn-routing-modal");
             if (modal) modal.style.display = "none";
@@ -725,27 +677,27 @@
             // Render active node details card
             const activeCardContainer = $("active_node_card");
             if (!vpngateFeatureEnabled) {
-                activeCardContainer.innerHTML = `<div class="outbound-state-panel">VPNGate 公益节点未启动</div>`;
+                activeCardContainer.innerHTML = `<div class="w-[min(460px,100%)] h-[118px] my-7 mx-auto px-5 box-border flex items-center justify-center text-muted text-center text-[13px] font-bold leading-none border border-dashed border-muted/25 rounded-2xl bg-gradient-to-br from-glass-strong/50 to-page-a/40">VPNGate 公益节点未启动</div>`;
             } else if (state.is_connecting && !activeNode) {
                 activeCardContainer.innerHTML = `
-                    <div class="active-card" style="border-color: var(--yellow); box-shadow: 0 8px 32px rgba(255, 159, 10, 0.12);">
-                        <div class="active-card-info">
+                    <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center" style="border-color: var(--yellow); box-shadow: 0 8px 32px rgba(255, 159, 10, 0.12);">
+                        <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-info">
                             <div style="background: rgba(255, 159, 10, 0.15); border: 1px solid rgba(255, 159, 10, 0.3); width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                                 <svg xmlns="http://www.w3.org/2000/svg" style="color: var(--yellow); width: 22px; height: 22px; animation: spin 2s linear infinite;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18" /></svg>
                             </div>
-                            <div class="active-card-details">
-                                <div class="active-card-title" style="color: var(--yellow);">
+                            <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-details">
+                                <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-title" style="color: var(--yellow);">
                                     <span class="badge warn" style="padding: 2px 8px;"><span class="badge-pulse" style="background: var(--yellow);"></span>正在连接</span>
                                     <strong style="margin-left: 8px;">${esc(state.active_node_latency || '正在建立隧道...')}</strong>
                                 </div>
-                                <div class="active-card-meta" style="margin-top: 4px;">
+                                <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-meta" style="margin-top: 4px;">
                                     ${esc(state.last_check_message || '正在连接')}
                                 </div>
                             </div>
                         </div>
-                        <div class="active-card-tools">
+                        <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-tools">
                             ${proxyStatusPanelHtml(true)}
-                            <button class="btn btn-danger active-card-action" onclick="disconnectNode()">停止 OpenVPN</button>
+                            <button class="btn btn-danger w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-action" onclick="disconnectNode()">停止 OpenVPN</button>
                         </div>
                     </div>
                 `;
@@ -754,20 +706,20 @@
                 const latencyText = activeNode.latency_ms ? `<span class="latency-val ${latencyClass}">${activeNode.latency_ms} ms</span>` : "-";
                 const displayLocation = activeNode.location || translateCountry(activeNode.country) || "-";
                 activeCardContainer.innerHTML = `
-                    <div class="active-card" style="border-color: var(--green); box-shadow: 0 8px 32px rgba(52, 199, 89, 0.08);">
-                        <div class="active-card-info">
+                    <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center" style="border-color: var(--green); box-shadow: 0 8px 32px rgba(52, 199, 89, 0.08);">
+                        <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-info">
                             <div style="background: rgba(52, 199, 89, 0.15); border: 1px solid rgba(52, 199, 89, 0.3); width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                                 <svg xmlns="http://www.w3.org/2000/svg" style="color: var(--green); width: 22px; height: 22px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                             </div>
-                            <div class="active-card-details">
-                                <div class="active-card-title" style="color: var(--green);">
+                            <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-details">
+                                <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-title" style="color: var(--green);">
                                     <span class="badge available"><span class="badge-pulse"></span>已连接</span>
                                     <strong style="margin-left: 8px;">${esc(translateCountry(activeNode.country))} 专线节点</strong>
                                 </div>
-                                <div class="active-card-value mono" style="margin-top: 2px;">
+                                <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-value mono" style="margin-top: 2px;">
                                     ${esc(activeNode.ip || activeNode.remote_host)}:${activeNode.remote_port || ""}
                                 </div>
-                                <div class="active-card-meta" style="margin-top: 4px;">
+                                <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-meta" style="margin-top: 4px;">
                                     <span>位置: <strong>${esc(displayLocation)}</strong></span>
                                     <span style="margin-left: 12px;">延时: <strong>${latencyText}</strong></span>
                                     <span style="margin-left: 12px;">主体: <strong>${esc(activeNode.owner || activeNode.as_name || "-")}</strong></span>
@@ -775,9 +727,9 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="active-card-tools">
+                        <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-tools">
                             ${proxyStatusPanelHtml(false)}
-                            <button class="btn btn-danger active-card-action" onclick="disconnectNode()">停止 OpenVPN</button>
+                            <button class="btn btn-danger w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-action" onclick="disconnectNode()">停止 OpenVPN</button>
                         </div>
                     </div>
                 `;
@@ -793,25 +745,25 @@
                 const idleIconBg = openvpnEnabled ? "rgba(255, 159, 10, 0.12)" : "rgba(255, 69, 58, 0.08)";
                 const idleIconBorder = openvpnEnabled ? "rgba(255, 159, 10, 0.24)" : "rgba(255, 69, 58, 0.15)";
                 const idleAction = openvpnEnabled
-                    ? `<button class="btn btn-danger active-card-action" onclick="disconnectNode()">停止 OpenVPN</button>`
-                    : `<button class="btn btn-primary active-card-action" onclick="startOpenvpnService()">启动 OpenVPN</button>`;
+                    ? `<button class="btn btn-danger w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-action" onclick="disconnectNode()">停止 OpenVPN</button>`
+                    : `<button class="btn btn-primary w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-action" onclick="startOpenvpnService()">启动 OpenVPN</button>`;
                 activeCardContainer.innerHTML = `
-                    <div class="active-card" style="background: rgba(255, 255, 255, 0.01); border-style: dashed;">
-                        <div class="active-card-info">
+                    <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center" style="background: rgba(255, 255, 255, 0.01); border-style: dashed;">
+                        <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-info">
                             <div style="background: ${idleIconBg}; border: 1px solid ${idleIconBorder}; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                                 <svg xmlns="http://www.w3.org/2000/svg" style="color: ${idleIconColor}; width: 22px; height: 22px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                             </div>
-                            <div class="active-card-details">
-                                <div class="active-card-title" style="color: var(--muted);">
+                            <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-details">
+                                <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-title" style="color: var(--muted);">
                                     ${idleBadge}
                                     <strong style="margin-left: 8px;">${idleTitle}</strong>
                                 </div>
-                                <div class="active-card-meta" style="margin-top: 4px;">
+                                <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-meta" style="margin-top: 4px;">
                                     ${esc(idleMessage)}
                                 </div>
                             </div>
                         </div>
-                        <div class="active-card-tools">
+                        <div class="w-full p-5 border border-border rounded-[18px] bg-gradient-to-br from-white/80 to-card/50 backdrop-blur-[35px] saturate-[190%] grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center-tools">
                             ${proxyStatusPanelHtml(!openvpnEnabled)}
                             ${idleAction}
                         </div>

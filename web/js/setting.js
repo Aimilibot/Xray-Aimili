@@ -132,7 +132,7 @@
             populateRoutingCountries();
         }
 
-        function showGlobalToast(message, type = "success") {
+        function showToast(message, type = "success") {
             let container = $("toast-container");
             if (!container) {
                 container = document.createElement("div");
@@ -146,7 +146,7 @@
             if (type === "success") {
                 toast.style.borderColor = "var(--success)";
                 toast.style.color = "var(--success)";
-            } else if (type === "danger") {
+            } else if (type === "error") {
                 toast.style.borderColor = "var(--danger)";
                 toast.style.color = "var(--danger)";
             } else if (type === "loading") {
@@ -164,9 +164,6 @@
         let domainCertsList = [];
         let manualCertPaths = false;
 
-        function renderDomainCertsList() {
-            // No-op as pool list UI is removed
-        }
 
         function getLetsEncryptPaths(domain) {
             const safeDomain = (domain || "").trim();
@@ -339,7 +336,7 @@
                 payload.restart_now = true;
             }
 
-            showGlobalToast("正在保存配置，请稍候...", "loading");
+            showToast("正在保存配置，请稍候...", "loading");
 
             try {
                 if (shouldUpdateCredentials) {
@@ -350,7 +347,7 @@
                     });
                     const credData = await credRes.json();
                     if (!credRes.ok || !credData.ok) {
-                        showGlobalToast(credData.error || "管理员凭据保存失败", "danger");
+                        showToast(credData.error || "管理员凭据保存失败", "error");
                         return;
                     }
                 }
@@ -364,7 +361,7 @@
                 const data = await res.json();
                 if (res.ok && data.ok) {
                     if (data.restart_needed || restart) {
-                        showGlobalToast("保存成功！服务正在重启中，网页即将自动跳转...", "success");
+                        showToast("保存成功！服务正在重启中，网页即将自动跳转...", "success");
                         document.querySelectorAll("#tab-settings input, #tab-settings button").forEach(el => el.disabled = true);
 
                         setTimeout(() => {
@@ -375,15 +372,15 @@
                             window.location.href = `${protocol}//${targetHost}:${port}/${suffix}/`;
                         }, 4000);
                     } else {
-                        showGlobalToast("配置保存并应用成功，已即时生效！", "success");
+                        showToast("配置保存并应用成功，已即时生效！", "success");
                         $("cred_password").value = "";
                         load();
                     }
                 } else {
-                    showGlobalToast(data.error || "保存失败，请检查输入", "danger");
+                    showToast(data.error || "保存失败，请检查输入", "error");
                 }
             } catch (err) {
-                showGlobalToast("连接服务器失败，请稍后重试", "danger");
+                showToast("连接服务器失败，请稍后重试", "error");
             }
         }
 
@@ -520,15 +517,15 @@
 
             const text = term.innerText || term.textContent;
             if (!text || text.includes("暂无今日") || text.includes("暂无该类型") || text.includes("正在读取")) {
-                showGlobalToast("当前没有可供复制的日志。", "danger");
+                showToast("当前没有可供复制的日志。", "error");
                 return;
             }
 
             try {
                 await copyToClipboard(text);
-                showGlobalToast("日志内容已成功复制到剪贴板！", "success");
+                showToast("日志内容已成功复制到剪贴板！", "success");
             } catch (err) {
-                showGlobalToast("复制失败，请重试", "danger");
+                showToast("复制失败，请重试", "error");
             }
         }
 
@@ -581,57 +578,7 @@
         });
 
         function renderLayeredHealthList(data) {
-            const container = $("layered_health_list");
-            if (!container) return;
-            
-            const layers = [
-                { key: "api_connectivity", name: "1. API 源通畅度" },
-                { key: "node_pool", name: "2. 节点池可用性" },
-                { key: "openvpn_interface", name: "3. OpenVPN网卡状态" },
-                { key: "policy_routing", name: "4. 策略路由健康度" },
-                { key: "local_proxy", name: "5. 本地代理连通性" }
-            ];
-            
-            container.innerHTML = layers.map(layer => {
-                const info = data[layer.key] || { ok: false, details: "未检测" };
-                const statusText = info.ok ? "正常" : (info.details === "未启用" || info.details === "未启动" || info.details === "未检测" || info.details === "OpenVPN 连接未启动" || info.details === "Xray 代理服务未运行" || info.details.includes("未运行") ? "未就绪" : "异常");
-                const badgeClass = info.ok ? "available" : (info.details === "未启用" || info.details === "未启动" || info.details === "未检测" || info.details === "OpenVPN 连接未启动" || info.details === "Xray 代理服务未运行" || info.details.includes("未运行") ? "not_checked" : "unavailable");
-                const statusPulse = info.ok ? '<span class="badge-pulse"></span>' : '';
-                
-                let errorHtml = "";
-                if (!info.ok && info.error_type) {
-                    let desc = "";
-                    if (info.error_type === "PORT_COLLISION") {
-                        desc = "诊断原因: 检测到本地代理端口被其他进程占用。请运行 `lsof -i :7928` 查找并结束冲突进程。";
-                    } else if (info.error_type === "DNS_POLLUTION") {
-                        desc = "诊断原因: 本地 DNS 解析失败或返回了错误的 GFW 污染 IP。建议修改系统 DNS 为 8.8.8.8 等干净的公共解析器，或使用网关内置的 SOCKS5h 远程域名解析。";
-                    } else if (info.error_type === "TLS_INTERFERENCE") {
-                        desc = "诊断原因: TCP 隧道已接通但 TLS 证书安全握手遭防火墙审查或阻断。说明该节点的 TLS 混淆特征失效，请尝试同步更新到其他公益节点。";
-                    } else if (info.error_type === "TUN_DRIVER_MISSING") {
-                        desc = "诊断原因: 系统未找到 `/dev/net/tun` 设备。对于 Docker 部署，请确保使用 `--device=/dev/net/tun` 挂载，并拥有 NET_ADMIN 特权；主机环境请使用 `modprobe tun` 加载内核驱动。";
-                    } else if (info.error_type === "RP_FILTER_STRICT") {
-                        desc = "诊断原因: 内核严格反向路径过滤 rp_filter 被启用，导致 VPN 网卡回包被丢弃。请在主机执行 `sysctl -w net.ipv4.conf.all.rp_filter=2`。";
-                    }
-                    if (desc) {
-                        errorHtml = `
-                            <div style="font-size: 12px; color: var(--red); background: var(--red-soft); border: 1px solid rgba(255, 69, 58, 0.15); border-radius: 6px; padding: 8px 12px; margin-top: 6px; line-height: 1.45;">
-                                ${esc(desc)}
-                            </div>
-                        `;
-                    }
-                }
-                
-                return `
-                    <div class="glass" style="background: var(--control); border-radius: var(--radius); padding: 14px 18px; display: flex; flex-direction: column; gap: 6px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <strong style="font-size: 14.5px; color: var(--text);">${esc(layer.name)}</strong>
-                            <span class="badge ${badgeClass}" style="padding: 2px 8px;">${statusPulse}${statusText}</span>
-                        </div>
-                        <div style="font-size: 12.5px; color: var(--muted);">${esc(info.details || "-")}</div>
-                        ${errorHtml}
-                    </div>
-                `;
-            }).join("");
+            if (window.renderLayeredHealthGeneric) renderLayeredHealthGeneric(data, "layered_health_list", true, true);
         }
         
         window.renderLayeredHealthList = renderLayeredHealthList;

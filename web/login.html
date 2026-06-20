@@ -152,6 +152,21 @@
       box-shadow: 0 6px 20px rgba(255, 45, 85, 0.35);
     }
   </style>
+
+  <style type="text/tailwindcss">
+    @layer components {
+      .glass-card { @apply bg-[linear-gradient(160deg,rgba(255,255,255,.86),var(--card)_55%,var(--card))] backdrop-blur-[40px] saturate-200 border border-border shadow-[inset_0_1px_0_rgba(255,255,255,.55),inset_0_-1px_0_rgba(255,255,255,.1),0_4px_24px_rgba(0,0,0,.06),0_1px_4px_rgba(0,0,0,.04)]; }
+      
+      .btn { @apply inline-flex items-center justify-center min-h-[36px] px-4 py-2 rounded-[10px] border border-border bg-glass text-text font-bold text-[13px] gap-[7px] cursor-pointer whitespace-nowrap transition-all duration-160 hover:-translate-y-[1px] hover:border-primary/30 hover:bg-primary/10 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none; }
+      .btn-primary { @apply text-white border-transparent bg-gradient-to-br from-primary to-second shadow-[0_10px_20px_color-mix(in_srgb,var(--primary)_18%,transparent)] hover:text-white hover:border-transparent hover:from-white/90 hover:to-primary; }
+      
+      .form-input { @apply w-full px-3 py-2 rounded-xl border border-border bg-glass text-text text-[13px] outline-none transition-all duration-200 focus:border-primary/50 focus:shadow-[0_0_0_3px_var(--focus-ring)]; }
+      body:has(#theme-red:checked) .form-input { @apply bg-[#12121d]/70 border-white/10 text-[#f3f4fb]; }
+      
+      .toast { @apply min-w-[220px] max-w-[min(360px,calc(100vw-36px))] px-[18px] py-[14px] rounded-2xl border border-border bg-gradient-to-br from-glass-strong/95 to-card/90 backdrop-blur-[30px] saturate-200 shadow-[inset_0_1px_0_rgba(255,255,255,.45),0_4px_28px_rgba(31,40,72,.14)] text-[13px] font-bold text-text; animation: toastIn 0.24s cubic-bezier(0.2,0.8,0.2,1) both; }
+      .toast-error { @apply border-danger/30 text-danger; }
+    }
+  </style>
 </head>
 <body>
   <!-- 主题切换 (与主面板共享 localStorage key) -->
