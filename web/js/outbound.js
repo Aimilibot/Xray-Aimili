@@ -11,6 +11,32 @@
             "json-config": "JSON 配置"
         };
 
+        function browserRegionCode() {
+            const locale = navigator.language || "en-US";
+            const region = (locale.split("-")[1] || locale.split("_")[1] || "US").toUpperCase();
+            return /^[A-Z]{2}$/.test(region) ? region : "US";
+        }
+
+        function browserCityName() {
+            const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+            const city = (zone.split("/").pop() || "Local").replace(/_/g, "");
+            return city || "Local";
+        }
+
+        function nextNodeName(prefix) {
+            const region = browserRegionCode();
+            const city = browserCityName();
+            const existingNames = new Set([
+                ...outboundNodes.map(item => item.name),
+                ...(typeof subscriptionNodes !== "undefined" ? subscriptionNodes.map(item => item.name) : [])
+            ].filter(Boolean));
+            for (let i = 1; i < 100; i++) {
+                const name = `${prefix}-${region}-${city}-${String(i).padStart(2, "0")}`;
+                if (!existingNames.has(name)) return name;
+            }
+            return `${prefix}-${region}-${city}-${Date.now().toString().slice(-4)}`;
+        }
+
         function showOutboundNodeTab(tabName) {
             const vpngatePanel = $("outbound-vpngate-panel");
             const warpPanel = $("outbound-warp-panel");
@@ -183,6 +209,57 @@
             }
         }
 
+        async function refreshWarpNode() {
+            if (!isFeatureEnabled("warp_enabled")) {
+                showToast("请先开启 Cloudflare WARP 功能", "warning");
+                return;
+            }
+            if (currentWarpNode && !confirm("确定刷新 WARP 配置吗？现有设备密钥会被替换。")) return;
+            try {
+                const res = await fetch("./api/panel/outbound-nodes/warp/refresh", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" }
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) {
+                    showToast(data.error || "刷新 WARP 失败", "error");
+                    return;
+                }
+                showToast(data.message || "WARP 已刷新", "success");
+                await loadWarpState();
+                await testWarpNode();
+            } catch (e) {
+                showToast("无法连接 WARP 刷新接口: " + e, "error");
+            }
+        }
+
+        async function deleteWarpNode() {
+            if (!currentWarpNode && !isFeatureEnabled("warp_enabled")) {
+                showToast("WARP 当前没有可删除的配置", "warning");
+                return;
+            }
+            if (!confirm("确定删除 WARP 配置并关闭 WARP 功能吗？")) return;
+            try {
+                await setFeatureGate("warp_enabled", false);
+                const res = await fetch("./api/panel/outbound-nodes/warp/delete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" }
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) {
+                    showToast(data.error || "删除 WARP 失败", "error");
+                    return;
+                }
+                currentWarpNode = null;
+                showToast(data.message || "WARP 已删除", "success");
+                await loadWarpState();
+                await loadOutboundNodes();
+                if (typeof loadRoutingRules === "function") await loadRoutingRules();
+            } catch (e) {
+                showToast("无法连接 WARP 删除接口: " + e, "error");
+            }
+        }
+
         function toggleEditWarpEndpoint(show) {
             const row = $("warp_endpoint_row");
             const editRow = $("warp_endpoint_edit_row");
@@ -326,7 +403,11 @@
             const node = outboundNodes.find(item => item.id === nodeId);
             $("outbound_node_id").value = node ? node.id : "";
             $("outbound_node_created_at").value = node ? (node.created_at || "") : "";
-            $("outbound_node_name").value = node ? (node.name || "") : "";
+            $("outbound_node_name").value = node ? (node.name || "") : nextNodeName("NODE");
+            $("outbound_node_type").value = node ? (node.type || "json-config") : "json-config";
+            $("outbound_node_protocol").value = node ? (node.protocol || "") : "";
+            $("outbound_node_share_link").value = node ? (node.share_link || "") : "";
+            $("outbound_node_subscription_url").value = node ? (node.subscription_url || "") : "";
             $("outbound_node_input_source").value = "";
             $("outbound_node_json_config").value = node ? (node.json_config || "") : "";
             $("outbound_node_error").style.display = "none";
@@ -379,8 +460,12 @@
                 if (data.name && !$("outbound_node_name").value.trim()) {
                     $("outbound_node_name").value = data.name;
                 }
+                $("outbound_node_type").value = data.type || "custom-node";
+                $("outbound_node_protocol").value = data.protocol || "";
+                $("outbound_node_share_link").value = data.share_link || "";
+                $("outbound_node_subscription_url").value = data.subscription_url || "";
                 $("outbound_node_json_config").value = data.json_config;
-                ok.textContent = "节点已成功解析并转换为 JSON 配置！";
+                ok.textContent = data.type === "subscription" ? "订阅链接已读取，并导入第一个可用节点配置。" : "节点已成功解析并转换为 JSON 配置！";
                 ok.style.display = "block";
             } catch (e) {
                 err.textContent = "连接解析接口失败: " + e;
@@ -420,7 +505,10 @@
                 id: $("outbound_node_id").value,
                 created_at: $("outbound_node_created_at").value,
                 name: $("outbound_node_name").value.trim(),
-                type: "json-config",
+                type: $("outbound_node_type").value || "json-config",
+                protocol: $("outbound_node_protocol").value,
+                share_link: $("outbound_node_share_link").value,
+                subscription_url: $("outbound_node_subscription_url").value,
                 json_config: jsonVal,
                 enabled: existing ? existing.enabled !== false : true
             };

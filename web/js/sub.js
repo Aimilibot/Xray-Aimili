@@ -316,11 +316,13 @@
 
         function routedOutboundsForSubscriptionNode(nodeId) {
             if (typeof routingRules === "undefined" || !Array.isArray(routingRules)) return [];
+            const node = subscriptionNodes.find(item => String(item.id) === String(nodeId));
+            const parentId = node ? String(node.subscription_id || "") : "";
             const matched = [];
             routingRules.forEach(rule => {
                 if (rule.enabled === false) return;
                 const inboundIds = asArray(rule.inbound_node_ids || rule.inbound_node_id).map(String);
-                if (!inboundIds.includes(String(nodeId))) return;
+                if (!inboundIds.includes(String(nodeId)) && (!parentId || !inboundIds.includes(parentId))) return;
                 const outboundIds = asArray(rule.outbound_node_ids || rule.outbound_node_id).map(String);
                 outboundIds.forEach(id => {
                     if (id && !matched.includes(id)) matched.push(id);
@@ -797,7 +799,7 @@
             $("subscription_node_join_subscription").checked = joinSubscription;
             renderSubscriptionSelectOptions(linkId);
             handleSubscriptionJoinChange(joinSubscription);
-            $("subscription_node_name").value = node ? (node.name || "") : "";
+            $("subscription_node_name").value = node ? (node.name || "") : (typeof nextNodeName === "function" ? nextNodeName(joinSubscription ? "SUB" : "NODE") : "");
             $("subscription_node_protocol").value = protocol;
             $("subscription_node_port").value = parentLink ? (parentLink.port || "") : (node ? (node.port || "") : "");
             $("subscription_node_camouflage").value = protocol === "socks5" ? "" : (parentLink ? (parentLink.camouflage_host || "") : (node ? (node.camouflage_host || "") : ""));

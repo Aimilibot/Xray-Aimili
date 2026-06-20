@@ -48,7 +48,10 @@
   <script>
     (function(){
       const available = ['theme-orange','theme-red'];
-      const saved = available.includes(localStorage.getItem('theme')) ? localStorage.getItem('theme') : 'theme-orange';
+      const stored = localStorage.getItem('theme');
+      const hour = new Date().getHours();
+      const browserTheme = hour >= 7 && hour < 19 ? 'theme-orange' : 'theme-red';
+      const saved = available.includes(stored) ? stored : browserTheme;
       localStorage.setItem('theme', saved);
       const el = document.getElementById(saved);
       if (el) el.checked = true;
@@ -291,10 +294,15 @@
                 <h3 class="!text-[18px] !font-bold mb-1">Cloudflare WARP</h3>
                 <p class="text-muted text-[13px] leading-relaxed">启动后自动创建并测试 WARP 出站，关闭时自动删除配置。</p>
               </div>
-              <button type="button" data-feature-power="warp_enabled" onclick="toggleWarpFeaturePower()" class="feature-power-btn" aria-pressed="false">
-                <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
-                <span class="feature-power-label">启动</span>
-              </button>
+              <div class="flex gap-2.5 items-center flex-wrap justify-end">
+                <button type="button" onclick="loadWarpState()" title="刷新 WARP 状态" aria-label="刷新 WARP 状态" class="icon-only-btn"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
+                <button type="button" onclick="refreshWarpNode()" title="重新生成 WARP" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text">刷新</button>
+                <button type="button" onclick="deleteWarpNode()" title="删除 WARP" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-danger">删除</button>
+                <button type="button" data-feature-power="warp_enabled" onclick="toggleWarpFeaturePower()" class="feature-power-btn" aria-pressed="false">
+                  <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
+                  <span class="feature-power-label">启动</span>
+                </button>
+              </div>
             </div>
 
             <div id="warp_empty_state" class="compact-empty">WARP 尚未创建。点击右上角启动后会自动注册并测试。</div>
@@ -633,7 +641,7 @@
         <button onclick="closeOutboundNodeModal()" class="modal-close">×</button>
       </div>
       <form id="outbound-node-form" onsubmit="saveOutboundNode(event)">
-        <input type="hidden" id="outbound_node_id"><input type="hidden" id="outbound_node_created_at"><input type="hidden" id="outbound_node_type" value="json-config">
+        <input type="hidden" id="outbound_node_id"><input type="hidden" id="outbound_node_created_at"><input type="hidden" id="outbound_node_type" value="json-config"><input type="hidden" id="outbound_node_protocol"><input type="hidden" id="outbound_node_share_link"><input type="hidden" id="outbound_node_subscription_url">
         <div class="flex flex-col gap-5">
           <div><label for="outbound_node_name" class="block text-[13px] font-semibold text-muted mb-2.5">显示名称</label><input id="outbound_node_name" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" required placeholder="例如：自定义节点-香港"></div>
           <div><label for="outbound_node_input_source" class="block text-[13px] font-semibold text-muted mb-2.5">节点链接</label><div class="flex gap-2.5"><textarea id="outbound_node_input_source" rows="2" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none resize-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="请输入 vmess://、vless://、trojan://、ss://、socks://、http:// 等节点链接"></textarea><button type="button" id="btn_fetch_convert" onclick="fetchAndConvertOutbound()" class="btn-primary-action py-3 rounded-xl text-[13px] font-bold flex-shrink-0" style="width:85px">获取</button></div></div>
@@ -687,7 +695,7 @@
         <h3 id="routing_rule_modal_title" class="!text-[20px] !font-extrabold">创建路由规则</h3>
         <button onclick="closeRoutingRuleModal()" class="modal-close">×</button>
       </div>
-      <form id="routing-rule-form" onsubmit="saveRoutingRule(event)">
+      <form id="routing-rule-form" onsubmit="saveRoutingRule(event, true)">
         <input type="hidden" id="routing_rule_id">
         <div class="flex flex-col gap-4">
           <div>
@@ -729,9 +737,10 @@
         </div>
         <div id="routing_rule_error" class="service-alert" style="display:none"></div>
         <div id="routing_rule_success" class="service-alert" style="display:none; border-color:var(--success); background:var(--green-soft); color:var(--success)"></div>
+        <div class="notice mt-5">如果当前浏览器正在走本面板创建的代理节点，建议先关闭本机代理或切换到直连后再点“保存应用”，避免 Xray 重载时中断本次请求。</div>
         <div class="flex gap-3 justify-end mt-6">
-          <button type="button" onclick="closeRoutingRuleModal()" class="glass-card py-2.5 px-5 rounded-lg text-[13px] font-bold border border-border text-text">取消</button>
-          <button type="submit" id="routing_rule_submit" class="btn-primary-action py-2.5 px-5 rounded-lg text-[13px] font-bold">创建规则</button>
+          <button type="button" id="routing_rule_create_btn" onclick="saveRoutingRule(event, false)" class="glass-card py-2.5 px-5 rounded-lg text-[13px] font-bold border border-border text-text">创建草稿</button>
+          <button type="button" id="routing_rule_save_btn" onclick="saveRoutingRule(event, true)" class="btn-primary-action py-2.5 px-5 rounded-lg text-[13px] font-bold">保存应用</button>
         </div>
       </form>
     </div>

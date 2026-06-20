@@ -37,6 +37,7 @@ from backend.app.core.xray import (
     save_routing_rule, delete_routing_rule, set_routing_rule_enabled,
     save_outbound_node, delete_outbound_node, set_outbound_node_enabled,
     parse_share_link, test_outbound_node_via_temp_xray, register_warp_account,
+    delete_warp_node,
     sync_panel_subscription_nodes_to_xray, test_warp_via_proxy, stop_xray, start_xray,
     bg_install_xray, query_xray_client_stats, clean_hostname, xray_event,
     is_valid_warp_node,
@@ -948,7 +949,8 @@ class Handler(BaseHTTPRequestHandler):
                 if error:
                     self.send_json({"ok": False, "error": error}, HTTPStatus.BAD_REQUEST)
                     return
-                self.send_json({"ok": True, "rule": rule, "message": "路由规则已创建。"})
+                message = "路由规则已保存并应用。" if payload.get("apply_immediately") is not False else "路由规则已创建为草稿，尚未应用到 Xray。"
+                self.send_json({"ok": True, "rule": rule, "message": message})
             except Exception as exc:
                 self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return
@@ -1052,7 +1054,16 @@ class Handler(BaseHTTPRequestHandler):
                 payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
                 link = str(payload.get("input") or "").strip()
                 proto, name, json_config = parse_share_link(link)
-                self.send_json({"ok": True, "name": name, "json_config": json_config})
+                imported_type = "subscription" if link.startswith(("http://", "https://")) else "custom-node"
+                self.send_json({
+                    "ok": True,
+                    "name": name,
+                    "protocol": proto,
+                    "type": imported_type,
+                    "share_link": "" if imported_type == "subscription" else link,
+                    "subscription_url": link if imported_type == "subscription" else "",
+                    "json_config": json_config
+                })
             except Exception as exc:
                 self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
@@ -1096,6 +1107,35 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception as e:
                     print(f"[ERROR] Syncing after WARP registration failed: {e}", flush=True)
                 self.send_json({"ok": True, "node": warp_node, "message": "Cloudflare WARP 注册成功并生成接入配置！"})
+            except Exception as exc:
+                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+
+        if effective_path == "/api/panel/outbound-nodes/warp/delete":
+            try:
+                ensure_panel_framework_files()
+                deleted = delete_warp_node()
+                self.send_json({"ok": True, "deleted": deleted, "message": "WARP 配置已删除。"})
+            except Exception as exc:
+                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+
+        if effective_path == "/api/panel/outbound-nodes/warp/refresh":
+            try:
+                if not load_feature_flags().get("warp_enabled", False):
+                    self.send_json({"ok": False, "error": "Cloudflare WARP 功能未开启，请先打开功能开关。"}, HTTPStatus.FORBIDDEN)
+                    return
+                ensure_panel_framework_files()
+                warp_node = register_warp_account()
+                warp_node["enabled"] = True
+                nodes = [n for n in read_json_list(OUTBOUND_NODES_FILE) if n.get("type") != "warp"]
+                nodes.append(warp_node)
+                write_json(OUTBOUND_NODES_FILE, nodes)
+                try:
+                    sync_panel_subscription_nodes_to_xray(True)
+                except Exception as e:
+                    print(f"[ERROR] Syncing after WARP refresh failed: {e}", flush=True)
+                self.send_json({"ok": True, "node": warp_node, "message": "WARP 已刷新并重新生成配置。"})
             except Exception as exc:
                 self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return

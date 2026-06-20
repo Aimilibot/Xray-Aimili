@@ -165,11 +165,120 @@ ws_path: /
 
 已扫描 `web/js/*.js` 中的前端 `fetch("./api/...")` 调用，并与 `backend/app/api/handler.py` 路由匹配：
 
-- 前端识别到 39 个 API 请求。
-- 后端识别到 52 个路由/路由前缀。
+- 前端识别到 41 个 API 请求。
+- 后端识别到 54 个路由/路由前缀。
 - 未发现前端已调用但后端缺失的 API。
 
 本轮发现的主要问题不是“接口不存在”，而是“独立节点接口保存成功但没有完整后端行为”；已补齐保存校验、配置生成和前端字段联动。
+
+## 第二轮专项修复
+
+### 9. 节点池可用性与策略路由健康检查误导
+
+文件：`backend/app/core/vpn.py`
+
+修复内容：
+
+- OpenVPN 未连接时，不再把 `table 100` 缺失直接报成策略路由异常；改为提示“连接成功后会自动配置”。
+- 节点池存在但未检测时，提示用户执行检测或同步。
+- 节点池全部不可用时，会带上最近一次探测失败原因，方便判断是 OpenVPN、TUN 权限、网络还是节点本身问题。
+
+### 10. 路由规则创建会打断当前代理连接
+
+文件：
+
+- `backend/app/core/xray.py`
+- `backend/app/api/handler.py`
+- `web/index.html`
+- `web/js/route.js`
+
+修复内容：
+
+- 新增“创建草稿”和“保存应用”两个动作。
+- 创建草稿只写入规则，不立即重载 Xray，避免浏览器正通过本节点访问面板时请求被中断。
+- 保存应用才同步到 Xray。
+- 弹窗内增加提示：如果当前浏览器正在走本面板创建的代理，建议先关闭本机代理或切换直连后再保存应用。
+- 入站选择现在包含订阅链接和节点条目，独立节点也能直接作为路由来源。
+
+### 11. 节点明明绑定路由但显示“出站：未绑定”
+
+文件：`web/js/sub.js`
+
+修复内容：
+
+节点卡片计算出站绑定时，现在同时检查自身节点 ID 和父订阅 ID。规则绑定到父订阅时，子节点列表不会再误显示“未绑定”。
+
+### 12. 自定义节点不能导入订阅链接和 Shadowrocket 节点分享
+
+文件：
+
+- `backend/app/core/xray.py`
+- `backend/app/api/handler.py`
+- `web/js/outbound.js`
+
+修复内容：
+
+- 支持 Base64 多行订阅内容，自动取第一个可识别节点。
+- 支持订阅 URL：后端会拉取订阅内容并解析第一个可用节点。
+- 支持 Shadowrocket 常见分享格式，包括 `ss://`、`vmess://`、`vless://`、`trojan://`、`socks://`、`http://`。
+- 保存出站节点时保留来源类型：`custom-node`、`subscription`、`json-config`。
+- Xray 配置生成和节点测试现在支持这些导入类型，不再只认 `json-config`。
+
+### 13. WARP 缺少刷新和删除功能
+
+文件：
+
+- `backend/app/core/xray.py`
+- `backend/app/api/handler.py`
+- `web/index.html`
+- `web/js/outbound.js`
+
+修复内容：
+
+- 新增 WARP 删除接口。
+- 新增 WARP 刷新接口，会重新注册并生成配置。
+- 前端 WARP 面板新增刷新状态、刷新配置、删除配置按钮。
+- 删除 WARP 时会关闭功能开关并同步路由规则。
+
+### 14. 新建节点名称需要自动生成
+
+文件：
+
+- `web/js/outbound.js`
+- `web/js/sub.js`
+
+修复内容：
+
+- 新建自定义出站节点时，自动填入类似 `NODE-US-LosAngeles-01` 的名称。
+- 新建订阅节点时，自动填入类似 `SUB-US-LosAngeles-01` 的名称。
+- 地区和城市优先使用浏览器语言与时区推断，用户仍可手动修改。
+
+### 15. 首次打开自动切换白天/夜晚主题
+
+文件：`web/index.html`
+
+修复内容：
+
+首次打开且没有保存过主题时，面板会按浏览器时间自动选择：
+
+- 07:00 至 18:59：白天主题。
+- 19:00 至次日 06:59：夜晚主题。
+
+用户手动选择主题后，会继续使用用户保存的偏好。
+
+### 16. 删除未引用的老旧 CSS
+
+文件：`web/css/style.css`
+
+检查结论：
+
+- `web/index.html` 和 `web/login.html` 都只引用 `css/theme.css`。
+- 项目内没有发现 `style.css` 或 `css/style.css` 的引用。
+- `style.css` 有 2710 行，且包含大量与当前主题样式重复的旧选择器。
+
+处理方式：
+
+删除未引用的 `web/css/style.css`，保留当前实际加载的 `web/css/theme.css`。CSS 文件总行数从 3681 行减少到 972 行左右。
 
 ## 验证结果
 
@@ -185,17 +294,19 @@ for f in install.sh install_cn.sh entrypoint.sh; do if [ -f "$f" ]; then bash -n
 说明：
 
 - 第一次 Python 编译检查曾因 macOS 用户缓存目录权限受限失败；改用 `PYTHONPYCACHEPREFIX=/tmp/xray-aimili-pycache-check` 将缓存定向到临时目录后，编译检查通过。
-- 新增 16 个单元测试，覆盖代理环境变量解析、路由路径解析、功能开关读写、独立节点保存、默认订阅配置、端口冲突校验和独立节点 Xray 入站生成。
+- 新增 21 个单元测试，覆盖代理环境变量解析、路由路径解析、功能开关读写、独立节点保存、默认订阅配置、端口冲突校验、独立节点 Xray 入站生成、订阅/Shadowrocket 导入、路由草稿保存、WARP 删除和策略路由健康检查。
 - 本机当前未检测到 Docker CLI，因此未执行 `docker compose config` 校验。
 - 本项目此前没有测试目录，本次已新增轻量级 `unittest` 测试。
 
 ## 变更文件
 
 - `backend/app/api/handler.py`
+- `backend/app/core/vpn.py`
 - `backend/app/core/xray.py`
 - `backend/app/db.py`
 - `utils/vpn.py`
 - `web/index.html`
+- `web/css/style.css`
 - `web/js/app.js`
 - `web/js/sub.js`
 - `web/js/outbound.js`
@@ -203,6 +314,7 @@ for f in install.sh install_cn.sh entrypoint.sh; do if [ -f "$f" ]; then bash -n
 - `tests/test_feature_flags.py`
 - `tests/test_handler_paths.py`
 - `tests/test_independent_subscription_nodes.py`
+- `tests/test_routing_and_outbound_fixes.py`
 - `tests/test_utils_vpn.py`
 - `BUG修复工作记录.md`
 

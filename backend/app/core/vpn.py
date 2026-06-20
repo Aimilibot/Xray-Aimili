@@ -1478,8 +1478,16 @@ def check_layered_health() -> dict[str, Any]:
             if np_avail > 0:
                 np_ok = True
                 np_details = f"正常连通，可用率 {np_ratio:.1%} ({np_avail}/{np_total})"
+            elif any((n.get("probe_status") or "not_checked") == "not_checked" for n in nodes):
+                np_details = "节点池已有备选节点，但尚未完成可用性检测，请点击「检测」或「同步节点」刷新状态"
             else:
-                np_details = "节点池内所有备选节点检测为不可用，请同步节点或更新配置"
+                recent_messages = [
+                    str(n.get("probe_message") or "").strip()
+                    for n in nodes[:8]
+                    if str(n.get("probe_message") or "").strip()
+                ]
+                suffix = f" 最近原因：{recent_messages[0][:160]}" if recent_messages else ""
+                np_details = f"节点池内所有备选节点检测为不可用，请同步节点或检查 OpenVPN/TUN 权限配置。{suffix}"
         else:
             np_details = "节点池为空，请点击主页的「同步节点」获取备选服务器"
     except Exception as e:
@@ -1516,36 +1524,40 @@ def check_layered_health() -> dict[str, Any]:
     pr_details = "正常"
     pr_err_type = ""
     if is_linux:
-        has_table_100 = False
-        try:
-            res = subprocess.run(["ip", "rule", "show"], capture_output=True, text=True, timeout=2)
-            if res.returncode == 0 and ("100" in res.stdout or "lookup 100" in res.stdout):
-                has_table_100 = True
-        except Exception:
-            pass
-            
-        rp_strict = False
-        rp_val = "0"
-        for p in ["/proc/sys/net/ipv4/conf/all/rp_filter", "/proc/sys/net/ipv4/conf/default/rp_filter"]:
-            rp_path = Path(p)
-            if rp_path.exists():
-                try:
-                    val = rp_path.read_text(encoding="utf-8").strip()
-                    if val == "1":
-                        rp_strict = True
-                        rp_val = val
-                except Exception:
-                    pass
-                    
-        if not has_table_100:
-            pr_err_type = "TABLE_100_MISSING"
-            pr_details = "策略路由规则缺失。系统路由表中找不到 table 100 策略规则，流量无法分流至 VPN 网卡，请尝试重启服务以自动配置路由。"
-        elif rp_strict:
-            pr_err_type = "RP_FILTER_STRICT"
-            pr_details = f"反向路径过滤 rp_filter 处于严格模式({rp_val})。这会导致通过 tun 网卡的回包被内核判定为非对称路由而被静默丢弃，请将 net.ipv4.conf.all.rp_filter 设为 2 或 0。"
-        else:
+        if not active_openvpn_running():
             pr_ok = True
-            pr_details = "策略路由表与反向过滤策略配置正确"
+            pr_details = "OpenVPN 未连接，策略路由暂不需要检查；连接成功后系统会自动配置 table 100。"
+        else:
+            has_table_100 = False
+            try:
+                res = subprocess.run(["ip", "rule", "show"], capture_output=True, text=True, timeout=2)
+                if res.returncode == 0 and ("100" in res.stdout or "lookup 100" in res.stdout):
+                    has_table_100 = True
+            except Exception:
+                pass
+            
+            rp_strict = False
+            rp_val = "0"
+            for p in ["/proc/sys/net/ipv4/conf/all/rp_filter", "/proc/sys/net/ipv4/conf/default/rp_filter"]:
+                rp_path = Path(p)
+                if rp_path.exists():
+                    try:
+                        val = rp_path.read_text(encoding="utf-8").strip()
+                        if val == "1":
+                            rp_strict = True
+                            rp_val = val
+                    except Exception:
+                        pass
+                    
+            if not has_table_100:
+                pr_err_type = "TABLE_100_MISSING"
+                pr_details = "策略路由规则缺失。系统路由表中找不到 table 100 策略规则，流量无法分流至 VPN 网卡，请尝试重启服务以自动配置路由。"
+            elif rp_strict:
+                pr_err_type = "RP_FILTER_STRICT"
+                pr_details = f"反向路径过滤 rp_filter 处于严格模式({rp_val})。这会导致通过 tun 网卡的回包被内核判定为非对称路由而被静默丢弃，请将 net.ipv4.conf.all.rp_filter 设为 2 或 0。"
+            else:
+                pr_ok = True
+                pr_details = "策略路由表与反向过滤策略配置正确"
     else:
         pr_ok = True
         pr_details = "非 Linux 系统，无需配置策略路由"

@@ -768,7 +768,7 @@ def write_xray_config(cfg: dict) -> bool:
             if not node_id:
                 continue
 
-            if node.get("type") == "json-config":
+            if node.get("type") in ("json-config", "custom-node", "subscription"):
                 try:
                     outbound_obj = json.loads(node["json_config"])
                     outbound_obj["tag"] = node_id
@@ -2016,6 +2016,9 @@ def build_warp_outbound(node: dict[str, Any], tag: str) -> dict[str, Any]:
 def validate_outbound_node_payload(payload: dict[str, Any], existing_nodes: list[dict[str, Any]]) -> tuple[dict[str, Any] | None, str]:
     name = str(payload.get("name") or "").strip()
     json_config = str(payload.get("json_config") or "").strip()
+    node_type = str(payload.get("type") or "json-config").strip()
+    if node_type not in ("custom-node", "subscription", "json-config"):
+        node_type = "json-config"
     if not name:
         return None, "节点名称不能为空"
     if not json_config:
@@ -2034,7 +2037,10 @@ def validate_outbound_node_payload(payload: dict[str, Any], existing_nodes: list
     return {
         "id": node_id,
         "name": name,
-        "type": "json-config",
+        "type": node_type,
+        "protocol": str(payload.get("protocol") or json_data.get("protocol") or "").strip(),
+        "share_link": str(payload.get("share_link") or "").strip(),
+        "subscription_url": str(payload.get("subscription_url") or "").strip(),
         "json_config": json_config,
         "enabled": payload.get("enabled", True) is not False,
         "created_at": str(payload.get("created_at") or now),
@@ -2087,6 +2093,18 @@ def delete_outbound_node(node_id: str) -> bool:
         print(f"[ERROR] Syncing after outbound node deletion failed: {e}", flush=True)
     return True
 
+def delete_warp_node() -> bool:
+    nodes = read_json_list(OUTBOUND_NODES_FILE)
+    next_nodes = [item for item in nodes if item.get("type") != "warp"]
+    if len(next_nodes) == len(nodes):
+        return False
+    write_json(OUTBOUND_NODES_FILE, next_nodes)
+    try:
+        sync_panel_subscription_nodes_to_xray(True)
+    except Exception as e:
+        print(f"[ERROR] Syncing after WARP deletion failed: {e}", flush=True)
+    return True
+
 def set_outbound_node_enabled(node_id: str, enabled: bool) -> tuple[dict[str, Any] | None, str]:
     nodes = read_json_list(OUTBOUND_NODES_FILE)
     for item in nodes:
@@ -2124,8 +2142,15 @@ def parse_share_link(link: str) -> tuple[str, str, str]:
     # 1. If the entire link is Base64 encoded, decode it and parse recursively
     if not any(link.startswith(prefix) for prefix in known_prefixes):
         decoded = safe_b64decode(link)
-        if decoded and any(decoded.startswith(prefix) for prefix in known_prefixes):
-            return parse_share_link(decoded)
+        if decoded:
+            first_link = first_share_link_from_text(decoded)
+            if first_link:
+                return parse_share_link(first_link)
+
+    if link.startswith("http://") or link.startswith("https://"):
+        imported_link = first_share_link_from_subscription_url(link)
+        if imported_link:
+            return parse_share_link(imported_link)
 
     name = "Imported Node"
     proto = ""
@@ -2461,6 +2486,33 @@ def parse_share_link(link: str) -> tuple[str, str, str]:
     else:
         raise ValueError("不支持的分享链接协议类型")
 
+def first_share_link_from_text(text: str) -> str:
+    known_prefixes = ("vless://", "vmess://", "ss://", "socks://", "socks5://", "trojan://")
+    for raw in re.split(r"[\r\n]+", text.strip()):
+        item = raw.strip()
+        if item.startswith(known_prefixes):
+            return item
+    for token in re.split(r"\s+", text.strip()):
+        if token.startswith(known_prefixes):
+            return token
+    return ""
+
+def first_share_link_from_subscription_url(url: str) -> str:
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.username or parsed.password:
+            return ""
+        req = urllib.request.Request(url, headers={"User-Agent": "Shadowrocket/1990 CFNetwork/1496.0.7 Darwin/23.5.0"})
+        with urllib.request.urlopen(req, timeout=8) as response:
+            body = response.read(1024 * 1024).decode("utf-8", errors="ignore")
+        direct = first_share_link_from_text(body)
+        if direct:
+            return direct
+        decoded = safe_b64decode(body)
+        return first_share_link_from_text(decoded) if decoded else ""
+    except Exception:
+        return ""
+
 def register_warp_account() -> dict[str, Any]:
     private_key, public_key = generate_wireguard_keys()
     if not private_key or not public_key:
@@ -2731,8 +2783,8 @@ def test_outbound_node_via_temp_xray(node_id: str) -> dict[str, Any]:
     node = next((item for item in nodes if str(item.get("id") or "") == node_id), None)
     if not node:
         return {"ok": False, "error": "出站节点不存在"}
-    if node.get("type") != "json-config":
-        return {"ok": False, "error": "当前仅支持测试自定义 JSON 出站节点"}
+    if node.get("type") not in ("json-config", "custom-node", "subscription"):
+        return {"ok": False, "error": "当前仅支持测试自定义或订阅导入出站节点"}
 
     try:
         outbound = json.loads(str(node.get("json_config") or "{}"))
@@ -2867,6 +2919,10 @@ def save_routing_rule(payload: dict[str, Any]) -> tuple[dict[str, Any] | None, s
     rule, error = validate_routing_rule_payload(payload)
     if error or rule is None:
         return None, error
+    apply_immediately = payload.get("apply_immediately") is not False
+    if not apply_immediately:
+        rule["status"] = "draft"
+        rule["status_text"] = "规则已创建，尚未应用到 Xray；确认当前浏览器未走本节点代理后再保存应用。"
     updated = False
     for idx, item in enumerate(rules):
         if item.get("id") == rule["id"]:
@@ -2876,10 +2932,11 @@ def save_routing_rule(payload: dict[str, Any]) -> tuple[dict[str, Any] | None, s
     if not updated:
         rules.append(rule)
     write_json(ROUTING_RULES_FILE, rules)
-    try:
-        sync_panel_subscription_nodes_to_xray(True)
-    except Exception as e:
-        print(f"[ERROR] Syncing routing rules to Xray failed: {e}", flush=True)
+    if apply_immediately:
+        try:
+            sync_panel_subscription_nodes_to_xray(True)
+        except Exception as e:
+            print(f"[ERROR] Syncing routing rules to Xray failed: {e}", flush=True)
     
     # Reload rule to return the updated status_text
     rules = read_json_list(ROUTING_RULES_FILE)

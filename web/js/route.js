@@ -48,6 +48,32 @@
             return linkName ? `${linkName} / ${node.name}` : node.name;
         }
 
+        function inboundOptionsForRule(rule) {
+            const options = [];
+            subscriptionLinks.forEach(link => {
+                options.push({
+                    id: link.id,
+                    name: link.name || link.id,
+                    detail: subscriptionProtocolNames[link.protocol] || link.protocol || "订阅",
+                    kind: "订阅"
+                });
+            });
+            subscriptionNodes.forEach(node => {
+                options.push({
+                    id: node.id,
+                    name: node.name || node.id,
+                    detail: `${subscriptionProtocolNames[node.protocol] || node.protocol || "节点"} · 端口 ${node.port || "-"}`,
+                    kind: node.subscription_id ? "节点" : "独立节点"
+                });
+            });
+            const seen = new Set();
+            return options.filter(item => {
+                if (!item.id || seen.has(item.id)) return false;
+                seen.add(item.id);
+                return true;
+            });
+        }
+
         function asArray(value) {
             if (Array.isArray(value)) return value.filter(Boolean);
             return value ? [value] : [];
@@ -208,13 +234,14 @@
             const selectedOutbounds = new Set(asArray(rule ? (rule.outbound_node_ids || rule.outbound_node_id) : []));
             
             if (inboundContainer) {
-                inboundContainer.innerHTML = subscriptionLinks.length
-                    ? subscriptionLinks.map(link => {
-                        const checked = selectedInbounds.has(link.id) || (selectedInbounds.size === 0 && subscriptionLinks.length === 1) ? "checked" : "";
+                const inboundOptions = inboundOptionsForRule(rule);
+                inboundContainer.innerHTML = inboundOptions.length
+                    ? inboundOptions.map(item => {
+                        const checked = selectedInbounds.has(item.id) || (selectedInbounds.size === 0 && inboundOptions.length === 1) ? "checked" : "";
                         return `
                             <label class="flex items-center gap-2 py-1.5 px-3 bg-glass/40 border border-border rounded-xl cursor-pointer hover:border-primary/60 transition-all select-none">
-                                <input type="checkbox" name="routing_inbound" value="${esc(link.id)}" ${checked} class="rounded border-border text-primary focus:ring-primary w-4 h-4">
-                                <span class="text-[13px] font-semibold text-text">${esc(link.name)} <span class="text-[11px] text-muted font-normal">(${esc(subscriptionProtocolNames[link.protocol] || link.protocol)})</span></span>
+                                <input type="checkbox" name="routing_inbound" value="${esc(item.id)}" ${checked} class="rounded border-border text-primary focus:ring-primary w-4 h-4">
+                                <span class="text-[13px] font-semibold text-text">${esc(item.name)} <span class="text-[11px] text-muted font-normal">(${esc(item.kind)} / ${esc(item.detail)})</span></span>
                             </label>
                         `;
                     }).join("")
@@ -246,6 +273,10 @@
             
             const submit = $("routing_rule_submit");
             if (submit) submit.textContent = rule ? "保存规则" : "创建规则";
+            const createBtn = $("routing_rule_create_btn");
+            const saveBtn = $("routing_rule_save_btn");
+            if (createBtn) createBtn.style.display = rule ? "none" : "";
+            if (saveBtn) saveBtn.textContent = rule ? "保存应用" : "保存应用";
             
             const modal = $("routing-rule-modal");
             if (modal) modal.style.display = "flex";
@@ -260,11 +291,11 @@
             if (modal) modal.style.display = "none";
         }
 
-        async function saveRoutingRule(event) {
+        async function saveRoutingRule(event, applyImmediately = true) {
             event.preventDefault();
             const err = $("routing_rule_error");
             const ok = $("routing_rule_success");
-            const btn = $("routing_rule_submit");
+            const btn = applyImmediately ? $("routing_rule_save_btn") : $("routing_rule_create_btn");
             err.style.display = "none";
             ok.style.display = "none";
             
@@ -277,7 +308,8 @@
                 inbound_node_ids: inbound_node_ids,
                 outbound_node_ids: outbound_node_ids,
                 match_conditions: collectRoutingConditions(),
-                enabled: true
+                enabled: true,
+                apply_immediately: applyImmediately
             };
             
             if (!payload.inbound_node_ids.length) {
@@ -298,7 +330,7 @@
             payload.match_value = payload.match_conditions[0].value || "";
             
             btn.disabled = true;
-            btn.textContent = existing ? "保存中..." : "创建中...";
+            btn.textContent = applyImmediately ? "保存中..." : "创建中...";
             try {
                 const res = await fetch("./api/panel/routing-rules", {
                     method: "POST",
@@ -314,13 +346,18 @@
                 ok.textContent = data.message || "路由规则已保存";
                 ok.style.display = "block";
                 await loadRoutingRules();
-                setTimeout(closeRoutingRuleModal, 450);
+                if (applyImmediately) setTimeout(closeRoutingRuleModal, 450);
+                if (!applyImmediately && data.rule && data.rule.id) {
+                    $("routing_rule_id").value = data.rule.id;
+                    const createBtn = $("routing_rule_create_btn");
+                    if (createBtn) createBtn.style.display = "none";
+                }
             } catch (e) {
                 err.textContent = "无法连接后端接口";
                 err.style.display = "block";
             } finally {
                 btn.disabled = false;
-                btn.textContent = $("routing_rule_id").value ? "保存规则" : "创建规则";
+                btn.textContent = applyImmediately ? "保存应用" : "创建草稿";
             }
         }
 
