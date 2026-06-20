@@ -57,7 +57,9 @@
                     btn.style.background = "";
                 }, 1500);
             } catch (err) {
-                showToast("复制失败", "error");
+                input.select();
+                document.execCommand("copy");
+                showToast("复制成功", "success");
             }
         }
 
@@ -80,6 +82,67 @@
             const d = new Date(ts * 1000);
             return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
         };
+        function time(ts) { return ts ? new Date(ts * 1000).toLocaleString() : "从未" }
+        function speed(v) { return v ? `${(v * 8 / 1000 / 1000).toFixed(1)} Mbps` : "-" }
+
+        function formatBytes(bytes, decimals = 2) {
+            if (!bytes || bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        function applyTheme(themeName) {
+            document.body.className = themeName === 'default' ? '' : themeName;
+            localStorage.setItem('theme', themeName);
+            document.querySelectorAll('.theme-option').forEach(card => card.classList.remove('active'));
+            const selectedCard = document.querySelector(`.theme-option[data-theme="${themeName}"]`);
+            if (selectedCard) selectedCard.classList.add('active');
+        }
+
+        function showTab(tabId) {
+            const tabs = document.querySelectorAll('main > section[id^="tab-"]');
+            tabs.forEach(tab => {
+                tab.classList.remove('active', 'block');
+                tab.classList.add('hidden');
+            });
+
+            const targetTab = document.getElementById(tabId);
+            if (targetTab) {
+                targetTab.classList.remove('hidden');
+                targetTab.classList.add('active', 'block');
+            }
+
+            const menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach(item => item.classList.remove('active', 'active-menu-item'));
+
+            const menuId = tabId.replace('tab-', 'menu-');
+            const activeItem = document.getElementById(menuId);
+            if (activeItem) {
+                activeItem.classList.add('active', 'active-menu-item');
+            }
+
+            sessionStorage.setItem('currentTab', tabId);
+
+            // Tab-specific loading
+            if (tabId === 'tab-host') {
+                loadGatewayStatus();
+                loadXrayPanel();
+            } else if (tabId === 'tab-xray') {
+                loadSubscriptionWorkspace();
+            } else if (tabId === 'tab-nodes') {
+                load();
+                loadGatewayStatus();
+                loadOutboundNodes();
+            } else if (tabId === 'tab-settings') {
+                loadGatewayStatus();
+                loadLogs();
+            } else if (tabId === 'tab-gateway') {
+                loadRoutingRules();
+            }
+        }
 
         const translateQuality = q => {
             const dict = { "normal": "普通", "proxy": "代理", "datacenter": "数据中心", "mobile": "移动端" };
@@ -173,6 +236,15 @@
             }
         }
 
+        function featureDisabledHtml(title, message, key) {
+            const messageHtml = message ? `<div>${esc(message)}</div>` : "";
+            return `
+                <div class="feature-disabled-panel">
+                    <strong>${esc(title)}</strong>
+                    ${messageHtml}
+                </div>
+            `;
+        }
 
         async function toggleFeaturePower(key) {
             await setFeatureGate(key, !isFeatureEnabled(key));
@@ -294,58 +366,3 @@
         }
 
         window.addEventListener('DOMContentLoaded', initApp);
-
-        function renderLayeredHealthGeneric(data, containerId, useNumbers = false, showErrors = false) {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            
-            const layers = [
-                { key: "api_connectivity", name: useNumbers ? "1. API 源通畅度" : "API 源通畅度" },
-                { key: "node_pool", name: useNumbers ? "2. 节点池可用性" : "节点池可用性" },
-                { key: "openvpn_interface", name: useNumbers ? "3. OpenVPN网卡状态" : "OpenVPN网卡" },
-                { key: "policy_routing", name: useNumbers ? "4. 策略路由健康度" : "策略路由" },
-                { key: "local_proxy", name: useNumbers ? "5. 本地代理连通性" : "本地代理出口" }
-            ];
-            
-            container.innerHTML = layers.map(layer => {
-                const info = data[layer.key] || { ok: false, details: "未检测" };
-                const isNotReady = info.details === "未启用" || info.details === "未启动" || info.details === "未检测" || info.details === "OpenVPN 连接未启动" || info.details === "Xray 代理服务未运行" || info.details.includes("未运行");
-                const isSkip = info.details.includes("免检") || info.details.includes("跳过") || info.details.includes("无需配置");
-                
-                let badgeClass = "unavailable";
-                let badgeText = "异常";
-                if (info.ok) { badgeClass = "available"; badgeText = "正常"; }
-                else if (isNotReady) { badgeClass = "not_checked"; badgeText = "未就绪"; }
-                else if (isSkip && !useNumbers) { badgeClass = "not_checked"; badgeText = "跳过"; }
-                
-                const statusPulse = info.ok ? '<span class="badge-pulse"></span>' : '';
-                
-                let errorHtml = "";
-                if (showErrors && !info.ok && info.error_type) {
-                    let desc = "";
-                    if (info.error_type === "PORT_COLLISION") desc = "诊断原因: 检测到本地代理端口被其他进程占用。请运行 `lsof -i :7928` 查找并结束冲突进程。";
-                    else if (info.error_type === "DNS_POLLUTION") desc = "诊断原因: 本地 DNS 解析失败或返回了错误的 GFW 污染 IP。建议修改系统 DNS 为 8.8.8.8 等干净的公共解析器，或使用网关内置的 SOCKS5h 远程域名解析。";
-                    else if (info.error_type === "TLS_INTERFERENCE") desc = "诊断原因: TCP 隧道已接通但 TLS 证书安全握手遭防火墙审查或阻断。说明该节点的 TLS 混淆特征失效，请尝试同步更新到其他公益节点。";
-                    else if (info.error_type === "TUN_DRIVER_MISSING") desc = "诊断原因: 系统未找到 `/dev/net/tun` 设备。对于 Docker 部署，请确保使用 `--device=/dev/net/tun` 挂载，并拥有 NET_ADMIN 特权；主机环境请使用 `modprobe tun` 加载内核驱动。";
-                    else if (info.error_type === "RP_FILTER_STRICT") desc = "诊断原因: 内核严格反向路径过滤 rp_filter 被启用，导致 VPN 网卡回包被丢弃。请在主机执行 `sysctl -w net.ipv4.conf.all.rp_filter=2`。";
-                    if (desc) {
-                        errorHtml = `
-                            <div style="font-size: 12px; color: var(--red); background: var(--red-soft); border: 1px solid rgba(255, 69, 58, 0.15); border-radius: 6px; padding: 8px 12px; margin-top: 6px; line-height: 1.45;">
-                                ${esc(desc)}
-                            </div>
-                        `;
-                    }
-                }
-                
-                return `
-                    <div class="glass" style="background: var(--control); border-radius: var(--radius); padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--border);">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <strong style="font-size: ${useNumbers ? '14.5px' : '12px'}; color: ${useNumbers ? 'var(--text)' : 'var(--muted)'}; font-weight: bold;">${esc(layer.name)}</strong>
-                            <span class="badge ${badgeClass}" style="padding: ${useNumbers ? '2px 8px' : '1px 6.5px'}; font-size: ${useNumbers ? '12px' : '10.5px'}; display:inline-flex; align-items:center;">${statusPulse}${badgeText}</span>
-                        </div>
-                        <div style="font-size: ${useNumbers ? '12.5px' : '12px'}; color: ${useNumbers ? 'var(--muted)' : 'var(--text)'}; font-weight: ${useNumbers ? 'normal' : '500'}; line-height: normal; margin-top: 1px; word-break: break-word;" title="${esc(info.details)}">${esc(info.details)}</div>
-                        ${errorHtml}
-                    </div>
-                `;
-            }).join("");
-        }

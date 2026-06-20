@@ -102,6 +102,10 @@ function toggleVPSModal() {
                     const el = document.getElementById(id);
                     if (el) el.innerText = value;
                 };
+                const setWidth = (id, value) => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.width = value;
+                };
                 const setRing = (id, value) => {
                     const el = document.getElementById(id);
                     if (!el) return;
@@ -164,7 +168,7 @@ function toggleVPSModal() {
                         if (upEl) upEl.innerText = `↑ ${formatBytes(uploaded)}`;
                         if (downEl) downEl.innerText = `↓ ${formatBytes(downloaded)}`;
 
-                        const row = document.querySelector(`.grid grid-cols-[1fr_1.5fr_0.55fr_0.7fr_0.6fr_0.6fr_0.6fr_0.5fr] gap-2 items-center p-2 border-b border-border/40 last:border-0 hover:bg-primary/5[data-client-name="${name}"]`);
+                        const row = document.querySelector(`.client-row[data-client-name="${name}"]`);
                         if (row) {
                             const upInput = row.querySelector(".client-uploaded");
                             const downInput = row.querySelector(".client-downloaded");
@@ -185,16 +189,16 @@ function toggleVPSModal() {
 
         function proxyStatusPanelHtml(disabled = false) {
             return `
-                <div class="flex items-center gap-3 py-2 px-3 rounded-2xl border border-border bg-glass-strong/60">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <div class="text-[12px] font-semibold text-muted whitespace-nowrap">本地代理出口</div>
-                        <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+                <div class="proxy-status-panel">
+                    <div class="proxy-status-main">
+                        <div class="proxy-status-title">本地代理出口</div>
+                        <div class="proxy-status-line">
                             <span id="proxy_status_badge" class="badge not_checked">未检测</span>
                             <span>IP: <strong id="proxy_ip_val">--</strong></span>
                             <span id="proxy_latency_val"></span>
                         </div>
                     </div>
-                    <div class="flex items-center gap-1.5 shrink-0">
+                    <div class="proxy-status-actions">
                         <button id="btn_test_proxy" class="btn btn-secondary btn-sm proxy-check-btn" onclick="testLocalProxy()" ${disabled ? "disabled" : ""}>检测</button>
                     </div>
                 </div>
@@ -408,7 +412,47 @@ function toggleVPSModal() {
         }
 
         function renderLayeredHealthDashboard(data) {
-            if (window.renderLayeredHealthGeneric) renderLayeredHealthGeneric(data, "layered_health_dashboard", false, false);
+            const container = $("layered_health_dashboard");
+            if (!container) return;
+            
+            const layers = [
+                { key: "api_connectivity", name: "API 源通畅度" },
+                { key: "node_pool", name: "节点池可用性" },
+                { key: "openvpn_interface", name: "OpenVPN网卡" },
+                { key: "policy_routing", name: "策略路由" },
+                { key: "local_proxy", name: "本地代理出口" }
+            ];
+            
+            container.innerHTML = layers.map(layer => {
+                const info = data[layer.key] || { ok: false, details: "未检测" };
+                let badgeClass = "unavailable";
+                let badgeText = "异常";
+                
+                if (info.ok) {
+                    badgeClass = "available";
+                    badgeText = "正常";
+                } else if (info.details === "未启用" || info.details === "未启动" || info.details === "未检测" || info.details === "OpenVPN 连接未启动" || info.details === "Xray 代理服务未运行" || info.details.includes("未运行")) {
+                    badgeClass = "not_checked";
+                    badgeText = "未就绪";
+                } else if (info.details.includes("免检") || info.details.includes("跳过") || info.details.includes("无需配置")) {
+                    badgeClass = "not_checked";
+                    badgeText = "跳过";
+                }
+                
+                const statusPulse = info.ok ? '<span class="badge-pulse"></span>' : '';
+                
+                return `
+                    <div class="glass p-4 rounded-[20px] flex flex-col gap-2 border border-border" style="background: var(--control);">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-muted font-bold">${esc(layer.name)}</span>
+                            <span class="badge ${badgeClass}" style="padding: 1px 6.5px; font-size:10.5px; display:inline-flex; align-items:center;">${statusPulse}${badgeText}</span>
+                        </div>
+                        <p class="text-[12px] text-text font-medium leading-normal mt-1 break-words" title="${esc(info.details)}">
+                            ${esc(info.details)}
+                        </p>
+                    </div>
+                `;
+            }).join("");
         }
 
         window.testLayeredHealth = testLayeredHealth;

@@ -39,55 +39,6 @@
     }
   </script>
   <link rel="stylesheet" href="css/theme.css">
-
-  <style type="text/tailwindcss">
-    @layer components {
-      .glass-panel { @apply bg-[linear-gradient(160deg,var(--glass-strong),var(--glass)_60%,var(--glass))] backdrop-blur-[40px] saturate-200 border border-border shadow-[inset_0_1px_0_rgba(255,255,255,.55),inset_0_-1px_0_rgba(255,255,255,.12),0_4px_24px_rgba(0,0,0,.06),0_1px_4px_rgba(0,0,0,.04)]; }
-      .glass-card { @apply bg-[linear-gradient(160deg,rgba(255,255,255,.86),var(--card)_55%,var(--card))] backdrop-blur-[40px] saturate-200 border border-border shadow-[inset_0_1px_0_rgba(255,255,255,.55),inset_0_-1px_0_rgba(255,255,255,.1),0_4px_24px_rgba(0,0,0,.06),0_1px_4px_rgba(0,0,0,.04)]; }
-      
-      .btn { @apply inline-flex items-center justify-center min-h-[36px] px-4 py-2 rounded-[10px] border border-border bg-glass text-text font-bold text-[13px] gap-[7px] cursor-pointer whitespace-nowrap transition-all duration-160 hover:-translate-y-[1px] hover:border-primary/30 hover:bg-primary/10 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none; }
-      .btn-sm { @apply min-h-[30px] px-3 py-1.5 rounded-lg text-xs; }
-      .btn-primary { @apply text-white border-transparent bg-gradient-to-br from-primary to-second shadow-[0_10px_20px_color-mix(in_srgb,var(--primary)_18%,transparent)] hover:text-white hover:border-transparent hover:from-white/90 hover:to-primary; }
-      .btn-secondary { @apply bg-glass-strong/70 text-text; }
-      .btn-danger { @apply text-white border-transparent bg-gradient-to-br from-[#ff5370] to-danger shadow-[0_10px_20px_color-mix(in_srgb,var(--danger)_18%,transparent)]; }
-      
-      .icon-only-btn { @apply inline-flex items-center justify-center w-8 min-w-[32px] h-8 min-h-[32px] p-0 rounded-[9px] border border-border bg-glass text-text transition-all duration-160 hover:bg-primary/10 hover:text-primary; }
-      .icon-only-btn svg, svg.btn-icon { @apply w-[15px] h-[15px] fill-none stroke-current stroke-2; stroke-linecap: round; stroke-linejoin: round; }
-      
-      .row-action-btn { @apply inline-flex items-center justify-center w-[30px] h-[30px] min-w-[30px] min-h-[30px] p-0 border border-border rounded-lg bg-glass text-text transition-all duration-160 hover:text-primary hover:border-primary/40 hover:bg-primary/10; }
-      .row-action-btn.is-danger { @apply text-danger hover:bg-danger/10 hover:border-danger/40; }
-      .row-action-btn--text { @apply w-auto px-2.5 gap-1.5; }
-      .row-action__icon { @apply w-4 h-4 fill-none stroke-current stroke-[1.3]; stroke-linecap: round; stroke-linejoin: round; }
-      .row-action__label { @apply text-xs font-semibold; }
-      
-      .feature-power-btn { @apply inline-flex items-center justify-center min-h-[34px] px-4 rounded-[10px] border border-muted/20 bg-glass-strong/70 text-muted text-xs font-extrabold cursor-pointer transition-all duration-160 hover:text-primary hover:border-primary/40 hover:bg-primary/10 hover:-translate-y-[1px] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none; }
-      .feature-power-btn.is-on { @apply text-white border-transparent bg-gradient-to-br from-primary to-second shadow-[0_10px_20px_color-mix(in_srgb,var(--primary)_18%,transparent)]; }
-      
-      .form-input { @apply w-full px-3 py-2 rounded-xl border border-border bg-glass text-text text-[13px] outline-none transition-all duration-200 focus:border-primary/50 focus:shadow-[0_0_0_3px_var(--focus-ring)]; }
-      body:has(#theme-red:checked) .form-input { @apply bg-[#12121d]/70 border-white/10 text-[#f3f4fb]; }
-      
-      .modal-overlay { @apply fixed inset-0 p-6 bg-black/30 backdrop-blur-md hidden justify-center items-start z-[10000] overflow-y-auto; animation: modalFadeIn 0.25s ease; }
-      .modal-overlay.open { @apply flex; }
-      .modal-card { @apply relative w-[90%] max-w-[540px] max-h-[calc(100vh-24px)] m-auto p-8 border border-border rounded-[28px] bg-gradient-to-br from-white/90 to-card/50 backdrop-blur-[44px] saturate-[210%] shadow-[inset_0_1px_0_rgba(255,255,255,.5),0_4px_32px_rgba(0,0,0,.08),0_1px_6px_rgba(0,0,0,.04)]; animation: modalZoomIn 0.3s cubic-bezier(0.34,1.56,0.64,1); }
-      
-      .toast { @apply min-w-[220px] max-w-[min(360px,calc(100vw-36px))] px-[18px] py-[14px] rounded-2xl border border-border bg-gradient-to-br from-glass-strong/95 to-card/90 backdrop-blur-[30px] saturate-200 shadow-[inset_0_1px_0_rgba(255,255,255,.45),0_4px_28px_rgba(31,40,72,.14)] text-[13px] font-bold text-text; animation: toastIn 0.24s cubic-bezier(0.2,0.8,0.2,1) both; }
-      
-      .badge { @apply inline-flex items-center gap-[5px] min-h-[22px] px-2 py-0.5 rounded-full border border-muted/15 bg-muted/10 text-muted text-[11.5px] font-extrabold whitespace-nowrap; }
-      .badge.available { @apply border-success/30 bg-green-soft text-success; }
-      .badge.unavailable { @apply border-danger/25 bg-red-soft text-danger; }
-      .badge.warn { @apply border-warning/30 bg-yellow-soft text-warning; }
-      
-      .inbound-kind-badge--link { @apply text-primary bg-primary/10 border border-primary/20; }
-      .inbound-kind-badge--node { @apply text-third bg-third/10 border border-third/20; }
-      
-      .switch-toggle { @apply flex-none w-12 h-7 relative inline-flex items-center cursor-pointer; }
-      .switch-toggle input { @apply absolute opacity-0 pointer-events-none; }
-      .switch-toggle > span { @apply w-12 h-7 rounded-full bg-muted/20 border border-muted/25 relative transition-all duration-160; }
-      .switch-toggle > span::after { @apply content-[''] absolute w-[22px] h-[22px] top-[2px] left-[2px] rounded-full bg-card shadow-[0_5px_12px_rgba(0,0,0,.18)] transition-all duration-160; }
-      .switch-toggle input:checked + span { @apply bg-gradient-to-br from-primary to-second border-primary/45; }
-      .switch-toggle input:checked + span::after { @apply translate-x-[20px] bg-white; }
-    }
-  </style>
 </head>
 
 <body>
@@ -114,11 +65,11 @@
     <aside class="flex-none w-[244px] h-[calc(100vh-56px)] rounded-[30px] bg-gradient-to-br from-[var(--glass-strong)] to-[var(--glass)] backdrop-blur-[34px] saturate-[190%] border border-border shadow-shadow overflow-hidden z-[99] flex flex-col max-[900px]:w-full max-[900px]:h-auto max-[900px]:rounded-[22px]">
 
       <!-- Logo 区 -->
-      <div class="flex items-center gap-3 pt-[22px] px-[18px] pb-4 shrink-0">
-        <div class="flex items-center gap-3 pt-[22px] px-[18px] pb-4 shrink-0-icon">VG</div>
-        <div class="flex items-center gap-3 pt-[22px] px-[18px] pb-4 shrink-0-text">
-          <span class="flex items-center gap-3 pt-[22px] px-[18px] pb-4 shrink-0-name">Aimili-Xray</span>
-          <div class="flex items-center gap-[5px] mt-[5px]">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">VG</div>
+        <div class="sidebar-logo-text">
+          <span class="sidebar-logo-name">Aimili-Xray</span>
+          <div class="sidebar-social-links">
             <a href="https://github.com/Aimilibot/Xray-Aimili" target="_blank" title="GitHub">
               <svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/></svg>
               GitHub
@@ -132,7 +83,7 @@
       </div>
 
       <!-- 导航菜单 -->
-      <ul class="px-2.5 py-1 gap-[3px] overflow-y-auto hide-scrollbar list-none flex flex-col flex-1 max-[900px]:flex-row max-[900px]:overflow-x-auto">
+      <ul class="sidebar-nav-list list-none flex flex-col flex-1 max-[900px]:flex-row max-[900px]:overflow-x-auto">
         <li class="menu-item active active-menu-item" id="menu-host">
           <button onclick="showTab('tab-host')"><span aria-hidden="true"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/><path d="M9 20v-6h6v6"/></svg></span>控制台</button>
         </li>
@@ -151,8 +102,8 @@
       </ul>
 
       <!-- 登出 -->
-      <div class="px-2.5 pt-3 pb-4 shrink-0 max-[900px]:hidden">
-        <button onclick="logoutAdmin()" class="w-full py-[11px] px-3.5 border border-transparent rounded-xl bg-transparent text-muted text-[13.5px] font-[550] cursor-pointer text-center transition-all duration-160 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500">退出登录</button>
+      <div class="sidebar-bottom max-[900px]:hidden">
+        <button onclick="logoutAdmin()" class="sidebar-logout-btn">退出登录</button>
       </div>
     </aside>
 
@@ -180,30 +131,30 @@
               <div id="cpu-ring" class="resource-ring w-[60px] h-[60px] rounded-full border border-[color-mix(in_srgb,var(--muted)_18%,transparent)] grid place-items-center flex-none">
                 <span id="cpu-val">--%</span>
               </div>
-              <div><div class="text-text text-base font-bold">CPU 负载率</div><div id="cpu-detail" class="text-muted text-[13px] mt-[3px] mt-1">--</div></div>
+              <div><div class="resource-label">CPU 负载率</div><div id="cpu-detail" class="resource-detail mt-1">--</div></div>
             </div>
             <div class="flex items-center gap-4 flex-1 min-w-[220px]">
               <div id="ram-ring" class="resource-ring w-[60px] h-[60px] rounded-full border border-[color-mix(in_srgb,var(--muted)_18%,transparent)] grid place-items-center flex-none">
                 <span id="ram-val">--%</span>
               </div>
-              <div><div class="text-text text-base font-bold">内存使用率</div><div id="ram-detail" class="text-muted text-[13px] mt-[3px] mt-1">--</div></div>
+              <div><div class="resource-label">内存使用率</div><div id="ram-detail" class="resource-detail mt-1">--</div></div>
             </div>
             <div class="flex items-center gap-4 flex-1 min-w-[220px]">
               <div id="disk-ring" class="resource-ring w-[60px] h-[60px] rounded-full border border-[color-mix(in_srgb,var(--muted)_18%,transparent)] grid place-items-center flex-none">
                 <span id="disk-val">--%</span>
               </div>
-              <div><div class="text-text text-base font-bold">磁盘空间</div><div id="disk-detail" class="text-muted text-[13px] mt-[3px] mt-1">--</div></div>
+              <div><div class="resource-label">磁盘空间</div><div id="disk-detail" class="resource-detail mt-1">--</div></div>
             </div>
           </div>
         </div>
 
         <!-- 服务概览 -->
         <div class="service-overview">
-          <div class="flex items-start justify-between gap-4 pb-5 border-b border-surface-line">
+          <div class="service-overview__header">
             <div>
               <h3>服务概览</h3>
             </div>
-            <div class="inline-flex items-center gap-2 flex-wrap">
+            <div class="service-actions">
               <button id="xray_start_btn" onclick="xrayAction('start')" class="btn btn-primary">启动</button>
               <button id="xray_stop_btn" onclick="xrayAction('stop')" disabled class="btn btn-secondary">停止</button>
               <button id="xray_restart_btn" onclick="xrayAction('restart')" class="btn btn-secondary"><span class="btn-icon icon-refresh" aria-hidden="true"></span>重启</button>
@@ -212,29 +163,29 @@
 
           <div id="xray_error_box" class="service-alert" style="display:none;"></div>
 
-          <div class="grid grid-cols-1 md:grid-cols-[1.05fr_1fr_1.2fr] gap-5 pt-6">
+          <div class="service-grid">
             <div class="service-group">
-              <div class="mb-2.5 text-text text-[13px] font-bold">Xray Core</div>
+              <div class="service-group__title">Xray Core</div>
               <div class="service-list">
-                <div class="min-h-[48px] px-4 py-3 grid grid-cols-[minmax(96px,0.88fr)_minmax(0,1.12fr)] items-center gap-3.5 border-b border-surface-line/60 last:border-0"><span>安装状态</span><strong id="xray_installed_text">已安装</strong></div>
-                <div class="min-h-[48px] px-4 py-3 grid grid-cols-[minmax(96px,0.88fr)_minmax(0,1.12fr)] items-center gap-3.5 border-b border-surface-line/60 last:border-0"><span>运行状态</span><strong id="xray_running_text">未运行</strong></div>
-                <div class="min-h-[48px] px-4 py-3 grid grid-cols-[minmax(96px,0.88fr)_minmax(0,1.12fr)] items-center gap-3.5 border-b border-surface-line/60 last:border-0"><span>配置状态</span><strong id="xray_enabled_text">未启用</strong></div>
+                <div class="service-row"><span>安装状态</span><strong id="xray_installed_text">已安装</strong></div>
+                <div class="service-row"><span>运行状态</span><strong id="xray_running_text">未运行</strong></div>
+                <div class="service-row"><span>配置状态</span><strong id="xray_enabled_text">未启用</strong></div>
               </div>
             </div>
             <div class="service-group">
-              <div class="mb-2.5 text-text text-[13px] font-bold">VPNGate</div>
+              <div class="service-group__title">VPNGate</div>
               <div class="service-list">
-                <div class="min-h-[48px] px-4 py-3 grid grid-cols-[minmax(96px,0.88fr)_minmax(0,1.12fr)] items-center gap-3.5 border-b border-surface-line/60 last:border-0"><span>OpenVPN</span><strong id="vpngate_openvpn_text">--</strong></div>
-                <div class="min-h-[48px] px-4 py-3 grid grid-cols-[minmax(96px,0.88fr)_minmax(0,1.12fr)] items-center gap-3.5 border-b border-surface-line/60 last:border-0"><span>当前节点</span><strong id="vpngate_node_text">--</strong></div>
-                <div class="min-h-[48px] px-4 py-3 grid grid-cols-[minmax(96px,0.88fr)_minmax(0,1.12fr)] items-center gap-3.5 border-b border-surface-line/60 last:border-0"><span>本地代理出口</span><strong id="vpngate_proxy_text">--</strong></div>
+                <div class="service-row"><span>OpenVPN</span><strong id="vpngate_openvpn_text">--</strong></div>
+                <div class="service-row"><span>当前节点</span><strong id="vpngate_node_text">--</strong></div>
+                <div class="service-row"><span>本地代理出口</span><strong id="vpngate_proxy_text">--</strong></div>
               </div>
             </div>
             <div class="service-group service-group--wide">
-              <div class="mb-2.5 text-text text-[13px] font-bold">系统详情</div>
+              <div class="service-group__title">系统详情</div>
               <div class="service-list service-list--system">
-                <div class="min-h-[48px] px-4 py-3 grid grid-cols-[minmax(96px,0.88fr)_minmax(0,1.12fr)] items-center gap-3.5 border-b border-surface-line/60 last:border-0"><span>系统运行时间</span><strong id="sys-uptime">--</strong></div>
-                <div class="min-h-[48px] px-4 py-3 grid grid-cols-[minmax(96px,0.88fr)_minmax(0,1.12fr)] items-center gap-3.5 border-b border-surface-line/60 last:border-0"><span>活动 VPN 状态</span><strong id="sys-connections">--</strong></div>
-                <div class="min-h-[48px] px-4 py-3 grid grid-cols-[minmax(96px,0.88fr)_minmax(0,1.12fr)] items-center gap-3.5 border-b border-surface-line/60 last:border-0"><span>本地代理端口</span><strong id="sys-proxy-port">--</strong></div>
+                <div class="service-row"><span>系统运行时间</span><strong id="sys-uptime">--</strong></div>
+                <div class="service-row"><span>活动 VPN 状态</span><strong id="sys-connections">--</strong></div>
+                <div class="service-row"><span>本地代理端口</span><strong id="sys-proxy-port">--</strong></div>
               </div>
             </div>
           </div>
@@ -296,12 +247,12 @@
         <!-- VPNGate -->
         <div id="outbound-vpngate-panel" class="outbound-mode-panel">
           <div class="glass-card rounded-[28px] p-6">
-            <div class="flex justify-between items-center gap-4 mb-[18px] flex-wrap">
-              <div class="min-w-0 flex items-center gap-2.5 flex-wrap">
+            <div class="outbound-panel-header">
+              <div class="outbound-panel-title">
                 <h3 class="!text-[18px] !font-bold">VPNGate 公益节点</h3>
                 <span id="vpngate_status_badge" class="status-badge inactive"><span class="status-dot"></span>未启动</span>
               </div>
-              <div class="flex items-center justify-end gap-2.5 flex-wrap">
+              <div class="outbound-panel-actions">
                 <button type="button" data-feature-power="vpngate_enabled" onclick="toggleFeaturePower('vpngate_enabled')" class="feature-power-btn" aria-pressed="false">
                   <span class="feature-power-label">启动</span>
                 </button>
@@ -311,7 +262,7 @@
             <div id="vpngate_table_region" class="max-h-[calc(100vh-380px)] overflow-auto rounded-2xl">
               <table>
                 <thead><tr><th style="width:170px">国家</th><th style="width:240px">IP 地址</th><th>ASN + ISP</th><th style="width:210px;text-align:right">操作</th></tr></thead>
-                <tbody id="rows"><tr><td colspan="4" class="text-muted text-center py-9 px-4 bg-gradient-to-br from-glass-strong/50 to-page-a/40 rounded-2xl font-[650] h-[118px]">正在加载节点列表...</td></tr></tbody>
+                <tbody id="rows"><tr><td colspan="4" class="compact-empty">正在加载节点列表...</td></tr></tbody>
               </table>
             </div>
             <div id="vpngate_pagination_region" class="pagination-container flex justify-between items-center flex-wrap gap-4 pt-5 mt-5 border-t border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
@@ -332,12 +283,12 @@
         <!-- WARP -->
         <div id="outbound-warp-panel" class="outbound-mode-panel" style="display:none">
           <div class="glass-card rounded-[28px] p-6">
-            <div class="flex justify-between items-center gap-4 mb-[18px] flex-wrap">
-              <div class="min-w-0 flex items-center gap-2.5 flex-wrap">
+            <div class="outbound-panel-header">
+              <div class="outbound-panel-title">
                 <h3 class="!text-[18px] !font-bold">Cloudflare WARP</h3>
                 <span id="warp_header_status_badge" class="status-badge inactive"><span class="status-dot"></span>未启动</span>
               </div>
-              <div class="flex items-center justify-end gap-2.5 flex-wrap">
+              <div class="outbound-panel-actions">
                 <button type="button" id="warp_reset_btn" onclick="refreshWarpNode()" title="重置 WARP 配置" class="btn btn-secondary" style="display:none"><span class="btn-icon icon-refresh" aria-hidden="true"></span>重置</button>
                 <button type="button" id="warp_test_btn" onclick="testWarpNode()" title="测试 WARP 出口" class="btn btn-secondary" style="display:none">测试</button>
                 <button type="button" data-feature-power="warp_enabled" onclick="toggleWarpFeaturePower()" class="feature-power-btn" aria-pressed="false">
@@ -346,7 +297,7 @@
               </div>
             </div>
 
-            <div id="warp_empty_state" class="w-[min(460px,100%)] h-[118px] my-7 mx-auto px-5 box-border flex items-center justify-center text-muted text-center text-[13px] font-bold leading-none border border-dashed border-muted/25 rounded-2xl bg-gradient-to-br from-glass-strong/50 to-page-a/40">WARP 未启动</div>
+            <div id="warp_empty_state" class="outbound-state-panel">WARP 未启动</div>
 
             <div id="warp_details_state" style="display:none">
               <div class="flex flex-col gap-3 mb-6">
@@ -381,21 +332,21 @@
         <!-- 自定义节点 -->
         <div id="outbound-custom-panel" class="outbound-mode-panel" style="display:none">
           <div class="glass-card rounded-[28px] p-6">
-            <div class="flex justify-between items-center gap-4 mb-[18px] flex-wrap">
-              <div class="min-w-0 flex items-center gap-2.5 flex-wrap">
+            <div class="outbound-panel-header">
+              <div class="outbound-panel-title">
                 <h3 class="!text-[18px] !font-bold">自定义节点</h3>
               </div>
-              <div class="flex items-center justify-end gap-2.5 flex-wrap">
+              <div class="outbound-panel-actions">
                 <button type="button" id="custom_test_btn" onclick="testAllCustomOutboundNodes()" title="测试全部自定义节点" class="btn btn-secondary" style="display:none">测试</button>
                 <button type="button" id="custom_add_btn" onclick="openOutboundNodeModal()" title="添加或导入节点" class="btn btn-primary"><span class="btn-icon icon-plus" aria-hidden="true"></span>添加节点</button>
               </div>
             </div>
-            <div id="custom_disabled_state" class="w-[min(460px,100%)] h-[118px] my-7 mx-auto px-5 box-border flex items-center justify-center text-muted text-center text-[13px] font-bold leading-none border border-dashed border-muted/25 rounded-2xl bg-gradient-to-br from-glass-strong/50 to-page-a/40" style="display:none"></div>
-            <div id="custom_empty_state" class="w-[min(460px,100%)] h-[118px] my-7 mx-auto px-5 box-border flex items-center justify-center text-muted text-center text-[13px] font-bold leading-none border border-dashed border-muted/25 rounded-2xl bg-gradient-to-br from-glass-strong/50 to-page-a/40" style="display:none"></div>
+            <div id="custom_disabled_state" class="outbound-state-panel" style="display:none"></div>
+            <div id="custom_empty_state" class="outbound-state-panel" style="display:none"></div>
             <div id="custom_table_wrap" class="overflow-x-auto rounded-2xl">
               <table id="custom_outbound_table" class="w-full border-collapse min-w-[1000px]">
                 <thead><tr><th style="width:110px">类型</th><th style="width:110px">状态</th><th>名称</th><th>节点 / 订阅</th><th style="width:220px;text-align:right">操作</th></tr></thead>
-                <tbody id="custom_outbound_rows"><tr><td colspan="5" class="text-muted text-center py-9 px-4 bg-gradient-to-br from-glass-strong/50 to-page-a/40 rounded-2xl font-[650] h-[118px]">暂未添加自定义节点</td></tr></tbody>
+                <tbody id="custom_outbound_rows"><tr><td colspan="5" class="compact-empty">暂未添加自定义节点</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -418,7 +369,7 @@
           <div class="overflow-x-auto rounded-2xl">
             <table class="w-full border-collapse min-w-[1000px]">
               <thead><tr><th>状态</th><th>规则名称</th><th>入站节点</th><th>匹配条件</th><th>出站节点</th><th style="text-align:right">操作</th></tr></thead>
-              <tbody id="routing_rules_rows"><tr><td colspan="6" class="text-muted text-center py-9 px-4 bg-gradient-to-br from-glass-strong/50 to-page-a/40 rounded-2xl font-[650] h-[118px]">暂无路由规则</td></tr></tbody>
+              <tbody id="routing_rules_rows"><tr><td colspan="6" class="compact-empty">暂无路由规则</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -505,30 +456,30 @@
         <!-- 域名与证书 -->
         <div id="subsetting-domain-certs" class="subsettings-content hidden">
           <div class="domain-cert-card glass-card rounded-[28px] p-7" style="max-width:680px">
-            <div class="mb-[22px] pb-4 border-b border-surface-line flex items-start justify-between gap-4">
+            <div class="domain-cert-card__header">
               <div><h3 id="dc_form_title" class="!text-[18px] !font-bold">域名与证书配置</h3></div>
               <span class="domain-cert-card__badge">TLS</span>
             </div>
             <form id="domain_certs_form" onsubmit="addOrUpdateDomainCert(event)">
               <input type="hidden" id="dc_id">
-              <div class="mb-[18px] text-left">
+              <div class="domain-cert-field">
                 <label>配置方式</label>
-                <div class="grid grid-cols-2 gap-1.5 p-1.5 border border-border rounded-2xl bg-gradient-to-br from-glass-strong/70 to-page-a/35">
+                <div class="domain-cert-mode">
                   <label><input type="radio" name="dc_mode" id="dc_mode_path" value="path" checked onchange="toggleDomainCertMode(this.value)"><span><strong>文件路径</strong><small>使用服务器上的 Cert / Key 文件</small></span></label>
                   <label><input type="radio" name="dc_mode" id="dc_mode_content" value="content" onchange="toggleDomainCertMode(this.value)"><span><strong>PEM 文本</strong><small>直接粘贴证书和私钥内容</small></span></label>
                 </div>
               </div>
-              <div class="mb-[18px] text-left"><label for="net_domain">自定义域名</label><input type="text" id="net_domain" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="yourdomain.com"></div>
+              <div class="domain-cert-field"><label for="net_domain">自定义域名</label><input type="text" id="net_domain" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="yourdomain.com"></div>
               <div id="dc_path_inputs" class="flex flex-col gap-4">
-                <div class="mb-[18px] text-left">
+                <div class="domain-cert-field">
                   <div class="flex justify-between items-center mb-2"><label for="net_cert_path" class="!mb-0">证书文件路径（Cert Path）</label><button type="button" id="btn_toggle_edit_paths" onclick="toggleManualPaths()" title="手动修改路径" class="w-[30px] h-[30px] rounded-lg bg-glass border border-border text-muted hover:text-primary flex items-center justify-center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-[14.5px] h-[14.5px]"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button></div>
                   <input type="text" id="net_cert_path" readonly class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] opacity-85" placeholder="自动生成">
                 </div>
-                <div class="mb-[18px] text-left"><label for="net_key_path">私钥文件路径（Key Path）</label><input type="text" id="net_key_path" readonly class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] opacity-85" placeholder="自动生成"></div>
+                <div class="domain-cert-field"><label for="net_key_path">私钥文件路径（Key Path）</label><input type="text" id="net_key_path" readonly class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] opacity-85" placeholder="自动生成"></div>
               </div>
               <div id="dc_content_inputs" class="flex flex-col gap-4" style="display:none">
-                <div class="mb-[18px] text-left"><label for="net_cert_content">证书内容（PEM 格式）</label><textarea id="net_cert_content" rows="7" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13px] font-mono outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="-----BEGIN CERTIFICATE-----"></textarea></div>
-                <div class="mb-[18px] text-left"><label for="net_key_content">私钥内容（PEM 格式）</label><textarea id="net_key_content" rows="7" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13px] font-mono outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></div>
+                <div class="domain-cert-field"><label for="net_cert_content">证书内容（PEM 格式）</label><textarea id="net_cert_content" rows="7" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13px] font-mono outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="-----BEGIN CERTIFICATE-----"></textarea></div>
+                <div class="domain-cert-field"><label for="net_key_content">私钥内容（PEM 格式）</label><textarea id="net_key_content" rows="7" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13px] font-mono outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></div>
               </div>
               <div class="flex gap-3 mt-6 justify-end">
                 <button type="button" id="dc_clear_btn" onclick="clearDomainCertConfig()" class="btn btn-secondary">清除配置</button>
@@ -582,7 +533,18 @@
 
   <!-- ═══════════════ 模态弹窗 ═══════════════ -->
 
-</button>
+  <!-- 添加入站 -->
+  <div id="create-link-modal" class="modal-overlay" onclick="closeCreateLinkModal()">
+    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:600px">
+      <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
+        <h3 class="!text-[20px] !font-extrabold">新建节点</h3>
+        <button onclick="closeCreateLinkModal()" class="modal-close">×</button>
+      </div>
+      <div class="flex flex-col gap-4">
+        <button onclick="createNodeFromChooser('vless-reality')" class="flex items-start gap-4 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-card text-text rounded-xl p-5 text-left cursor-pointer hover:border-second hover:-translate-y-0.5 transition-all w-full">
+          <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] text-primary flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 11 2 2 4-4"/></svg></div>
+          <div class="flex-1"><div class="flex items-center justify-between gap-2"><span class="text-sm font-bold text-text">VLESS-Reality</span></div></div>
+        </button>
         <button onclick="createNodeFromChooser('vmess-ws-tls')" class="flex items-start gap-4 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-card text-text rounded-xl p-5 text-left cursor-pointer hover:border-third hover:-translate-y-0.5 transition-all w-full">
           <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] text-primary flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19A5.5 5.5 0 0 0 22 13.5A5.5 5.5 0 0 0 16.5 8h-1.39a8 8 0 1 0-13.34 7.21"/></svg></div>
           <div class="flex-1"><div class="flex items-center justify-between gap-2"><span class="text-sm font-bold text-text">VMess + WS + TLS</span></div></div>
@@ -598,20 +560,20 @@
   <!-- 订阅链接 -->
   <div id="subscription-link-modal" class="modal-overlay" onclick="closeSubscriptionLinkModal()">
     <div class="modal-card" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h3 id="subscription_link_modal_title" class="modal-title">创建订阅链接</h3>
+      <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
+        <h3 id="subscription_link_modal_title" class="!text-[20px] !font-extrabold">创建订阅链接</h3>
         <button onclick="closeSubscriptionLinkModal()" class="modal-close">×</button>
       </div>
       <form id="subscription-link-form" onsubmit="saveSubscriptionLink(event)">
         <input type="hidden" id="subscription_link_id">
         <div class="grid grid-cols-2 gap-5">
           <div><label for="subscription_link_name" class="block text-[13px] font-semibold text-muted mb-2.5">订阅名称</label><input id="subscription_link_name" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="例如 家庭订阅 / 手机订阅" required></div>
-          <div><label for="subscription_link_token" class="block text-[13px] font-semibold text-muted mb-2.5">订阅 Token</label><div class="flex gap-2.5"><input id="subscription_link_token" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="自动生成或手动填写" required><button type="button" onclick="generateSubscriptionToken()" class="btn btn-secondary btn-sm" style="min-width:80px">生成</button></div></div>
+          <div><label for="subscription_link_token" class="block text-[13px] font-semibold text-muted mb-2.5">订阅 Token</label><div class="flex gap-2.5"><input id="subscription_link_token" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="自动生成或手动填写" required><button type="button" onclick="generateSubscriptionToken()" class="glass-card py-2 px-4 rounded-lg text-xs font-bold border border-border text-text" style="min-width:80px">生成</button></div></div>
           
-          <div><label for="subscription_link_port" class="block text-[13px] font-semibold text-muted mb-2.5">监听端口</label><div class="flex gap-2.5"><input type="number" id="subscription_link_port" min="1" max="65535" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="10086" required><button type="button" onclick="generateSubscriptionLinkPort()" class="btn btn-secondary btn-sm" style="min-width:80px">随机</button></div></div>
+          <div><label for="subscription_link_port" class="block text-[13px] font-semibold text-muted mb-2.5">监听端口</label><div class="flex gap-2.5"><input type="number" id="subscription_link_port" min="1" max="65535" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="10086" required><button type="button" onclick="generateSubscriptionLinkPort()" class="glass-card py-2 px-4 rounded-lg text-xs font-bold border border-border text-text" style="min-width:80px">随机</button></div></div>
           <div><label for="subscription_link_protocol" class="block text-[13px] font-semibold text-muted mb-2.5">协议类型</label><select id="subscription_link_protocol" required onchange="handleSubscriptionLinkProtocolChange(this.value)" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]"><option value="vless-reality">VLESS-Reality</option><option value="vmess-ws-tls">VMess + WS + TLS</option><option value="socks5">SOCKS5</option></select></div>
           
-          <div class="col-span-2" id="subscription_link_camouflage_group"><label for="subscription_link_camouflage" class="block text-[13px] font-semibold text-muted mb-2.5">伪装网址</label><div class="flex gap-2.5"><input id="subscription_link_camouflage" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="www.microsoft.com"><button type="button" onclick="generateSubscriptionLinkCamouflage()" class="btn btn-secondary btn-sm" style="min-width:80px">随机</button></div></div>
+          <div class="col-span-2" id="subscription_link_camouflage_group"><label for="subscription_link_camouflage" class="block text-[13px] font-semibold text-muted mb-2.5">伪装网址</label><div class="flex gap-2.5"><input id="subscription_link_camouflage" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="www.microsoft.com"><button type="button" onclick="generateSubscriptionLinkCamouflage()" class="glass-card py-2 px-4 rounded-lg text-xs font-bold border border-border text-text" style="min-width:80px">随机</button></div></div>
           <div class="col-span-2" id="subscription_link_ws_path_group" style="display:none"><label for="subscription_link_ws_path" class="block text-[13px] font-semibold text-muted mb-2.5">WS 路径</label><input id="subscription_link_ws_path" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="/ws" value="/"></div>
           
           <div class="col-span-2"><label for="subscription_link_remark" class="block text-[13px] font-semibold text-muted mb-2.5">备注</label><input id="subscription_link_remark" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="可选，仅面板内显示"></div>
@@ -619,8 +581,8 @@
         <div id="subscription_link_error" class="service-alert" style="display:none"></div>
         <div id="subscription_link_success" class="service-alert" style="display:none; border-color:var(--success); background:var(--green-soft); color:var(--success)"></div>
         <div class="flex gap-3 justify-end mt-6">
-          <button type="button" onclick="closeSubscriptionLinkModal()" class="btn btn-secondary">取消</button>
-          <button type="submit" id="subscription_link_submit" class="btn btn-primary">创建订阅链接</button>
+          <button type="button" onclick="closeSubscriptionLinkModal()" class="glass-card py-2.5 px-5 rounded-lg text-[13px] font-bold border border-border text-text">取消</button>
+          <button type="submit" id="subscription_link_submit" class="btn-primary-action py-2.5 px-5 rounded-lg text-[13px] font-bold">创建订阅链接</button>
         </div>
       </form>
     </div>
@@ -629,9 +591,9 @@
   <!-- 订阅节点 -->
   <div id="subscription-node-modal" class="modal-overlay" onclick="closeSubscriptionNodeModal()">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:680px">
-      <div class="modal-header">
+      <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
         <div class="flex items-center gap-3">
-          <h3 id="subscription_node_modal_title" class="modal-title">新建节点</h3>
+          <h3 id="subscription_node_modal_title" class="!text-[20px] !font-extrabold">新建节点</h3>
           <span id="subscription_node_protocol_display" class="text-[11px] font-bold text-primary bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] border border-[color-mix(in_srgb,var(--primary)_24%,transparent)] py-1 px-3 rounded-full"></span>
         </div>
         <button onclick="closeSubscriptionNodeModal()" class="modal-close">×</button>
@@ -645,18 +607,18 @@
           </div>
           <div id="subscription_node_subscription_hint" class="col-span-2 text-[12px] text-muted -mt-3"></div>
           <div><label for="subscription_node_name" class="block text-[13px] font-semibold text-muted mb-2.5">节点名称</label><input id="subscription_node_name" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="例如 hk-reality-443" required></div>
-          <div id="subscription_node_port_group" style="display:none"><label for="subscription_node_port" class="block text-[13px] font-semibold text-muted mb-2.5">端口</label><div class="flex gap-2.5"><input type="number" id="subscription_node_port" min="1" max="65535" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="443"><button type="button" onclick="generateSubscriptionPort()" class="btn btn-secondary btn-sm" style="min-width:80px">随机</button></div></div>
+          <div id="subscription_node_port_group" style="display:none"><label for="subscription_node_port" class="block text-[13px] font-semibold text-muted mb-2.5">端口</label><div class="flex gap-2.5"><input type="number" id="subscription_node_port" min="1" max="65535" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="443"><button type="button" onclick="generateSubscriptionPort()" class="glass-card py-2 px-4 rounded-lg text-xs font-bold border border-border text-text" style="min-width:80px">随机</button></div></div>
           <div id="subscription_node_protocol_group" style="display:none"><label for="subscription_node_protocol" class="block text-[13px] font-semibold text-muted mb-2.5">协议类型</label><select id="subscription_node_protocol" required onchange="handleSubscriptionProtocolChange(this.value)" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]"><option value="vless-reality">VLESS-Reality</option><option value="vmess-ws-tls">VMess + WS + TLS</option><option value="socks5">SOCKS5</option></select></div>
-          <div class="col-span-2" id="subscription_node_camouflage_group" style="display:none"><label for="subscription_node_camouflage" class="block text-[13px] font-semibold text-muted mb-2.5">伪装网址</label><div class="flex gap-2.5"><input id="subscription_node_camouflage" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="www.microsoft.com"><button type="button" onclick="generateSubscriptionCamouflage()" class="btn btn-secondary btn-sm" style="min-width:80px">随机</button></div></div>
-          <div class="col-span-2" id="subscription_node_uuid_group"><label for="subscription_node_uuid" class="block text-[13px] font-semibold text-muted mb-2.5">UUID</label><div class="flex gap-2.5"><input id="subscription_node_uuid" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="自动生成或手动填写" required><button type="button" onclick="generateSubscriptionUuid()" class="btn btn-secondary btn-sm" style="min-width:80px">生成</button></div></div>
-          <div id="subscription_node_socks_username_group" style="display:none"><label for="subscription_node_socks_username" class="block text-[13px] font-semibold text-muted mb-2.5">SOCKS5 用户名</label><div class="flex gap-2.5"><input id="subscription_node_socks_username" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="用户名"><button type="button" onclick="generateSubscriptionSocksCredential('username')" class="btn btn-secondary btn-sm" style="min-width:80px">随机</button></div></div>
-          <div id="subscription_node_socks_password_group" style="display:none"><label for="subscription_node_socks_password" class="block text-[13px] font-semibold text-muted mb-2.5">SOCKS5 密码</label><div class="flex gap-2.5"><input id="subscription_node_socks_password" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="密码"><button type="button" onclick="generateSubscriptionSocksCredential('password')" class="btn btn-secondary btn-sm" style="min-width:80px">随机</button></div></div>
+          <div class="col-span-2" id="subscription_node_camouflage_group" style="display:none"><label for="subscription_node_camouflage" class="block text-[13px] font-semibold text-muted mb-2.5">伪装网址</label><div class="flex gap-2.5"><input id="subscription_node_camouflage" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="www.microsoft.com"><button type="button" onclick="generateSubscriptionCamouflage()" class="glass-card py-2 px-4 rounded-lg text-xs font-bold border border-border text-text" style="min-width:80px">随机</button></div></div>
+          <div class="col-span-2" id="subscription_node_uuid_group"><label for="subscription_node_uuid" class="block text-[13px] font-semibold text-muted mb-2.5">UUID</label><div class="flex gap-2.5"><input id="subscription_node_uuid" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="自动生成或手动填写" required><button type="button" onclick="generateSubscriptionUuid()" class="glass-card py-2 px-4 rounded-lg text-xs font-bold border border-border text-text" style="min-width:80px">生成</button></div></div>
+          <div id="subscription_node_socks_username_group" style="display:none"><label for="subscription_node_socks_username" class="block text-[13px] font-semibold text-muted mb-2.5">SOCKS5 用户名</label><div class="flex gap-2.5"><input id="subscription_node_socks_username" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="用户名"><button type="button" onclick="generateSubscriptionSocksCredential('username')" class="glass-card py-2 px-4 rounded-lg text-xs font-bold border border-border text-text" style="min-width:80px">随机</button></div></div>
+          <div id="subscription_node_socks_password_group" style="display:none"><label for="subscription_node_socks_password" class="block text-[13px] font-semibold text-muted mb-2.5">SOCKS5 密码</label><div class="flex gap-2.5"><input id="subscription_node_socks_password" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="密码"><button type="button" onclick="generateSubscriptionSocksCredential('password')" class="glass-card py-2 px-4 rounded-lg text-xs font-bold border border-border text-text" style="min-width:80px">随机</button></div></div>
         </div>
         <div id="subscription_node_error" class="service-alert" style="display:none"></div>
         <div id="subscription_node_success" class="service-alert" style="display:none; border-color:var(--success); background:var(--green-soft); color:var(--success)"></div>
         <div class="flex gap-3 justify-end mt-6">
-          <button type="button" onclick="closeSubscriptionNodeModal()" class="btn btn-secondary">取消</button>
-          <button type="submit" id="subscription_node_submit" class="btn btn-primary">创建节点</button>
+          <button type="button" onclick="closeSubscriptionNodeModal()" class="glass-card py-2.5 px-5 rounded-lg text-[13px] font-bold border border-border text-text">取消</button>
+          <button type="submit" id="subscription_node_submit" class="btn-primary-action py-2.5 px-5 rounded-lg text-[13px] font-bold">创建节点</button>
         </div>
       </form>
     </div>
@@ -665,22 +627,22 @@
   <!-- 自定义出站节点 -->
   <div id="outbound-node-modal" class="modal-overlay" onclick="closeOutboundNodeModal()">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:660px">
-      <div class="modal-header">
-        <h3 class="modal-title">添加/导入自定义节点</h3>
+      <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
+        <h3 class="!text-[20px] !font-extrabold">添加/导入自定义节点</h3>
         <button onclick="closeOutboundNodeModal()" class="modal-close">×</button>
       </div>
       <form id="outbound-node-form" onsubmit="saveOutboundNode(event)">
         <input type="hidden" id="outbound_node_id"><input type="hidden" id="outbound_node_created_at"><input type="hidden" id="outbound_node_type" value="json-config"><input type="hidden" id="outbound_node_protocol"><input type="hidden" id="outbound_node_share_link"><input type="hidden" id="outbound_node_subscription_url">
         <div class="flex flex-col gap-5">
           <div><label for="outbound_node_name" class="block text-[13px] font-semibold text-muted mb-2.5">显示名称</label><input id="outbound_node_name" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" required placeholder="例如：自定义节点-香港"></div>
-          <div><label for="outbound_node_input_source" class="block text-[13px] font-semibold text-muted mb-2.5">节点链接</label><div class="flex gap-2.5"><textarea id="outbound_node_input_source" rows="2" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none resize-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="请输入 vmess://、vless://、trojan://、ss://、socks://、http:// 等节点链接"></textarea><button type="button" id="btn_fetch_convert" onclick="fetchAndConvertOutbound()" class="btn btn-primary flex-shrink-0" style="width:85px">获取</button></div></div>
+          <div><label for="outbound_node_input_source" class="block text-[13px] font-semibold text-muted mb-2.5">节点链接</label><div class="flex gap-2.5"><textarea id="outbound_node_input_source" rows="2" class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none resize-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" placeholder="请输入 vmess://、vless://、trojan://、ss://、socks://、http:// 等节点链接"></textarea><button type="button" id="btn_fetch_convert" onclick="fetchAndConvertOutbound()" class="btn-primary-action py-3 rounded-xl text-[13px] font-bold flex-shrink-0" style="width:85px">获取</button></div></div>
           <div><label for="outbound_node_json_config" class="block text-[13px] font-semibold text-muted mb-2.5">JSON 配置（将自动生成，也可在此直接输入或编辑 JSON）</label><textarea id="outbound_node_json_config" rows="8" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none focus:border-primary focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]" required placeholder='{"protocol": "vmess", "settings": {...}}'></textarea></div>
         </div>
         <div id="outbound_node_error" class="service-alert" style="display:none"></div>
         <div id="outbound_node_success" class="service-alert" style="display:none; border-color:var(--success); background:var(--green-soft); color:var(--success)"></div>
         <div class="flex gap-3 justify-end mt-6">
-          <button type="button" onclick="closeOutboundNodeModal()" class="btn btn-secondary">取消</button>
-          <button type="submit" id="outbound_node_submit" class="btn btn-primary">添加节点</button>
+          <button type="button" onclick="closeOutboundNodeModal()" class="glass-card py-2.5 px-5 rounded-lg text-[13px] font-bold border border-border text-text">取消</button>
+          <button type="submit" id="outbound_node_submit" class="btn-primary-action py-2.5 px-5 rounded-lg text-[13px] font-bold">添加节点</button>
         </div>
       </form>
     </div>
@@ -689,8 +651,8 @@
   <!-- OpenVPN 路由设置 -->
   <div id="openvpn-routing-modal" class="modal-overlay" onclick="closeOpenvpnRoutingModal()">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:680px">
-      <div class="modal-header">
-        <h3 class="modal-title">OpenVPN 路由设置</h3>
+      <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
+        <h3 class="!text-[20px] !font-extrabold">OpenVPN 路由设置</h3>
         <button onclick="closeOpenvpnRoutingModal()" class="modal-close">×</button>
       </div>
       <form id="network_form" onsubmit="saveNetwork(event)">
@@ -710,8 +672,8 @@
         <div id="network_error" class="service-alert" style="display:none"></div>
         <div id="network_success" class="service-alert" style="display:none; border-color:var(--success); background:var(--green-soft); color:var(--success)"></div>
         <div class="flex gap-3 justify-end mt-6">
-          <button type="button" onclick="closeOpenvpnRoutingModal()" class="btn btn-secondary">取消</button>
-          <button type="submit" id="network_submit_btn" class="btn btn-primary">保存设置</button>
+          <button type="button" onclick="closeOpenvpnRoutingModal()" class="glass-card py-2.5 px-5 rounded-lg text-[13px] font-bold border border-border text-text">取消</button>
+          <button type="submit" id="network_submit_btn" class="btn-primary-action py-2.5 px-5 rounded-lg text-[13px] font-bold">保存设置</button>
         </div>
       </form>
     </div>
@@ -720,8 +682,8 @@
   <!-- 路由规则 -->
   <div id="routing-rule-modal" class="modal-overlay" onclick="closeRoutingRuleModal()">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:680px">
-      <div class="modal-header">
-        <h3 id="routing_rule_modal_title" class="modal-title">创建路由规则</h3>
+      <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
+        <h3 id="routing_rule_modal_title" class="!text-[20px] !font-extrabold">创建路由规则</h3>
         <button onclick="closeRoutingRuleModal()" class="modal-close">×</button>
       </div>
       <form id="routing-rule-form" onsubmit="saveRoutingRule(event, true)">
@@ -768,8 +730,8 @@
         <div id="routing_rule_success" class="service-alert" style="display:none; border-color:var(--success); background:var(--green-soft); color:var(--success)"></div>
         <div class="notice mt-5">如果当前浏览器正在走本面板创建的代理节点，建议先关闭本机代理或切换到直连后再点“保存应用”，避免 Xray 重载时中断本次请求。</div>
         <div class="flex gap-3 justify-end mt-6">
-          <button type="button" id="routing_rule_create_btn" onclick="saveRoutingRule(event, false)" class="btn btn-secondary">创建草稿</button>
-          <button type="button" id="routing_rule_save_btn" onclick="saveRoutingRule(event, true)" class="btn btn-primary">保存应用</button>
+          <button type="button" id="routing_rule_create_btn" onclick="saveRoutingRule(event, false)" class="glass-card py-2.5 px-5 rounded-lg text-[13px] font-bold border border-border text-text">创建草稿</button>
+          <button type="button" id="routing_rule_save_btn" onclick="saveRoutingRule(event, true)" class="btn-primary-action py-2.5 px-5 rounded-lg text-[13px] font-bold">保存应用</button>
         </div>
       </form>
     </div>
@@ -778,18 +740,18 @@
   <!-- VPS -->
   <div id="vps-modal" class="modal-overlay" onclick="closeVPSModal()">
     <div class="modal-card" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h3 class="modal-title">VPS</h3>
+      <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
+        <h3 class="!text-[20px] !font-extrabold">VPS</h3>
         <button onclick="closeVPSModal()" class="modal-close">×</button>
       </div>
       <div class="flex flex-col gap-5">
         <div class="border border-border bg-glass rounded-xl p-5 hover:bg-glass-strong hover:border-primary hover:-translate-y-0.5 transition-all">
           <div class="text-[14px] font-bold text-text mb-4">RackNerd</div>
-          <a href="https://my.racknerd.com/aff.php?aff=18708" target="_blank" class="btn btn-primary inline-flex gap-2 no-underline">打开</a>
+          <a href="https://my.racknerd.com/aff.php?aff=18708" target="_blank" class="btn-primary-action inline-flex items-center gap-2 py-2 px-5 rounded-lg text-[13px] font-bold no-underline">打开</a>
         </div>
         <div class="border border-border bg-glass rounded-xl p-5 hover:bg-glass-strong hover:border-primary hover:-translate-y-0.5 transition-all">
           <div class="text-[14px] font-bold text-text mb-4">BandwagonHost</div>
-          <a href="https://bandwagonhost.com/aff.php?aff=81790" target="_blank" class="btn btn-primary inline-flex gap-2 no-underline">打开</a>
+          <a href="https://bandwagonhost.com/aff.php?aff=81790" target="_blank" class="btn-primary-action inline-flex items-center gap-2 py-2 px-5 rounded-lg text-[13px] font-bold no-underline">打开</a>
         </div>
         <div class="text-center text-[13px] text-muted border-t border-dashed border-[color-mix(in_srgb,var(--muted)_20%,transparent)] pt-4">
           <a href="https://339936.xyz/" target="_blank" class="text-primary font-bold no-underline">339936.xyz</a>
@@ -801,14 +763,14 @@
   <!-- 分享 -->
   <div id="share-modal" class="modal-overlay" onclick="closeShareModal()">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:520px">
-      <div class="modal-header">
-        <h3 class="modal-title">客户端配置分享</h3>
+      <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
+        <h3 class="!text-[20px] !font-extrabold">客户端配置分享</h3>
         <button onclick="closeShareModal()" class="modal-close">×</button>
       </div>
       <div class="flex flex-col gap-5">
         <div class="bg-[rgba(255,255,255,0.05)] p-5 rounded-xl flex justify-center items-center min-h-[250px]"><div id="share-qrcode-container" class="bg-white p-2 rounded-md"></div></div>
-        <div><label class="block text-[13px] font-semibold text-muted mb-2.5">节点分享链接</label><div class="flex gap-2.5"><input id="share-node-url" readonly class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none"><button onclick="copyShareText('share-node-url')" class="btn btn-secondary" style="min-width:80px">复制</button></div></div>
-        <div><label class="block text-[13px] font-semibold text-muted mb-2.5">订阅链接</label><div class="flex gap-2.5"><input id="share-sub-url" readonly class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none"><button onclick="copyShareText('share-sub-url')" class="btn btn-secondary" style="min-width:80px">复制</button></div></div>
+        <div><label class="block text-[13px] font-semibold text-muted mb-2.5">节点分享链接</label><div class="flex gap-2.5"><input id="share-node-url" readonly class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none"><button onclick="copyShareText('share-node-url')" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text" style="min-width:80px">复制</button></div></div>
+        <div><label class="block text-[13px] font-semibold text-muted mb-2.5">订阅链接</label><div class="flex gap-2.5"><input id="share-sub-url" readonly class="flex-1 py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13.5px] outline-none"><button onclick="copyShareText('share-sub-url')" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text" style="min-width:80px">复制</button></div></div>
         <div class="flex gap-6 text-[13px] text-muted border-t border-[rgba(255,255,255,0.08)] pt-4"><div>状态：<span id="share-client-status" class="font-semibold">-</span></div><div>有效期：<span id="share-client-expiry" class="font-semibold">-</span></div></div>
       </div>
     </div>
@@ -817,13 +779,13 @@
   <!-- 二维码查看 -->
   <div id="qrcode-view-modal" class="modal-overlay" onclick="closeQRCodeViewModal()">
     <div class="modal-card text-center" onclick="event.stopPropagation()" style="max-width:420px">
-      <div class="modal-header">
-        <h3 id="qrcode-view-title" class="modal-title">二维码分享</h3>
+      <div class="flex justify-between items-center mb-5 pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
+        <h3 id="qrcode-view-title" class="!text-[20px] !font-extrabold">二维码分享</h3>
         <button onclick="closeQRCodeViewModal()" class="modal-close">×</button>
       </div>
       <div class="bg-[rgba(255,255,255,0.05)] p-5 rounded-xl mb-5 flex justify-center items-center min-h-[250px]"><img id="qrcode-view-img" src="" class="w-[200px] h-[200px] block rounded-md bg-white p-2" alt="QR Code"></div>
       <div class="mb-5"><input id="qrcode-view-url" readonly onclick="this.select()" class="w-full py-3 px-4 bg-glass border border-border rounded-xl text-text text-[13px] text-center outline-none"></div>
-      <button onclick="copyQRCodeViewUrl()" class="btn btn-primary w-full">复制链接</button>
+      <button onclick="copyQRCodeViewUrl()" class="btn-primary-action w-full py-2.5 px-5 rounded-lg text-[13px] font-bold">复制链接</button>
     </div>
   </div>
 
