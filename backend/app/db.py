@@ -77,6 +77,7 @@ def load_feature_flags() -> dict[str, bool]:
         for key in flags:
             if key in raw:
                 flags[key] = raw.get(key) is True
+    flags["custom_enabled"] = True
     return flags
 
 def save_feature_flags(flags: dict[str, Any]) -> dict[str, bool]:

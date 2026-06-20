@@ -14,7 +14,7 @@ from backend.app import db
 
 
 class FeatureFlagsTests(unittest.TestCase):
-    def test_custom_feature_can_be_disabled_and_loaded(self) -> None:
+    def test_custom_feature_is_always_enabled_even_if_legacy_file_disabled_it(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             data_dir = Path(tmp)
             feature_file = data_dir / "feature_flags.json"
@@ -29,7 +29,7 @@ class FeatureFlagsTests(unittest.TestCase):
                     "warp_enabled": False,
                     "custom_enabled": False,
                 })
-                self.assertEqual(db.load_feature_flags()["custom_enabled"], False)
+                self.assertEqual(db.load_feature_flags()["custom_enabled"], True)
 
     def test_missing_feature_flags_use_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -112,6 +112,76 @@ class RoutingAndOutboundFixTests(unittest.TestCase):
                 self.assertTrue(health["policy_routing"]["ok"])
                 self.assertIn("OpenVPN 未连接", health["policy_routing"]["details"])
 
+    def test_domain_rules_can_bind_same_inbound_to_different_outbounds(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp).mkdir(parents=True, exist_ok=True)
+            with self.xray_storage(tmp):
+                xray.write_json(xray.SUBSCRIPTION_LINKS_FILE, [{
+                    "id": "sub-36060",
+                    "name": "入口 36060",
+                    "token": "tok",
+                    "port": 36060,
+                    "protocol": "vless-reality",
+                    "enabled": True,
+                    "created_at": "1",
+                    "updated_at": "1",
+                }])
+                xray.write_json(xray.SUBSCRIPTION_NODES_FILE, [{
+                    "id": "node-36060",
+                    "subscription_id": "sub-36060",
+                    "name": "端口 36060",
+                    "protocol": "vless-reality",
+                    "port": 36060,
+                    "uuid": "11111111-1111-4111-8111-111111111111",
+                    "enabled": True,
+                }])
+                xray.write_json(xray.OUTBOUND_NODES_FILE, [{
+                    "id": "custom-site-a",
+                    "name": "自定义节点 A",
+                    "type": "json-config",
+                    "enabled": True,
+                    "json_config": json.dumps({"protocol": "freedom", "settings": {}}),
+                }])
+                xray.write_json(xray.ROUTING_RULES_FILE, [
+                    {
+                        "id": "rule-warp",
+                        "name": "站点 A 走 WARP",
+                        "inbound_node_ids": ["sub-36060"],
+                        "outbound_node_ids": ["warp"],
+                        "match_conditions": [{"type": "domain", "value": "site-a.example"}],
+                        "enabled": True,
+                        "priority": 10,
+                    },
+                    {
+                        "id": "rule-custom",
+                        "name": "站点 B 走自定义",
+                        "inbound_node_ids": ["sub-36060"],
+                        "outbound_node_ids": ["custom-site-a"],
+                        "match_conditions": [{"type": "domain", "value": "site-b.example"}],
+                        "enabled": True,
+                        "priority": 20,
+                    },
+                ])
+                valid_warp = {
+                    "id": "warp",
+                    "type": "warp",
+                    "enabled": True,
+                    "private_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                    "peer_public_key": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",
+                    "reserved": [1, 2, 3],
+                    "addresses": ["172.16.0.2/32"],
+                    "endpoint": "engage.cloudflareclient.com:2408",
+                }
+                nodes = xray.read_json_list(xray.OUTBOUND_NODES_FILE)
+                xray.write_json(xray.OUTBOUND_NODES_FILE, nodes + [valid_warp])
+
+                self.assertTrue(xray.write_xray_config(xray.default_xray_cfg()))
+                generated = json.loads(xray.XRAY_CONFIG_FILE.read_text(encoding="utf-8"))
+                rules = generated["routing"]["rules"]
+
+                self.assertTrue(any(rule.get("domain") == ["site-a.example"] and rule.get("outboundTag") == "warp" for rule in rules))
+                self.assertTrue(any(rule.get("domain") == ["site-b.example"] and rule.get("outboundTag") == "custom-site-a" for rule in rules))
+
 
 if __name__ == "__main__":
     unittest.main()
