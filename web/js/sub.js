@@ -341,24 +341,7 @@
                 hint.textContent = `${subscriptionLinks.length} 个订阅链接，${subscriptionNodes.length} 个节点链接，${independentCount} 个独立节点`;
             }
             
-            const rowIcon = (name) => {
-                const icons = {
-                    add: `<path d="M12 5v14M5 12h14"></path>`,
-                    star: `<path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.8 1-6.1-4.4-4.3 6.1-.9Z"></path>`,
-                    copy: `<rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>`,
-                    qr: `<rect x="3" y="3" width="6" height="6" rx="1"></rect><rect x="15" y="3" width="6" height="6" rx="1"></rect><rect x="3" y="15" width="6" height="6" rx="1"></rect><path d="M15 15h2v2h-2z"></path><path d="M19 15h2"></path><path d="M15 19h6"></path><path d="M11 3h1"></path><path d="M11 7h1"></path><path d="M3 11h1"></path><path d="M7 11h1"></path>`,
-                    power: `<path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0"></path>`,
-                    edit: `<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>`,
-                    trash: `<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"></path>`
-                };
-                return `<svg class="row-action__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${icons[name] || icons.edit}</svg>`;
-            };
             
-            const actionButton = (label, icon, onclick, danger = false, showText = false, extraClass = '') => `
-                <button type="button" class="row-action-btn ${extraClass}${danger ? " is-danger" : ""}${showText ? " row-action-btn--text" : ""}" onclick="${esc(onclick)}" title="${esc(label)}" aria-label="${esc(label)}">
-                    ${rowIcon(icon)}${showText ? `<span class="row-action__label">${esc(label)}</span>` : ""}
-                </button>
-            `;
 
             const renderNodeCard = (node, nested = false) => {
                 const enabled = node.enabled === true;
@@ -522,9 +505,13 @@
             $("subscription_link_token").value = link ? (link.token || "") : "";
             $("subscription_link_remark").value = link ? (link.remark || "") : "";
             $("subscription_link_port").value = link ? (link.port || "") : "";
+            $("subscription_link_listen").value = link ? (link.listen || "::") : "::";
+            if ($("subscription_link_whitelist_ips")) $("subscription_link_whitelist_ips").value = link ? (link.whitelist_ips || "") : "";
             $("subscription_link_protocol").value = link ? (link.protocol || "vless-reality") : "vless-reality";
             $("subscription_link_camouflage").value = link ? (link.camouflage_host || "") : "";
             $("subscription_link_ws_path").value = link ? (link.ws_path || "/") : "/";
+            if ($("subscription_link_socks_username")) $("subscription_link_socks_username").value = link ? (link.socks_username || "") : "";
+            if ($("subscription_link_socks_password")) $("subscription_link_socks_password").value = link ? (link.socks_password || "") : "";
             
             $("subscription_link_error").style.display = "none";
             $("subscription_link_success").style.display = "none";
@@ -539,8 +526,26 @@
                 generateSubscriptionToken();
                 generateSubscriptionLinkPort();
                 generateSubscriptionLinkCamouflage();
+                generateSubscriptionLinkSocksUser();
+                generateSubscriptionLinkSocksPass();
+                
+                const nameInput = $("subscription_link_name");
+                if (nameInput) nameInput.value = "";
+                fetch("./api/server_location").then(r => r.json()).then(data => {
+                    const cc = (data.country || "us").toLowerCase();
+                    const count = subscriptionLinks.length + 1;
+                    if (nameInput && !nameInput.value) {
+                        nameInput.value = `${cc}-${count.toString().padStart(2, '0')}`;
+                    }
+                }).catch(() => {
+                    const count = subscriptionLinks.length + 1;
+                    if (nameInput && !nameInput.value) {
+                        nameInput.value = `us-${count.toString().padStart(2, '0')}`;
+                    }
+                });
             }
             
+            handleSubscriptionLinkListenChange($("subscription_link_listen").value);
             handleSubscriptionLinkProtocolChange(link ? (link.protocol || "vless-reality") : "vless-reality");
             
             const modal = $("subscription-link-modal");
@@ -577,18 +582,60 @@
             input.value = camouflageHosts[idx];
         }
 
+        function generateSubscriptionLinkSocksUser() {
+            const input = $("subscription_link_socks_username");
+            if (!input) return;
+            const randomPart = generateRandomUUID().replaceAll("-", "");
+            input.value = `user_${randomPart.slice(0, 8)}`;
+        }
+
+        function generateSubscriptionLinkSocksPass() {
+            const input = $("subscription_link_socks_password");
+            if (!input) return;
+            const randomPart = generateRandomUUID().replaceAll("-", "");
+            input.value = `pwd_${randomPart.slice(0, 12)}`;
+        }
+
+        function handleSubscriptionLinkListenChange(listenVal) {
+            const group = $("subscription_link_whitelist_group");
+            if (group) {
+                if (listenVal === "whitelist") {
+                    group.style.display = "block";
+                } else {
+                    group.style.display = "none";
+                }
+            }
+        }
+
         function handleSubscriptionLinkProtocolChange(protocol) {
             const camoGroup = $("subscription_link_camouflage_group");
             const wsGroup = $("subscription_link_ws_path_group");
+            const socksUserGroup = $("subscription_link_socks_user_group");
+            const socksPassGroup = $("subscription_link_socks_pass_group");
+            const listenGroup = $("subscription_link_listen_group");
+            const whitelistGroup = $("subscription_link_whitelist_group");
+            const protocolContainer = $("subscription_link_protocol").parentElement;
+            
+            if (listenGroup) listenGroup.style.display = (protocol === "socks5") ? "block" : "none";
+            if (protocolContainer) protocolContainer.className = (protocol === "socks5") ? "" : "col-span-2";
+            if (protocol !== "socks5" && whitelistGroup) whitelistGroup.style.display = "none";
+            if (protocol === "socks5") handleSubscriptionLinkListenChange($("subscription_link_listen").value);
+
             if (protocol === "vless-reality") {
                 if (camoGroup) camoGroup.style.display = "block";
                 if (wsGroup) wsGroup.style.display = "none";
+                if (socksUserGroup) socksUserGroup.style.display = "none";
+                if (socksPassGroup) socksPassGroup.style.display = "none";
             } else if (protocol === "vmess-ws-tls") {
                 if (camoGroup) camoGroup.style.display = "block";
                 if (wsGroup) wsGroup.style.display = "block";
+                if (socksUserGroup) socksUserGroup.style.display = "none";
+                if (socksPassGroup) socksPassGroup.style.display = "none";
             } else if (protocol === "socks5") {
                 if (camoGroup) camoGroup.style.display = "none";
                 if (wsGroup) wsGroup.style.display = "none";
+                if (socksUserGroup) socksUserGroup.style.display = "block";
+                if (socksPassGroup) socksPassGroup.style.display = "block";
             }
         }
 
@@ -606,10 +653,14 @@
                 name: $("subscription_link_name").value.trim(),
                 token: $("subscription_link_token").value.trim(),
                 remark: $("subscription_link_remark").value.trim(),
+                listen: protocol === "socks5" ? ($("subscription_link_listen") ? $("subscription_link_listen").value : "::") : "::",
+                whitelist_ips: protocol === "socks5" ? ($("subscription_link_whitelist_ips") ? $("subscription_link_whitelist_ips").value.trim() : "") : "",
                 port: parseInt($("subscription_link_port").value),
                 protocol: protocol,
                 camouflage_host: protocol === "socks5" ? "" : $("subscription_link_camouflage").value.trim(),
                 ws_path: protocol === "vmess-ws-tls" ? $("subscription_link_ws_path").value.trim() : "/",
+                socks_username: $("subscription_link_socks_username") ? $("subscription_link_socks_username").value.trim() : "",
+                socks_password: $("subscription_link_socks_password") ? $("subscription_link_socks_password").value.trim() : "",
                 enabled: existing ? existing.enabled !== false : true,
                 created_at: existing ? existing.created_at : ""
             };

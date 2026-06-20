@@ -259,6 +259,21 @@ class Handler(BaseHTTPRequestHandler):
         elif effective_path == "/api/xray/install_status":
             with state.xray_install_lock:
                 self.send_json(state.xray_install_status)
+        elif effective_path == "/api/server_location":
+            if getattr(state, "cached_server_country", None):
+                self.send_json({"ok": True, "country": state.cached_server_country})
+            else:
+                try:
+                    import urllib.request
+                    import json
+                    req = urllib.request.Request("http://ip-api.com/json", headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, timeout=3) as resp:
+                        data = json.loads(resp.read().decode())
+                        cc = data.get("countryCode", "US").lower()
+                        state.cached_server_country = cc
+                except Exception:
+                    cc = "us"
+                self.send_json({"ok": True, "country": cc})
         elif effective_path == "/api/panel/framework":
             ensure_panel_framework_files()
             self.send_json(load_panel_framework_state())

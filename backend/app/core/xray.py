@@ -377,6 +377,8 @@ def write_xray_config(cfg: dict) -> bool:
         except Exception:
             sub_links = []
             sub_nodes = []
+            
+        whitelist_rules = []
 
         for link in sub_links:
             if not link.get("enabled"):
@@ -393,6 +395,18 @@ def write_xray_config(cfg: dict) -> bool:
                 continue
 
             name = str(link.get("name") or f"{protocol}-{port}").strip()
+            
+            raw_listen = str(link.get("listen") or "::")
+            actual_listen = "::" if raw_listen == "whitelist" else raw_listen
+            whitelist_ips_str = str(link.get("whitelist_ips") or "").strip()
+            
+            if raw_listen == "whitelist" and whitelist_ips_str:
+                whitelist_rules.append({
+                    "inboundTag": [link["id"]],
+                    "source": [f"!{whitelist_ips_str}"],
+                    "outboundTag": "block",
+                    "type": "field"
+                })
 
             if protocol == "vless-reality":
                 private_key = str(link.get("reality_private_key") or "").strip()
@@ -461,7 +475,7 @@ def write_xray_config(cfg: dict) -> bool:
                     continue
 
                 inbound_entry = {
-                    "listen": "0.0.0.0",
+                    "listen": actual_listen,
                     "port": port,
                     "protocol": "vless",
                     "tag": link["id"],
@@ -511,7 +525,7 @@ def write_xray_config(cfg: dict) -> bool:
                     continue
 
                 inbound_entry = {
-                    "listen": "0.0.0.0",
+                    "listen": actual_listen,
                     "port": port,
                     "protocol": "vmess",
                     "tag": link["id"],
@@ -545,7 +559,7 @@ def write_xray_config(cfg: dict) -> bool:
                         accounts.append({"user": socks_username, "pass": socks_password})
 
                 inbound_entry = {
-                    "listen": "0.0.0.0",
+                    "listen": actual_listen,
                     "port": port,
                     "protocol": "socks",
                     "tag": link["id"],
@@ -569,6 +583,18 @@ def write_xray_config(cfg: dict) -> bool:
                 continue
             name = str(node.get("name") or node_id).strip()
             camouflage_host = clean_hostname(node.get("camouflage_host"))
+
+            raw_listen = str(node.get("listen") or "::")
+            actual_listen = "::" if raw_listen == "whitelist" else raw_listen
+            whitelist_ips_str = str(node.get("whitelist_ips") or "").strip()
+            
+            if raw_listen == "whitelist" and whitelist_ips_str:
+                whitelist_rules.append({
+                    "inboundTag": [node_id],
+                    "source": [f"!{whitelist_ips_str}"],
+                    "outboundTag": "block",
+                    "type": "field"
+                })
 
             if protocol == "vless-reality":
                 uuid_value = str(node.get("uuid") or "").strip()
@@ -617,7 +643,7 @@ def write_xray_config(cfg: dict) -> bool:
                     reality_settings["mldsa65Seed"] = mldsa_seed
 
                 xray_inbounds.append({
-                    "listen": "0.0.0.0",
+                    "listen": actual_listen,
                     "port": port,
                     "protocol": "vless",
                     "tag": node_id,
@@ -660,7 +686,7 @@ def write_xray_config(cfg: dict) -> bool:
                 if not ws_path.startswith("/"):
                     ws_path = "/" + ws_path
                 xray_inbounds.append({
-                    "listen": "0.0.0.0",
+                    "listen": actual_listen,
                     "port": port,
                     "protocol": "vmess",
                     "tag": node_id,
@@ -690,7 +716,7 @@ def write_xray_config(cfg: dict) -> bool:
                 socks_password = str(node.get("socks_password") or node.get("password") or "").strip()
                 accounts = [{"user": socks_username, "pass": socks_password}] if socks_username and socks_password else []
                 xray_inbounds.append({
-                    "listen": "0.0.0.0",
+                    "listen": actual_listen,
                     "port": port,
                     "protocol": "socks",
                     "tag": node_id,
@@ -793,6 +819,9 @@ def write_xray_config(cfg: dict) -> bool:
                 "type": "field"
             }
         ]
+        
+        if whitelist_rules:
+            xray_routing_rules.extend(whitelist_rules)
 
         if warp_enabled:
             xray_routing_rules.append({
@@ -1555,6 +1584,13 @@ def validate_subscription_link_payload(payload: dict[str, Any], existing_links: 
     reality_mldsa65_verify = str(payload.get("reality_mldsa65_verify") or "").strip()
     reality_spider_x = str(payload.get("reality_spider_x") or "").strip()
 
+    socks_username = clean_proxy_credential(payload.get("socks_username") or "")
+    socks_password = clean_proxy_credential(payload.get("socks_password") or "")
+
+    listen = str(payload.get("listen") or "0.0.0.0").strip()
+    if listen not in ("0.0.0.0", "127.0.0.1", "::"):
+        listen = "0.0.0.0"
+
     now = current_timestamp()
     link_id = current_id or f"sublink-{uuid.uuid4().hex[:12]}"
     
@@ -1567,6 +1603,8 @@ def validate_subscription_link_payload(payload: dict[str, Any], existing_links: 
             if not reality_mldsa65_seed: reality_mldsa65_seed = existing.get("reality_mldsa65_seed", "")
             if not reality_mldsa65_verify: reality_mldsa65_verify = existing.get("reality_mldsa65_verify", "")
             if not reality_spider_x: reality_spider_x = existing.get("reality_spider_x", "")
+            if not socks_username and protocol == "socks5": socks_username = existing.get("socks_username", "")
+            if not socks_password and protocol == "socks5": socks_password = existing.get("socks_password", "")
 
     if protocol == "vless-reality":
         if not camouflage_host:
@@ -1589,6 +1627,16 @@ def validate_subscription_link_payload(payload: dict[str, Any], existing_links: 
             rand_hex = "".join(random.choice("0123456789abcdef") for _ in range(random.randint(8, 16)))
             reality_spider_x = f"/{rand_hex}"
 
+    if protocol == "socks5":
+        if not socks_username:
+            socks_username = f"user_{uuid.uuid4().hex[:8]}"
+        if not socks_password:
+            socks_password = f"pwd_{uuid.uuid4().hex[:12]}"
+        if not (3 <= len(socks_username) <= 64):
+            return None, "SOCKS5 账号长度必须在 3 至 64 位之间"
+        if not (6 <= len(socks_password) <= 96):
+            return None, "SOCKS5 密码长度必须在 6 至 96 位之间"
+
     return {
         "id": link_id,
         "name": name,
@@ -1604,6 +1652,9 @@ def validate_subscription_link_payload(payload: dict[str, Any], existing_links: 
         "reality_mldsa65_seed": reality_mldsa65_seed,
         "reality_mldsa65_verify": reality_mldsa65_verify,
         "reality_spider_x": reality_spider_x,
+        "socks_username": socks_username,
+        "socks_password": socks_password,
+        "listen": listen,
         "enabled": bool(payload.get("enabled", True)),
         "status": "draft",
         "status_text": "已配置入站服务",
@@ -1638,8 +1689,8 @@ def save_subscription_link(payload: dict[str, Any]) -> tuple[dict[str, Any] | No
             socks_username = ""
             socks_password = ""
             if protocol == "socks5":
-                socks_username = f"user_{uuid.uuid4().hex[:12]}"
-                socks_password = f"pwd_{uuid.uuid4().hex[:12]}"
+                socks_username = link.get("socks_username") or f"user_{uuid.uuid4().hex[:8]}"
+                socks_password = link.get("socks_password") or f"pwd_{uuid.uuid4().hex[:12]}"
             else:
                 uuid_value = str(uuid.uuid4())
                 
@@ -1680,6 +1731,7 @@ def ensure_default_subscription_link() -> dict[str, Any]:
         "name": "默认订阅",
         "token": f"sub_{uuid.uuid4().hex}",
         "remark": "自动创建的默认订阅链接",
+        "listen": "0.0.0.0",
         "port": 10086,
         "protocol": "vless-reality",
         "camouflage_host": "www.microsoft.com",

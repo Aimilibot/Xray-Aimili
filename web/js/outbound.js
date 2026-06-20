@@ -362,52 +362,63 @@
             if (!tbody) return;
             const disabledState = $("custom_disabled_state");
             const table = $("custom_outbound_table");
-            const tableWrap = $("custom_table_wrap");
-            const emptyState = $("custom_empty_state");
-            const testBtn = $("custom_test_btn");
-            const addBtn = $("custom_add_btn");
-            if (disabledState) disabledState.style.display = "none";
-            if (emptyState) emptyState.style.display = "none";
-            if (tableWrap) tableWrap.style.display = "";
-            if (table) table.style.display = "table";
-            if (addBtn) addBtn.style.display = "";
-            const nodes = outboundNodes.filter(item => item.type === "custom-node" || item.type === "subscription" || item.type === "json-config");
-            if (testBtn) testBtn.style.display = nodes.length ? "" : "none";
-            if (!nodes.length) {
+                renderOutboundNodes();
+            } catch (e) {
+                if (testBtn) testBtn.style.display = "none";
                 if (tableWrap) tableWrap.style.display = "none";
                 if (emptyState) {
                     emptyState.style.display = "flex";
                     emptyState.textContent = "暂未添加自定义节点";
                 }
+            }
+        }
+
+        function renderOutboundNodes() {
+            const container = $("custom_outbound_rows");
+            if (!container) return;
+            const nodes = outboundNodes.filter(item => item.type === "custom-node" || item.type === "subscription" || item.type === "json-config");
+            if (!nodes.length) {
+                if (isFeatureEnabled("custom_enabled")) {
+                    container.innerHTML = `<div class="outbound-state-panel">暂未添加自定义节点</div>`;
+                }
                 return;
             }
-            tbody.innerHTML = nodes.map(node => {
+            container.innerHTML = nodes.map(node => {
                 const enabled = node.enabled !== false;
+                const statusText = enabled ? "已启用" : "已停用";
+                const typeName = outboundTypeNames[node.type] || node.type || "-";
                 const source = node.type === "subscription"
                     ? (node.subscription_url || "-")
                     : node.type === "json-config"
                         ? "JSON 配置"
                         : (node.share_link || [node.host, node.port].filter(Boolean).join(":") || "-");
+                
+                const actionsHtml = [
+                    actionButton("测试", "check", `testOutboundNode(${jsArg(node.id)})`),
+                    actionButton("编辑", "edit", `editOutboundNode(${jsArg(node.id)})`),
+                    actionButton("删除", "trash", `deleteOutboundNode(${jsArg(node.id)})`, true)
+                ].join("");
+
                 return `
-                    <tr>
-                        <td><span class="inline-flex items-center justify-center rounded-lg py-1 px-2 text-[11px] font-bold text-primary bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] border border-[color-mix(in_srgb,var(--primary)_22%,transparent)]">${esc(outboundTypeNames[node.type] || node.type || "-")}</span></td>
-                        <td><span class="status-badge ${enabled ? "active" : "inactive"}" style="display:inline-flex;"><span class="status-dot"></span>${enabled ? "已启用" : "已停用"}</span></td>
-                        <td class="min-w-[180px] whitespace-normal py-3 px-3.5">
-                            <strong>${esc(node.name || "-")}</strong>
-                            <div style="font-size:12px; color:var(--muted); margin-top:3px;">${esc(node.status_text || "已保存，未写入 Xray")}</div>
-                        </td>
-                        <td>
-                            <div>${esc(node.protocol || outboundTypeNames[node.type] || "-")}</div>
-                            <div class="text-xs text-muted max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap" title="${esc(source)}">${esc(source)}</div>
-                        </td>
-                        <td>
-                            <div class="flex gap-2 justify-end flex-wrap">
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="${esc(`testOutboundNode(${jsArg(node.id)})`)}">测试</button>
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="${esc(`editOutboundNode(${jsArg(node.id)})`)}">编辑</button>
-                                <button type="button" class="btn btn-danger btn-sm" onclick="${esc(`deleteOutboundNode(${jsArg(node.id)})`)}">删除</button>
+                    <div class="node-card bg-[rgba(255,255,255,0.015)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] rounded-lg py-2.5 px-4 flex items-center justify-between gap-4 hover:bg-[rgba(255,255,255,0.04)] transition-all duration-200">
+                        <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                            <span class="w-2.5 h-2.5 rounded-full ${enabled ? 'bg-[var(--success)] shadow-[0_0_6px_var(--success)]' : 'bg-[var(--muted)]'} flex-none" title="${statusText}"></span>
+                            <div class="flex flex-col gap-1.5 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <strong class="text-[14px] font-semibold text-text truncate max-w-[200px]" title="${esc(node.name || "-")}">${esc(node.name || "-")}</strong>
+                                    <span class="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] border border-[color-mix(in_srgb,var(--primary)_22%,transparent)] text-primary text-[11px] font-bold leading-none ml-1">${esc(typeName)}</span>
+                                    <span class="text-[11px] text-muted ml-1">${esc(node.status_text || "已保存，未写入 Xray")}</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-[12px] text-muted flex-wrap">
+                                    <span class="px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] text-[11px] font-mono leading-none">${esc(node.protocol || typeName)}</span>
+                                    <span class="truncate max-w-[360px] ml-1" title="${esc(source)}">${esc(source)}</span>
+                                </div>
                             </div>
-                        </td>
-                    </tr>
+                        </div>
+                        <div class="flex items-center gap-1 flex-none">
+                            ${actionsHtml}
+                        </div>
+                    </div>
                 `;
             }).join("");
         }
@@ -745,7 +756,7 @@
                         </div>
                         <div class="active-card-tools">
                             ${proxyStatusPanelHtml(true)}
-                            <button class="btn btn-danger active-card-action" onclick="disconnectNode()">停止 OpenVPN</button>
+                            <button class="btn btn-danger" onclick="disconnectNode()">停止 OpenVPN</button>
                         </div>
                     </div>
                 `;
@@ -777,7 +788,7 @@
                         </div>
                         <div class="active-card-tools">
                             ${proxyStatusPanelHtml(false)}
-                            <button class="btn btn-danger active-card-action" onclick="disconnectNode()">停止 OpenVPN</button>
+                            <button class="btn btn-danger" onclick="disconnectNode()">停止 OpenVPN</button>
                         </div>
                     </div>
                 `;
@@ -793,8 +804,8 @@
                 const idleIconBg = openvpnEnabled ? "rgba(255, 159, 10, 0.12)" : "rgba(255, 69, 58, 0.08)";
                 const idleIconBorder = openvpnEnabled ? "rgba(255, 159, 10, 0.24)" : "rgba(255, 69, 58, 0.15)";
                 const idleAction = openvpnEnabled
-                    ? `<button class="btn btn-danger active-card-action" onclick="disconnectNode()">停止 OpenVPN</button>`
-                    : `<button class="btn btn-primary active-card-action" onclick="startOpenvpnService()">启动 OpenVPN</button>`;
+                    ? `<button class="btn btn-danger" onclick="disconnectNode()">停止 OpenVPN</button>`
+                    : `<button class="btn btn-primary" onclick="startOpenvpnService()">启动 OpenVPN</button>`;
                 activeCardContainer.innerHTML = `
                     <div class="active-card" style="background: rgba(255, 255, 255, 0.01); border-style: dashed;">
                         <div class="active-card-info">
@@ -895,12 +906,12 @@
                 return;
             }
             if (currentPageNodes.length === 0) {
-                $("rows").innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--muted); padding: 40px 0;">暂无可用节点</td></tr>`;
+                $("rows").innerHTML = `<div class="outbound-state-panel">暂无可用节点</div>`;
             } else {
                 $("rows").innerHTML = currentPageNodes.map(n => {
                     if (!n) return '';
                     const isCurrentlyActive = activeNode && n.id === activeNode.id;
-                    const rowClass = isCurrentlyActive ? 'class="bg-[color-mix(in_srgb,var(--second)_6%,transparent)] outline outline-2 outline-second outline-offset-[-2px] relative"' : '';
+                    const rowClass = isCurrentlyActive ? 'bg-[color-mix(in_srgb,var(--second)_6%,transparent)] border-second shadow-[0_0_12px_rgba(255,159,10,0.15)] scale-[1.01] z-10' : 'bg-[rgba(255,255,255,0.015)] border-[color-mix(in_srgb,var(--border)_20%,transparent)] hover:bg-[rgba(255,255,255,0.04)]';
 
                     const badgeClass = isCurrentlyActive ? 'available' : (n.probe_status || 'not_checked');
                     const badgeText = isCurrentlyActive ? '<span class="badge-pulse"></span>已连接' : translateStatus(n.probe_status);
@@ -911,27 +922,37 @@
 
                     const isUnavailable = n.probe_status === "unavailable";
                     const connectLabel = openvpnEnabled ? "切换" : "启动";
-                    const connectBtn = isCurrentlyActive
-                        ? `<button class="btn btn-primary btn-sm" disabled>已连接</button>`
-                        : `<button class="btn btn-secondary btn-sm" ${(isUnavailable || state.is_connecting) ? 'disabled' : ''} onclick="${esc(`connectNode(${jsArg(n.id)})`)}">${connectLabel}</button>`;
+                    
+                    let actionsHtml = "";
+                    if (isCurrentlyActive) {
+                        actionsHtml = `<button class="btn btn-primary btn-sm px-3 pointer-events-none opacity-80" disabled><span class="badge-pulse"></span>已连接</button>`;
+                    } else if (isUnavailable || state.is_connecting) {
+                        actionsHtml = `<button class="btn btn-secondary btn-sm px-3" disabled>${esc(connectLabel)}</button>`;
+                    } else {
+                        actionsHtml = actionButton(connectLabel, openvpnEnabled ? "stop" : "play", `connectNode(${jsArg(n.id)})`, false, true);
+                    }
 
-                    return `<tr ${rowClass}>
-                        <td>
-                            <strong>${esc(displayLocation)}</strong>
-                            <div style="font-size:12px; color:var(--muted); margin-top:3px;">${esc(n.country_short || n.country || "-")}</div>
-                        </td>
-                        <td class="mono">${esc(ipText)}</td>
-                        <td>
-                            <div class="mono" style="font-size:12px; color:var(--muted);">${esc(asnText)}</div>
-                            <strong>${esc(ispText)}</strong>
-                        </td>
-                        <td>
-                            <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; flex-wrap:wrap;">
-                                <span class="badge ${badgeClass}">${badgeText}</span>
-                                ${connectBtn}
+                    return `
+                        <div class="node-card ${rowClass} border rounded-lg py-2.5 px-4 flex items-center justify-between gap-4 transition-all duration-200">
+                            <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                                <div class="flex flex-col gap-1.5 min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <strong class="text-[14px] font-semibold text-text truncate" title="${esc(displayLocation)}">${esc(displayLocation)}</strong>
+                                        <span class="text-[11px] text-muted font-medium ml-1">${esc(n.country_short || n.country || "-")}</span>
+                                        <span class="badge ${badgeClass} ml-1" style="transform: scale(0.9); transform-origin: left center;">${badgeText}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-[12px] text-muted flex-wrap">
+                                        <span class="px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] font-mono leading-none">${esc(ipText)}</span>
+                                        <span class="font-mono text-[11px] opacity-70 ml-1">${esc(asnText)}</span>
+                                        <span class="truncate max-w-[200px]" title="${esc(ispText)}">${esc(ispText)}</span>
+                                    </div>
+                                </div>
                             </div>
-                        </td>
-                    </tr>`;
+                            <div class="flex items-center gap-2 flex-none">
+                                ${actionsHtml}
+                            </div>
+                        </div>
+                    `;
                 }).join("");
             }
 

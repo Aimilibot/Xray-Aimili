@@ -157,37 +157,48 @@
         }
 
         function renderRoutingRules() {
-            const tbody = $("routing_rules_rows");
-            if (!tbody) return;
+            const container = $("routing_rules_rows");
+            if (!container) return;
             if (!routingRules.length) {
-                tbody.innerHTML = `<tr><td colspan="6" class="compact-empty">暂无路由规则</td></tr>`;
+                container.innerHTML = `<div class="outbound-state-panel">暂无路由规则</div>`;
                 return;
             }
-            tbody.innerHTML = routingRules.map(rule => {
+            container.innerHTML = routingRules.map(rule => {
                 const enabled = rule.enabled !== false;
-                const badgeClass = enabled ? "active" : "inactive";
                 const statusText = enabled ? "已启用" : "未启用";
                 const matchText = formatRoutingConditions(rule);
                 const inboundIds = rule.inbound_node_ids || rule.inbound_node_id;
                 const outboundIds = rule.outbound_node_ids || rule.outbound_node_id;
+                const inboundsText = namesByIds(inboundIds, nodeNameById) || "所有入站";
+                const outboundsText = namesByIds(outboundIds, outboundNameById) || "系统直连";
+
+                const actionsHtml = [
+                    actionButton(enabled ? "停用" : "启用", "power", `toggleRoutingRule(${jsArg(rule.id)}, ${enabled ? "false" : "true"})`, false, false, enabled ? 'text-success' : 'text-muted'),
+                    actionButton("编辑", "edit", `editRoutingRule(${jsArg(rule.id)})`),
+                    actionButton("删除", "trash", `deleteRoutingRule(${jsArg(rule.id)})`, true)
+                ].join("");
+
                 return `
-                    <tr>
-                        <td><span class="status-badge ${badgeClass}" style="display:inline-flex;"><span class="status-dot"></span>${statusText}</span></td>
-                        <td class="min-w-[180px] whitespace-normal py-3 px-3.5">
-                            <strong>${esc(rule.name || "-")}</strong>
-                            <div style="font-size:12px; color:var(--muted); margin-top:3px;">${esc(rule.status_text || "未写入 Xray")}</div>
-                        </td>
-                        <td>${esc(namesByIds(inboundIds, nodeNameById))}</td>
-                        <td>${esc(matchText)}</td>
-                        <td>${esc(namesByIds(outboundIds, outboundNameById))}</td>
-                        <td>
-                            <div class="flex gap-2 justify-end flex-wrap">
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="${esc(`toggleRoutingRule(${jsArg(rule.id)}, ${enabled ? "false" : "true"})`)}">${enabled ? "停用" : "启用"}</button>
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="${esc(`editRoutingRule(${jsArg(rule.id)})`)}">编辑</button>
-                                <button type="button" class="btn btn-danger btn-sm" onclick="${esc(`deleteRoutingRule(${jsArg(rule.id)})`)}">删除</button>
+                    <div class="node-card bg-[rgba(255,255,255,0.015)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] rounded-lg py-2.5 px-4 flex items-center justify-between gap-4 hover:bg-[rgba(255,255,255,0.04)] transition-all duration-200">
+                        <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                            <span class="w-2.5 h-2.5 rounded-full ${enabled ? 'bg-[var(--success)] shadow-[0_0_6px_var(--success)]' : 'bg-[var(--muted)]'} flex-none" title="${statusText}"></span>
+                            <div class="flex flex-col gap-1.5 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <strong class="text-[14px] font-semibold text-text truncate max-w-[200px]" title="${esc(rule.name || "-")}">${esc(rule.name || "-")}</strong>
+                                    <span class="text-[11px] text-muted ml-2">${esc(rule.status_text || "未写入 Xray")}</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-[12px] text-muted flex-wrap">
+                                    <span class="px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] text-[11px] font-mono leading-none">${esc(inboundsText)}</span>
+                                    <span>👉</span>
+                                    <span class="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] border border-[color-mix(in_srgb,var(--primary)_25%,transparent)] text-primary text-[11px] font-mono leading-none">${esc(outboundsText)}</span>
+                                    <span class="text-text font-medium ml-1">(${esc(matchText)})</span>
+                                </div>
                             </div>
-                        </td>
-                    </tr>
+                        </div>
+                        <div class="flex items-center gap-1 flex-none">
+                            ${actionsHtml}
+                        </div>
+                    </div>
                 `;
             }).join("");
         }
@@ -273,9 +284,7 @@
             
             const submit = $("routing_rule_submit");
             if (submit) submit.textContent = rule ? "保存规则" : "创建规则";
-            const createBtn = $("routing_rule_create_btn");
-            const saveBtn = $("routing_rule_save_btn");
-            if (createBtn) createBtn.style.display = rule ? "none" : "";
+                        const saveBtn = $("routing_rule_save_btn");
             if (saveBtn) saveBtn.textContent = rule ? "保存应用" : "保存应用";
             
             const modal = $("routing-rule-modal");
@@ -295,7 +304,7 @@
             event.preventDefault();
             const err = $("routing_rule_error");
             const ok = $("routing_rule_success");
-            const btn = applyImmediately ? $("routing_rule_save_btn") : $("routing_rule_create_btn");
+            const btn = $("routing_rule_save_btn");
             err.style.display = "none";
             ok.style.display = "none";
             
@@ -349,8 +358,6 @@
                 if (applyImmediately) setTimeout(closeRoutingRuleModal, 450);
                 if (!applyImmediately && data.rule && data.rule.id) {
                     $("routing_rule_id").value = data.rule.id;
-                    const createBtn = $("routing_rule_create_btn");
-                    if (createBtn) createBtn.style.display = "none";
                 }
             } catch (e) {
                 err.textContent = "无法连接后端接口";
