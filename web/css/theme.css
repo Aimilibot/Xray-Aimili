@@ -142,10 +142,48 @@ label { color:var(--muted); font-weight:600; }
 }
 
 /* ── 按钮基础 ── */
+.btn {
+  min-height:36px; padding:8px 16px; border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--glass); color:var(--text);
+  font:inherit; font-size:13px; font-weight:700;
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  cursor:pointer; text-decoration:none; white-space:nowrap;
+  transition:background .16s, border-color .16s, color .16s, transform .16s, box-shadow .16s;
+}
+.btn:hover {
+  border-color:color-mix(in srgb, var(--primary) 32%, var(--surface-line));
+  background:color-mix(in srgb, var(--primary) 8%, var(--glass));
+  transform:translateY(-1px);
+}
+.btn:disabled {
+  opacity:.62; cursor:not-allowed; transform:none; box-shadow:none;
+}
+.btn-sm { min-height:30px; padding:6px 12px; border-radius:9px; font-size:12px; }
+.btn-primary {
+  color:#fff; border-color:transparent;
+  background:linear-gradient(145deg, var(--primary), var(--second));
+  box-shadow:0 10px 20px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+.btn-primary:hover {
+  color:#fff; border-color:transparent;
+  background:linear-gradient(145deg, color-mix(in srgb, var(--primary) 90%, white), var(--primary));
+}
+.btn-secondary {
+  background:color-mix(in srgb, var(--glass-strong) 72%, transparent);
+  color:var(--text);
+}
+.btn-danger {
+  color:#fff; border-color:transparent;
+  background:linear-gradient(145deg, #ff5370, var(--danger));
+  box-shadow:0 10px 20px color-mix(in srgb, var(--danger) 18%, transparent);
+}
 .btn-primary-action {
   background:linear-gradient(145deg, var(--primary), var(--second));
   border:1px solid transparent;
   color:#fff; font-weight:700;
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  min-height:36px; cursor:pointer;
   transition:all .18s ease;
 }
 .btn-primary-action:hover {
@@ -545,37 +583,6 @@ thead th:last-child { border-top-right-radius:16px; }
 }
 .feature-disabled-panel strong { display:block; color:var(--text); font-size:14px; margin-bottom:6px; }
 
-/* connect-btn / test-btn (JS 动态生成) */
-.connect-btn,
-.test-btn {
-  min-height:36px; padding:8px 16px; border-radius:11px;
-  border:1px solid var(--border);
-  background:linear-gradient(160deg, rgba(255,255,255,.86), color-mix(in srgb, var(--page-a) 84%, white));
-  backdrop-filter:blur(24px) saturate(180%);
-  -webkit-backdrop-filter:blur(24px) saturate(180%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.55),
-    0 2px 8px rgba(32,72,66,.05);
-  color:var(--text); font-weight:650;
-  cursor:pointer; text-decoration:none;
-  display:inline-flex; align-items:center; justify-content:center; gap:7px;
-  transition:background .18s, border-color .18s, box-shadow .18s, transform .18s;
-}
-.connect-btn:hover,
-.test-btn:hover {
-  background:linear-gradient(160deg, #fff, color-mix(in srgb, var(--primary) 7%, var(--page-a)));
-  border-color:color-mix(in srgb, var(--primary) 26%, var(--surface-line));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.6), 0 3px 12px rgba(32,72,66,.07);
-  transform:translateY(-1px);
-}
-.connect-btn:disabled,
-.test-btn:disabled {
-  background:color-mix(in srgb, var(--page-a) 74%, white);
-  border-color:color-mix(in srgb, var(--surface-line) 52%, transparent);
-  color:var(--text-soft); cursor:not-allowed; transform:none;
-  box-shadow:inset 2px 2px 5px rgba(32,72,66,.045), inset -2px -2px 5px rgba(255,255,255,.7);
-}
-
 /* 行操作按钮文字扩展 */
 .row-action-btn--text {
   width:auto; padding:0 10px; gap:5px;
@@ -665,7 +672,7 @@ thead th:last-child { border-top-right-radius:16px; }
 .proxy-status-title { font-size:12px; font-weight:600; color:var(--muted); white-space:nowrap; }
 .proxy-status-line { display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:0; }
 .proxy-status-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
-.proxy-test-btn { min-height:28px; padding:4px 10px; font-size:11.5px; font-weight:650; }
+.proxy-check-btn { min-height:28px; padding:4px 10px; font-size:11.5px; font-weight:650; }
 
 /* status-badge */
 .status-badge { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:650; }
@@ -683,20 +690,6 @@ thead th:last-child { border-top-right-radius:16px; }
 /* mono 等宽工具类 */
 .mono { font-family:"JetBrains Mono","SFMono-Regular",Consolas,monospace; font-size:11.5px; }
 
-/* 赤黑主题 JS 组件的额外覆盖 */
-body:has(#theme-red:checked) .connect-btn,
-body:has(#theme-red:checked) .test-btn {
-  background:linear-gradient(160deg, rgba(48,44,64,.84), rgba(24,22,38,.76));
-  border-color:rgba(255,255,255,.14); color:#f2f3f8;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 2px 12px rgba(0,0,0,.24);
-}
-body:has(#theme-red:checked) .connect-btn:hover,
-body:has(#theme-red:checked) .test-btn:hover {
-  background:linear-gradient(160deg, rgba(62,56,80,.88), rgba(34,30,50,.82));
-  border-color:color-mix(in srgb, var(--primary) 34%, rgba(255,255,255,.14));
-  color:#fff;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 3px 18px rgba(0,0,0,.28);
-}
 body:has(#theme-red:checked) .form-input {
   background:rgba(18,18,29,.72); border-color:rgba(255,255,255,.12); color:#f3f4fb;
 }

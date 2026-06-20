@@ -5,6 +5,7 @@ import time
 import re
 import queue
 import shlex
+import shutil
 import socket
 import subprocess
 import threading
@@ -18,6 +19,7 @@ from typing import Any
 from backend.app import state
 from backend.app.config import (
     ROOT_DIR, DATA_DIR, CONFIG_DIR, NODES_FILE, OPENVPN_CMD, AUTH_FILE,
+    OPENVPN_AUTH_USER, OPENVPN_AUTH_PASS,
     OPENVPN_TEST_TIMEOUT_SECONDS, LOCAL_PROXY_HOST, LOCAL_PROXY_PORT,
     CHECK_INTERVAL_SECONDS, API_URL, TARGET_VALID_NODES, FETCH_INTERVAL_SECONDS
 )
@@ -380,6 +382,38 @@ def get_openvpn_version() -> float:
     _openvpn_version = 2.4
     return _openvpn_version
 
+def openvpn_preflight_error() -> str | None:
+    command = shlex.split(OPENVPN_CMD, posix=False) or ["openvpn"]
+    executable = command[0]
+    if shutil.which(executable) is None:
+        return f"[错误代码 2001] [ERR_OVPN_CMD_NOT_FOUND] 未找到 {executable} 命令。原因: 系统未安装 OpenVPN，或服务进程 PATH 环境变量不包含 OpenVPN 所在目录。"
+
+    if sys.platform.startswith("linux"):
+        if not Path("/dev/net/tun").exists():
+            return "[错误代码 2009] [ERR_OVPN_TUN_NOT_AVAILABLE] 无法创建虚拟网卡 (TUN 设备)。原因: Linux 系统缺少 /dev/net/tun，或 VPS/容器未开启 TUN/TAP、NET_ADMIN 权限。"
+        if hasattr(os, "geteuid") and os.geteuid() != 0:
+            return "[错误代码 2002] [ERR_OVPN_PERMISSION_DENIED] OpenVPN 权限不足。原因: 当前服务不是 root，可能无法创建 TUN 网卡或写入路由。请使用 root/服务管理器运行，容器环境需授予 NET_ADMIN。"
+
+    return None
+
+def is_openvpn_environment_error(message: str) -> bool:
+    return any(
+        token in (message or "")
+        for token in [
+            "ERR_OVPN_CMD_NOT_FOUND",
+            "ERR_OVPN_TUN_NOT_AVAILABLE",
+            "ERR_OVPN_PERMISSION_DENIED",
+            "ERR_OVPN_START_FAILED",
+        ]
+    )
+
+def probe_status_for_message(ok: bool, message: str) -> str:
+    if ok:
+        return "available"
+    if is_openvpn_environment_error(message):
+        return "not_checked"
+    return "unavailable"
+
 def openvpn_command(config_file: str, route_nopull: bool, dev: str = "tun0") -> list[str]:
     command = shlex.split(OPENVPN_CMD, posix=False) or ["openvpn"]
     command.extend(
@@ -477,6 +511,11 @@ def update_handshake_status(line_lower: str) -> None:
 
 def run_openvpn_until_ready(config_file: str, keep_alive: bool, route_nopull: bool, timeout: int | None = None, dev: str = "tun0") -> tuple[bool, str, subprocess.Popen[str] | None]:
     limit = timeout if timeout is not None else OPENVPN_TEST_TIMEOUT_SECONDS
+    preflight_error = openvpn_preflight_error()
+    if preflight_error:
+        log_to_json("ERROR", "VPN", f"OpenVPN 环境预检失败: {preflight_error}")
+        return False, preflight_error, None
+
     command = openvpn_command(config_file, route_nopull, dev)
     try:
         process = subprocess.Popen(
@@ -729,7 +768,7 @@ def test_node_by_id(node_id: str) -> dict[str, Any]:
         node = next((item for item in nodes if item.get("id") == node_id), None)
         if node:
             node["latency_ms"] = latency
-            node["probe_status"] = "available" if ok else "unavailable"
+            node["probe_status"] = probe_status_for_message(ok, message)
             node["probe_message"] = message
             node["probed_at"] = time.time()
             if ok:
@@ -739,7 +778,7 @@ def test_node_by_id(node_id: str) -> dict[str, Any]:
                 node["location"] = temp_node["location"]
                 node["ip_type"] = temp_node["ip_type"]
                 node["quality"] = temp_node["quality"]
-            else:
+            elif node["probe_status"] == "unavailable":
                 mark_blacklisted(node, f"节点手动检测失败: {message}")
 
             sorted_nodes = sort_all_nodes(nodes)
@@ -789,7 +828,7 @@ def test_multiple_nodes(node_ids: list[str]) -> list[dict[str, Any]]:
         temp_node = {
             "id": node_id,
             "latency_ms": latency,
-            "probe_status": "available" if ok else "unavailable",
+            "probe_status": probe_status_for_message(ok, message),
             "probe_message": message,
             "probed_at": time.time(),
             "owner": "",
@@ -825,7 +864,7 @@ def test_multiple_nodes(node_ids: list[str]) -> list[dict[str, Any]]:
             except Exception as e:
                 updated_nodes_map[nid] = {
                     "id": nid,
-                    "probe_status": "unavailable",
+                    "probe_status": "not_checked" if is_openvpn_environment_error(str(e)) else "unavailable",
                     "probe_message": f"Test exception: {e}",
                     "latency_ms": 0
                 }
@@ -967,12 +1006,13 @@ def connect_node(node_id: str) -> str:
                     config_path.unlink()
             except Exception:
                 pass
-            node["probe_status"] = "unavailable"
+            node["probe_status"] = probe_status_for_message(ok, message)
             node["probe_message"] = message
             for item in nodes:
                 item["active"] = False
             write_json(NODES_FILE, nodes)
-            mark_blacklisted(node, f"OpenVPN 启动或握手失败: {message}")
+            if node["probe_status"] == "unavailable":
+                mark_blacklisted(node, f"OpenVPN 启动或握手失败: {message}")
             log_to_json("ERROR", "VPN", f"连接节点 {node_id} 失败: {message}")
             print(f"[连接核心失败] 无法与 VPN 节点 {node_id} 建立隧道连接！详情: {message}", flush=True)
             set_state(active_openvpn_node_id="", is_connecting=False, active_node_latency="无活动连接", last_check_message=f"连接失败: {message}")
@@ -1154,6 +1194,21 @@ def maintain_valid_nodes(force: bool = False) -> str:
                 to_test = [n for n in current_nodes if not n.get("active")][:10]
 
             to_test_ids = [n["id"] for n in to_test]
+
+        preflight_error = openvpn_preflight_error()
+        if preflight_error:
+            state.is_connecting = False
+            valid_nodes_count = len([n for n in read_json(NODES_FILE, []) if n.get("probe_status") == "available"])
+            message = f"Fetched {len(candidates)} nodes. 已同步节点，但 OpenVPN 环境暂不可检测: {preflight_error}"
+            set_state(
+                last_check_at=time.time(),
+                last_check_message=message,
+                active_openvpn_node_id=state.active_openvpn_node_id,
+                openvpn_enabled=state.openvpn_enabled,
+                is_connecting=False,
+                valid_nodes=valid_nodes_count,
+            )
+            return message
 
         print(f"[维护线程] 正在检测新获取列表的前 10 个节点: {to_test_ids}", flush=True)
         set_state(is_connecting=bool(vpn_allowed), last_check_message="正在并发检测筛选可用节点，这可能需要 5-30 秒...")

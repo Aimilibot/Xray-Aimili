@@ -1112,7 +1112,7 @@
                         <div class="clients-section">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
                                 <strong style="font-size: 13.5px; color: var(--text);">客户端账户授权列表 (${ib.protocol.toUpperCase()})</strong>
-                                <button type="button" class="connect-btn" onclick="addClientToInbound(${ibIdx})" style="padding: 2px 12px; font-size:11.5px; height:28px; width:auto; margin-bottom:0; border-radius:6px;">新增客户端</button>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="addClientToInbound(${ibIdx})" style="height:28px; width:auto; margin-bottom:0;">新增客户端</button>
                             </div>
                             <div style="border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: rgba(0,0,0,0.02); overflow-x:auto;">
                                 <div class="client-header-row">
@@ -1136,7 +1136,7 @@
                                             </div>
                                             <div class="mb-[22px] text-left" style="display:flex; gap:4px; align-items:center;">
                                                 <input type="text" placeholder="UUID / 密匙" class="form-input client-secret xray-secret-field" value="${esc(clientSecret)}" style="height:32px; font-size:11px; flex:1;">
-                                                <button type="button" class="test-btn" onclick="generateRandomClientSecret(${ibIdx}, ${clientIdx})" style="height:32px; padding:0 8px; width:auto; font-size:11px; margin-bottom:0; border-radius:6px;">生成</button>
+                                                <button type="button" class="btn btn-secondary btn-sm" onclick="generateRandomClientSecret(${ibIdx}, ${clientIdx})" style="height:32px; padding:0 8px; width:auto; font-size:11px; margin-bottom:0;">生成</button>
                                             </div>
                                             <div class="mb-[22px] text-left">
                                                 <input type="number" min="0" step="0.1" placeholder="无限制" class="form-input client-quota" value="${client.quota_gb || 0}" style="height:32px; font-size:12.5px; padding:0 4px; text-align:center;" title="流量限制 (GB)，0 表示无限制">
@@ -1159,9 +1159,9 @@
                                                 </select>
                                             </div>
                                             <div style="display:flex; gap:4px; justify-content:center;">
-                                                <button type="button" class="test-btn" onclick="openShareModal(${ibIdx}, ${clientIdx})" style="height:32px; padding:0 8px; width:auto; font-size:11px; margin-bottom:0; color:var(--primary); border-radius:6px;" title="分享节点与订阅">分享</button>
-                                                <button type="button" class="test-btn" onclick="${esc(`resetClientTraffic(${jsArg(client.name)})`)}" style="height:32px; padding:0 8px; width:auto; font-size:11px; margin-bottom:0; color:var(--primary); border-radius:6px;" title="重置已用流量">重置</button>
-                                                <button type="button" class="w-full min-h-[32px] py-2 px-4 bg-gradient-to-br from-[#ff5370] to-danger border-none rounded-xl text-white font-bold cursor-pointer shadow-[0_12px_24px_rgba(255,83,112,0.24)] transition-all duration-[280ms] ease inline-flex justify-center items-center gap-2 hover:translate-y-[-2px] hover:shadow-[0_14px_28px_rgba(255,83,112,0.32)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed" onclick="removeClientFromInbound(${ibIdx}, ${clientIdx})" style="height:32px; padding:0 8px; width:auto; font-size:11px; margin-bottom:0; border-radius:6px;">删除</button>
+                                                <button type="button" class="btn btn-secondary btn-sm" onclick="openShareModal(${ibIdx}, ${clientIdx})" style="height:32px; padding:0 8px; width:auto; font-size:11px; margin-bottom:0;" title="分享节点与订阅">分享</button>
+                                                <button type="button" class="btn btn-secondary btn-sm" onclick="${esc(`resetClientTraffic(${jsArg(client.name)})`)}" style="height:32px; padding:0 8px; width:auto; font-size:11px; margin-bottom:0;" title="重置已用流量">重置</button>
+                                                <button type="button" class="btn btn-danger btn-sm" onclick="removeClientFromInbound(${ibIdx}, ${clientIdx})" style="height:32px; padding:0 8px; width:auto; font-size:11px; margin-bottom:0;">删除</button>
                                             </div>
                                         </div>
                                     `;

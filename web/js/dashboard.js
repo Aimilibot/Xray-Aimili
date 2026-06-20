@@ -199,7 +199,7 @@ function toggleVPSModal() {
                         </div>
                     </div>
                     <div class="proxy-status-actions">
-                        <button id="btn_test_proxy" class="test-btn proxy-test-btn" onclick="testLocalProxy()" ${disabled ? "disabled" : ""}>检测</button>
+                        <button id="btn_test_proxy" class="btn btn-secondary btn-sm proxy-check-btn" onclick="testLocalProxy()" ${disabled ? "disabled" : ""}>检测</button>
                     </div>
                 </div>
             `;

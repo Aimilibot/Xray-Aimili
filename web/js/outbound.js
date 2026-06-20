@@ -50,17 +50,20 @@
         }
 
         let currentWarpNode = null;
-        const batchTestIconHtml = `<svg viewBox="0 0 24 24"><path d="M4 5h10"/><path d="M4 12h8"/><path d="M4 19h10"/><path d="m16 12 2 2 4-5"/></svg>`;
 
         function renderWarpPowerButton() {
             const btn = document.querySelector(`[data-feature-power="warp_enabled"]`);
             if (!btn) return;
             const isOn = !!currentWarpNode && isFeatureEnabled("warp_enabled");
+            const resetBtn = $("warp_reset_btn");
+            const testBtn = $("warp_test_btn");
             btn.classList.toggle("is-on", isOn);
             btn.setAttribute("aria-pressed", isOn ? "true" : "false");
-            btn.title = isOn ? "关闭" : "启动";
+            btn.title = isOn ? "关闭 WARP" : "启动 WARP";
             const label = btn.querySelector(".feature-power-label");
             if (label) label.textContent = isOn ? "关闭" : "启动";
+            if (resetBtn) resetBtn.style.display = isOn ? "" : "none";
+            if (testBtn) testBtn.style.display = isOn ? "" : "none";
         }
 
         async function loadWarpState() {
@@ -395,7 +398,36 @@
             }
         }
 
-        function openOutboundNodeModal(nodeId = "") {
+        async function testAllCustomOutboundNodes() {
+            if (!isFeatureEnabled("custom_enabled")) {
+                showToast("请先开启自定义节点功能", "warning");
+                return;
+            }
+            const targets = outboundNodes.filter(item =>
+                item.enabled !== false &&
+                (item.type === "custom-node" || item.type === "subscription" || item.type === "json-config")
+            );
+            if (!targets.length) {
+                showToast("当前没有可测试的自定义节点", "warning");
+                return;
+            }
+            showToast(`开始测试 ${targets.length} 个自定义节点...`, "info");
+            let okCount = 0;
+            for (const node of targets) {
+                try {
+                    const res = await fetch("./api/panel/outbound-nodes/test", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ id: node.id })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.ok) okCount += 1;
+                } catch (e) {}
+            }
+            showToast(`自定义节点测试完成：${okCount}/${targets.length} 可用`, okCount ? "success" : "warning");
+        }
+
+        function openOutboundNodeModal(nodeId = "", mode = "add") {
             if (!isFeatureEnabled("custom_enabled")) {
                 showToast("请先开启自定义节点功能", "warning");
                 return;
@@ -414,6 +446,18 @@
             $("outbound_node_success").style.display = "none";
             const modal = $("outbound-node-modal");
             if (modal) modal.style.display = "flex";
+            setTimeout(() => {
+                const target = mode === "import" ? $("outbound_node_input_source") : $("outbound_node_json_config");
+                if (target) target.focus();
+            }, 40);
+        }
+
+        function openOutboundAddModal() {
+            openOutboundNodeModal("", "add");
+        }
+
+        function openOutboundImportModal() {
+            openOutboundNodeModal("", "import");
         }
 
         function closeOutboundNodeModal() {
@@ -585,12 +629,6 @@
                 alert("无法连接后端接口");
             }
         }
-        function openOpenvpnRoutingModal() {
-            loadGatewayStatus();
-            const modal = $("openvpn-routing-modal");
-            if (modal) modal.style.display = "flex";
-        }
-
         function closeOpenvpnRoutingModal() {
             const modal = $("openvpn-routing-modal");
             if (modal) modal.style.display = "none";
@@ -669,7 +707,7 @@
                         </div>
                         <div class="active-card-tools">
                             ${proxyStatusPanelHtml(true)}
-                            <button class="btn danger active-card-action" onclick="disconnectNode()">停止 OpenVPN</button>
+                            <button class="btn btn-danger active-card-action" onclick="disconnectNode()">停止 OpenVPN</button>
                         </div>
                     </div>
                 `;
@@ -701,7 +739,7 @@
                         </div>
                         <div class="active-card-tools">
                             ${proxyStatusPanelHtml(false)}
-                            <button class="btn danger active-card-action" onclick="disconnectNode()">停止 OpenVPN</button>
+                            <button class="btn btn-danger active-card-action" onclick="disconnectNode()">停止 OpenVPN</button>
                         </div>
                     </div>
                 `;
@@ -717,8 +755,8 @@
                 const idleIconBg = openvpnEnabled ? "rgba(255, 159, 10, 0.12)" : "rgba(255, 69, 58, 0.08)";
                 const idleIconBorder = openvpnEnabled ? "rgba(255, 159, 10, 0.24)" : "rgba(255, 69, 58, 0.15)";
                 const idleAction = openvpnEnabled
-                    ? `<button class="btn danger active-card-action" onclick="disconnectNode()">停止 OpenVPN</button>`
-                    : `<button class="btn primary active-card-action" onclick="startOpenvpnService()">启动 OpenVPN</button>`;
+                    ? `<button class="btn btn-danger active-card-action" onclick="disconnectNode()">停止 OpenVPN</button>`
+                    : `<button class="btn btn-primary active-card-action" onclick="startOpenvpnService()">启动 OpenVPN</button>`;
                 activeCardContainer.innerHTML = `
                     <div class="active-card" style="background: rgba(255, 255, 255, 0.01); border-style: dashed;">
                         <div class="active-card-info">
@@ -833,16 +871,11 @@
                     const ispText = n.owner || n.as_name || "-";
                     const asnText = n.asn ? `AS${String(n.asn).replace(/^AS/i, "")}` : "-";
 
-                    const isTesting = testingNodeIds.has(n.id);
-                    const testSpinner = `<svg style="animation: spin 1s linear infinite; width: 12px; height: 12px; display: inline-block; margin-right: 4px; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.2" fill="none"></circle><path d="M4 12a8 8 0 018-8" stroke="currentColor" fill="none"></path></svg>`;
-                    const testBtnText = isTesting ? `${testSpinner}检测中` : '检测';
-                    const testBtn = `<button class="test-btn" data-node-id="${esc(n.id)}" ${isTesting ? 'disabled' : ''} onclick="${esc(`testNode(this, ${jsArg(n.id)}, event)`)}">${testBtnText}</button>`;
-
                     const isUnavailable = n.probe_status === "unavailable";
                     const connectLabel = openvpnEnabled ? "切换" : "启动";
                     const connectBtn = isCurrentlyActive
-                        ? `<button class="w-full min-h-[32px] py-2 px-4 bg-gradient-to-br from-primary to-second border-none rounded-xl text-white font-bold cursor-pointer shadow-[0_12px_24px_color-mix(in_srgb,var(--primary)_24%,transparent)] transition-all duration-[280ms] ease inline-flex justify-center items-center gap-2 hover:translate-y-[-2px] hover:shadow-[0_14px_28px_color-mix(in_srgb,var(--primary)_34%,transparent)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed" disabled style="background: var(--primary); color: white; cursor: default; border:none; opacity:1;">已连接</button>`
-                        : `<button class="connect-btn" ${(isUnavailable || state.is_connecting) ? 'disabled' : ''} onclick="${esc(`connectNode(${jsArg(n.id)})`)}">${connectLabel}</button>`;
+                        ? `<button class="btn btn-primary btn-sm" disabled>已连接</button>`
+                        : `<button class="btn btn-secondary btn-sm" ${(isUnavailable || state.is_connecting) ? 'disabled' : ''} onclick="${esc(`connectNode(${jsArg(n.id)})`)}">${connectLabel}</button>`;
 
                     return `<tr ${rowClass}>
                         <td>
@@ -857,7 +890,6 @@
                         <td>
                             <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; flex-wrap:wrap;">
                                 <span class="badge ${badgeClass}">${badgeText}</span>
-                                ${testBtn}
                                 ${connectBtn}
                             </div>
                         </td>
@@ -891,35 +923,6 @@
             currentPage = totalPages;
             render();
         };
-
-        async function testNode(btn, id, event) {
-            if (!isFeatureEnabled("vpngate_enabled")) {
-                showToast("请先开启 VPNGate 公益节点功能", "warning");
-                return;
-            }
-            if (event) event.stopPropagation();
-            testingNodeIds.add(id);
-            render();
-
-            try {
-                const response = await fetch("./api/test_node", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id })
-                });
-                const result = await response.json();
-                if (result.ok && result.node) {
-                    const idx = nodes.findIndex(n => n.id === id);
-                    if (idx !== -1) {
-                        nodes[idx] = result.node;
-                    }
-                }
-            } catch (e) {
-            } finally {
-                testingNodeIds.delete(id);
-                render();
-            }
-        }
 
         async function connectNode(id) {
             if (!isFeatureEnabled("vpngate_enabled")) {
@@ -963,69 +966,32 @@
             }
         }
 
-        $("btn_batch_test").onclick = async () => {
+        async function syncVpngateNodes() {
             if (!isFeatureEnabled("vpngate_enabled")) {
                 showToast("请先开启 VPNGate 公益节点功能", "warning");
                 return;
             }
-            const pageNodes = currentPageNodes || [];
-            if (pageNodes.length === 0) {
-                alert("当前页面没有可供测试的备选节点");
-                return;
-            }
-
-            const btn = $("btn_batch_test");
+            const btn = $("vpngate_sync_btn") || $("refresh");
             btn.disabled = true;
-            btn.innerHTML = `<svg style="animation: spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.2" fill="none"></circle><path d="M4 12a8 8 0 018-8" stroke="currentColor" fill="none"></path></svg>`;
-
-            pageNodes.forEach(n => testingNodeIds.add(n.id));
-            render();
-
-            const testPromises = pageNodes.map(async (n) => {
-                const id = n.id;
-                try {
-                    const response = await fetch("./api/test_node", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id })
-                    });
-                    const result = await response.json();
-                    if (result.ok && result.node) {
-                        const idx = nodes.findIndex(node => node.id === id);
-                        if (idx !== -1) {
-                            nodes[idx] = result.node;
-                        }
-                    }
-                } catch (e) { }
-                testingNodeIds.delete(id);
-            });
-
-            await Promise.all(testPromises);
-            stableSortNodes();
-            render();
-            btn.disabled = false;
-            btn.innerHTML = batchTestIconHtml;
-        };
+            btn.textContent = "同步中...";
+            try {
+                await fetch("./api/refresh_nodes", { method: "POST" });
+                await load();
+            } catch (e) {
+                showToast("同步节点失败，请检查后端服务", "error");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "同步节点";
+            }
+        }
 
         const searchInput = $("search");
         if (searchInput) searchInput.oninput = () => { currentPage = 1; render(); };
         const countryFilter = $("country_filter");
         if (countryFilter) countryFilter.onchange = () => { currentPage = 1; render(); };
 
-        $("refresh").onclick = async () => {
-            if (!isFeatureEnabled("vpngate_enabled")) {
-                showToast("请先开启 VPNGate 公益节点功能", "warning");
-                return;
-            }
-            $("refresh").disabled = true;
-            $("refresh").textContent = "正在拉取同步...";
-            try { await fetch("./api/refresh_nodes", { method: "POST" }); await load(); }
-            catch (e) { }
-            finally {
-                $("refresh").disabled = false;
-                $("refresh").textContent = "同步节点";
-            }
-        };
+        if ($("refresh")) $("refresh").onclick = syncVpngateNodes;
+        window.syncVpngateNodes = syncVpngateNodes;
 
 
         async function saveNetwork(e) {

@@ -63,7 +63,7 @@
             }
         }
 
-        let nodes = [], state = {}, testingNodeIds = new Set(), stats_cache = null;
+        let nodes = [], state = {}, stats_cache = null;
         let featureGates = {
             vpngate_enabled: false,
             warp_enabled: false,
@@ -322,7 +322,7 @@
             load();
 
             setInterval(async () => {
-                if (typeof state !== "undefined" && !state.is_connecting && (!testingNodeIds || !testingNodeIds.size) && document.visibilityState === "visible") {
+                if (typeof state !== "undefined" && !state.is_connecting && document.visibilityState === "visible") {
                     try {
                         const r = await fetch("./api/nodes");
                     const d = await r.json();

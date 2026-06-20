@@ -122,7 +122,7 @@
         <!-- 页头 -->
         <div class="flex justify-between items-center pb-4 border-b border-[color-mix(in_srgb,var(--muted)_14%,transparent)]">
           <h2 class="!text-[22px] !font-extrabold tracking-[-0.3px]">控制台</h2>
-          <button id="refresh" onclick="load()" class="btn-primary-action py-2 px-5 rounded-xl text-[13px] font-bold inline-flex items-center gap-2 shadow-lg">同步节点</button>
+          <button id="refresh" onclick="load()" class="btn btn-primary">同步节点</button>
         </div>
 
         <!-- 硬件资源监控 -->
@@ -260,8 +260,7 @@
                   <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
                   <span class="feature-power-label">启动</span>
                 </button>
-                <button onclick="openOpenvpnRoutingModal()" title="OpenVPN 路由设置" aria-label="OpenVPN 路由设置" class="icon-only-btn"><svg viewBox="0 0 24 24"><path d="M4 18V6"/><path d="M20 6v12"/><path d="M8 8h8"/><path d="M8 16h8"/><path d="m16 8 3-3"/><path d="m16 16 3 3"/></svg></button>
-                <button id="btn_batch_test" title="批量测试本页" aria-label="批量测试本页" class="icon-only-btn"><svg viewBox="0 0 24 24"><path d="M4 5h10"/><path d="M4 12h8"/><path d="M4 19h10"/><path d="m16 12 2 2 4-5"/></svg></button>
+                <button type="button" id="vpngate_sync_btn" onclick="syncVpngateNodes()" class="btn btn-secondary">同步节点</button>
               </div>
             </div>
             <section id="active_node_card" class="mb-5"></section>
@@ -276,11 +275,11 @@
                 显示第 <span id="page_start" class="text-text font-semibold">1</span> – <span id="page_end" class="text-text font-semibold">11</span> 条，共 <span id="filtered_count" class="text-text font-semibold">99</span> 条备选节点
               </div>
               <div class="flex gap-2 items-center">
-                <button id="btn_first_page" disabled class="glass-card py-1.5 px-3.5 rounded-lg text-xs font-bold border border-border text-text disabled:opacity-60 disabled:cursor-not-allowed">首页</button>
-                <button id="btn_prev_page" disabled class="glass-card py-1.5 px-3.5 rounded-lg text-xs font-bold border border-border text-text disabled:opacity-60 disabled:cursor-not-allowed">上一页</button>
+                <button id="btn_first_page" disabled class="btn btn-secondary btn-sm">首页</button>
+                <button id="btn_prev_page" disabled class="btn btn-secondary btn-sm">上一页</button>
                 <span class="text-[13px] text-muted mx-3">页码 <strong id="current_page_val" class="text-primary">1</strong> / <strong id="total_pages_val" class="text-text">9</strong></span>
-                <button id="btn_next_page" class="glass-card py-1.5 px-3.5 rounded-lg text-xs font-bold border border-border text-text">下一页</button>
-                <button id="btn_last_page" class="glass-card py-1.5 px-3.5 rounded-lg text-xs font-bold border border-border text-text">尾页</button>
+                <button id="btn_next_page" class="btn btn-secondary btn-sm">下一页</button>
+                <button id="btn_last_page" class="btn btn-secondary btn-sm">尾页</button>
               </div>
             </div>
           </div>
@@ -292,12 +291,11 @@
             <div class="flex justify-between items-start gap-5 mb-6 flex-wrap">
               <div>
                 <h3 class="!text-[18px] !font-bold mb-1">Cloudflare WARP</h3>
-                <p class="text-muted text-[13px] leading-relaxed">启动后自动创建并测试 WARP 出站，关闭时自动删除配置。</p>
+                <p class="text-muted text-[13px] leading-relaxed">启动后自动创建并测试 WARP 出站，重置时重新生成配置。</p>
               </div>
               <div class="flex gap-2.5 items-center flex-wrap justify-end">
-                <button type="button" onclick="loadWarpState()" title="刷新 WARP 状态" aria-label="刷新 WARP 状态" class="icon-only-btn"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
-                <button type="button" onclick="refreshWarpNode()" title="重新生成 WARP" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text">刷新</button>
-                <button type="button" onclick="deleteWarpNode()" title="删除 WARP" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-danger">删除</button>
+                <button type="button" id="warp_reset_btn" onclick="refreshWarpNode()" title="重置 WARP 配置" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text" style="display:none">重置</button>
+                <button type="button" id="warp_test_btn" onclick="testWarpNode()" title="测试 WARP 出口" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text" style="display:none">测试</button>
                 <button type="button" data-feature-power="warp_enabled" onclick="toggleWarpFeaturePower()" class="feature-power-btn" aria-pressed="false">
                   <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg>
                   <span class="feature-power-label">启动</span>
@@ -346,8 +344,9 @@
                 <p class="text-muted text-[13px] leading-relaxed">支持 VMess、VLESS、Trojan、Shadowsocks、SOCKS、HTTP 以及 JSON 出站配置。</p>
               </div>
               <div class="flex gap-2.5 items-center flex-wrap">
-                <button onclick="loadOutboundNodes()" title="刷新" aria-label="刷新" class="icon-only-btn"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
-                <button onclick="openOutboundNodeModal()" title="添加/导入节点" class="btn-primary-action py-2 px-5 rounded-lg text-[13px] font-bold inline-flex items-center gap-2"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>添加/导入</button>
+                <button type="button" onclick="testAllCustomOutboundNodes()" title="测试全部自定义节点" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text">测试</button>
+                <button type="button" onclick="openOutboundAddModal()" title="添加 JSON 配置" class="glass-card py-2 px-4 rounded-lg text-[13px] font-bold border border-border text-text">添加</button>
+                <button type="button" onclick="openOutboundImportModal()" title="导入节点链接或订阅" class="btn-primary-action py-2 px-5 rounded-lg text-[13px] font-bold inline-flex items-center gap-2"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>导入</button>
               </div>
             </div>
             <div id="custom_disabled_state" style="display:none"></div>

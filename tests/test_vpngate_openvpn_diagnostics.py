@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from backend.app.core import vpn
+
+
+class VpnGateOpenVpnDiagnosticsTests(unittest.TestCase):
+    def test_openvpn_auth_defaults_are_available_to_runner(self) -> None:
+        self.assertEqual(vpn.OPENVPN_AUTH_USER, "vpn")
+        self.assertEqual(vpn.OPENVPN_AUTH_PASS, "vpn")
+
+    def test_missing_openvpn_does_not_blacklist_batch_nodes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            data_dir = Path(tmp)
+            nodes_file = data_dir / "nodes.json"
+            config_dir = data_dir / "configs"
+            config_dir.mkdir(parents=True)
+            nodes_file.write_text(
+                """[
+                  {
+                    "id": "node-1-2-3-4-443",
+                    "ip": "1.2.3.4",
+                    "remote_host": "1.2.3.4",
+                    "remote_port": 443,
+                    "ping": 10,
+                    "score": 100,
+                    "config_file": "%s",
+                    "config_text": "client\\ndev tun\\nproto tcp\\nremote 1.2.3.4 443\\n",
+                    "probe_status": "not_checked",
+                    "probe_message": "Not probed yet",
+                    "active": false
+                  }
+                ]"""
+                % str(config_dir / "node-1-2-3-4-443.ovpn").replace("\\", "\\\\"),
+                encoding="utf-8",
+            )
+
+            with patch.object(vpn, "NODES_FILE", nodes_file), \
+                 patch.object(vpn, "CONFIG_DIR", config_dir), \
+                 patch.object(vpn.vpn_utils, "ping_latency_ms", return_value=10), \
+                 patch.object(vpn.shutil, "which", return_value=None), \
+                 patch.object(vpn, "mark_blacklisted") as mark_blacklisted:
+                results = vpn.test_multiple_nodes(["node-1-2-3-4-443"])
+                nodes = vpn.read_json(nodes_file, [])
+
+            self.assertEqual(results[0]["probe_status"], "not_checked")
+            self.assertIn("ERR_OVPN_CMD_NOT_FOUND", results[0]["probe_message"])
+            self.assertEqual(nodes[0]["probe_status"], "not_checked")
+            mark_blacklisted.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()
