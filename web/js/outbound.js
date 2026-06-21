@@ -744,7 +744,7 @@
             }
 
             select.innerHTML = '<option value="">所有国家</option>' +
-                countries.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+                countries.map(c => `<option value="${esc(c)}">${esc(translateCountry(c))}</option>`).join("");
 
             if (countries.includes(selectedValue)) {
                 select.value = selectedValue;
@@ -754,7 +754,59 @@
         }
 
         function getFilteredNodes() {
-            return nodes.filter(Boolean);
+            const keyword = (($("search") && $("search").value) || "").trim().toLowerCase();
+            const country = (($("country_filter") && $("country_filter").value) || "").trim();
+            const status = (($("status_filter") && $("status_filter").value) || "").trim();
+            const ipType = (($("ip_type_filter") && $("ip_type_filter").value) || "").trim();
+            const sortMode = (($("sort_filter") && $("sort_filter").value) || "score").trim();
+
+            const filtered = nodes.filter(n => {
+                if (!n) return false;
+                if (country && n.country !== country) return false;
+                if (status && (n.probe_status || "not_checked") !== status) return false;
+                if (ipType && (n.ip_type || "") !== ipType) return false;
+                if (keyword) {
+                    const haystack = [
+                        n.ip,
+                        n.remote_host,
+                        n.remote_port,
+                        n.location,
+                        n.country,
+                        translateCountry(n.country),
+                        n.country_short,
+                        n.owner,
+                        n.as_name,
+                        n.asn,
+                        n.ip_type,
+                        translateIpType(n.ip_type),
+                        n.quality,
+                        translateQuality(n.quality)
+                    ].join(" ").toLowerCase();
+                    if (!haystack.includes(keyword)) return false;
+                }
+                return true;
+            });
+
+            filtered.sort((a, b) => {
+                if (sortMode === "latency") {
+                    const aLatency = Number(a.latency_ms || a.ping || 999999);
+                    const bLatency = Number(b.latency_ms || b.ping || 999999);
+                    return aLatency - bLatency;
+                }
+                if (sortMode === "country") {
+                    return String(a.country || "").localeCompare(String(b.country || "")) || String(a.id || "").localeCompare(String(b.id || ""));
+                }
+                if (sortMode === "status") {
+                    const rank = { available: 0, not_checked: 1, unavailable: 2 };
+                    return (rank[a.probe_status || "not_checked"] ?? 1) - (rank[b.probe_status || "not_checked"] ?? 1);
+                }
+                const aScore = Number(a.score || 0);
+                const bScore = Number(b.score || 0);
+                if (bScore !== aScore) return bScore - aScore;
+                return String(a.id || "").localeCompare(String(b.id || ""));
+            });
+
+            return filtered;
         }
 
         function stableSortNodes() {
@@ -778,9 +830,9 @@
             const openvpnEnabled = state.openvpn_enabled === true || state.openvpn_running === true;
             const vpngateFeatureEnabled = isFeatureEnabled("vpngate_enabled");
             const vpngateTableRegion = $("vpngate_table_region");
-            const vpngatePaginationRegion = $("vpngate_pagination_region");
+            const vpngateFilterRegion = $("vpngate_filter_region");
             if (vpngateTableRegion) vpngateTableRegion.style.display = vpngateFeatureEnabled ? "block" : "none";
-            if (vpngatePaginationRegion) vpngatePaginationRegion.style.display = vpngateFeatureEnabled ? "flex" : "none";
+            if (vpngateFilterRegion) vpngateFilterRegion.style.display = vpngateFeatureEnabled ? "grid" : "none";
             const vpngateStatusBadge = $("vpngate_status_badge");
             if (vpngateStatusBadge) {
                 const statusClass = activeNode ? "active" : (openvpnEnabled ? "not_checked" : "inactive");
@@ -849,37 +901,7 @@
                     </div>
                 `;
             } else {
-                const idleBadge = openvpnEnabled
-                    ? `<span class="badge warn"><span class="badge-pulse" style="background: var(--yellow);"></span>已启用</span>`
-                    : `<span class="badge unavailable">未启动</span>`;
-                const idleTitle = openvpnEnabled ? "OpenVPN 正在等待可用节点" : "OpenVPN 当前未启动";
-                const idleMessage = openvpnEnabled
-                    ? (state.last_check_message || "正在连接")
-                    : "OpenVPN 未启动";
-                const idleIconColor = openvpnEnabled ? "var(--yellow)" : "var(--red)";
-                const idleIconBg = openvpnEnabled ? "rgba(255, 159, 10, 0.12)" : "rgba(255, 69, 58, 0.08)";
-                const idleIconBorder = openvpnEnabled ? "rgba(255, 159, 10, 0.24)" : "rgba(255, 69, 58, 0.15)";
-                activeCardContainer.innerHTML = `
-                    <div class="active-card" style="background: rgba(255, 255, 255, 0.01); border-style: dashed;">
-                        <div class="active-card-info">
-                            <div style="background: ${idleIconBg}; border: 1px solid ${idleIconBorder}; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                                <svg xmlns="http://www.w3.org/2000/svg" style="color: ${idleIconColor}; width: 22px; height: 22px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                            </div>
-                            <div class="active-card-details">
-                                <div class="active-card-title" style="color: var(--muted);">
-                                    ${idleBadge}
-                                    <strong style="margin-left: 8px;">${idleTitle}</strong>
-                                </div>
-                                <div class="active-card-meta" style="margin-top: 4px;">
-                                    ${esc(idleMessage)}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="active-card-tools">
-                            ${proxyStatusPanelHtml(!openvpnEnabled)}
-                        </div>
-                    </div>
-                `;
+                activeCardContainer.innerHTML = `<div class="outbound-state-panel">${openvpnEnabled ? "等待可用节点" : "VPNGate 未启动"}</div>`;
             }
 
             const shown = vpngateFeatureEnabled ? getFilteredNodes() : [];
@@ -944,26 +966,22 @@
                 }
             }
 
-            // Pagination calculation
-            const totalPages = Math.ceil(shown.length / pageSize) || 1;
-            if (currentPage > totalPages) currentPage = totalPages;
-            if (currentPage < 1) currentPage = 1;
-
-            const startIndex = (currentPage - 1) * pageSize;
-            const endIndex = Math.min(startIndex + pageSize, shown.length);
-            currentPageNodes = shown.slice(startIndex, endIndex);
-
-            // Render table rows
             if (!vpngateFeatureEnabled) {
                 return;
             }
-            if (currentPageNodes.length === 0) {
+
+            const countSummary = $("vpngate_count_summary");
+            if (countSummary) {
+                const availableCount = shown.filter(n => (n.probe_status || "not_checked") === "available").length;
+                countSummary.textContent = `${shown.length} 个节点 / ${availableCount} 可用`;
+            }
+
+            if (shown.length === 0) {
                 $("rows").innerHTML = `<div class="outbound-state-panel">暂无可用节点</div>`;
             } else {
-                $("rows").innerHTML = currentPageNodes.map(n => {
+                $("rows").innerHTML = shown.map(n => {
                     if (!n) return '';
                     const isCurrentlyActive = activeNode && n.id === activeNode.id;
-                    const rowClass = isCurrentlyActive ? 'bg-[color-mix(in_srgb,var(--second)_6%,transparent)] border-second shadow-[0_0_12px_rgba(255,159,10,0.15)] scale-[1.01] z-10' : 'bg-[rgba(255,255,255,0.015)] border-[color-mix(in_srgb,var(--border)_20%,transparent)] hover:bg-[rgba(255,255,255,0.04)]';
 
                     const badgeClass = isCurrentlyActive ? 'available' : (n.probe_status || 'not_checked');
                     const badgeText = isCurrentlyActive ? '<span class="badge-pulse"></span>已连接' : translateStatus(n.probe_status);
@@ -971,10 +989,12 @@
                     const ipText = `${n.ip || n.remote_host || "-"}${n.remote_port ? ":" + n.remote_port : ""}`;
                     const ispText = n.owner || n.as_name || "-";
                     const asnText = n.asn ? `AS${String(n.asn).replace(/^AS/i, "")}` : "-";
+                    const latencyText = n.latency_ms ? `${n.latency_ms} ms` : (n.ping ? `${n.ping} ms` : "-");
+                    const typeText = translateIpType(n.ip_type) || "-";
 
                     const isUnavailable = n.probe_status === "unavailable";
                     const connectLabel = openvpnEnabled ? "切换" : "连接";
-                    
+
                     let actionsHtml = "";
                     if (isCurrentlyActive) {
                         actionsHtml = `<button class="btn btn-primary btn-sm px-3 pointer-events-none opacity-80" disabled><span class="badge-pulse"></span>已连接</button>`;
@@ -985,55 +1005,72 @@
                     }
 
                     return `
-                        <div class="node-card ${rowClass} border rounded-lg py-2.5 px-4 flex items-center justify-between gap-4 transition-all duration-200">
-                            <div class="flex items-center gap-3.5 min-w-0 flex-1">
-                                <div class="flex flex-col gap-1.5 min-w-0">
-                                    <div class="flex items-center gap-2">
-                                        <strong class="text-[14px] font-semibold text-text truncate" title="${esc(displayLocation)}">${esc(displayLocation)}</strong>
-                                        <span class="text-[11px] text-muted font-medium ml-1">${esc(n.country_short || n.country || "-")}</span>
-                                        <span class="badge ${badgeClass} ml-1" style="transform: scale(0.9); transform-origin: left center;">${badgeText}</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-[12px] text-muted flex-wrap">
-                                        <span class="px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] font-mono leading-none">${esc(ipText)}</span>
-                                        <span class="font-mono text-[11px] opacity-70 ml-1">${esc(asnText)}</span>
-                                        <span class="truncate max-w-[200px]" title="${esc(ispText)}">${esc(ispText)}</span>
-                                    </div>
+                        <div class="vpngate-node-card ${isCurrentlyActive ? "is-active" : ""}">
+                            <div class="vpngate-node-main">
+                                <div class="vpngate-node-head">
+                                    <strong class="vpngate-node-title" title="${esc(displayLocation)}">${esc(displayLocation)}</strong>
+                                    <span class="vpngate-node-chip">${esc(n.country_short || translateCountry(n.country) || "-")}</span>
+                                    <span class="badge ${badgeClass}">${badgeText}</span>
+                                </div>
+                                <div class="vpngate-node-meta">
+                                    <span class="vpngate-node-chip mono">${esc(ipText)}</span>
+                                    <span class="vpngate-node-chip mono">${esc(asnText)}</span>
+                                    <span class="vpngate-node-chip">${esc(typeText)}</span>
+                                    <span class="vpngate-node-chip">${esc(latencyText)}</span>
+                                    <span class="vpngate-node-chip" title="${esc(ispText)}">${esc(ispText)}</span>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-2 flex-none">
-                                ${actionsHtml}
-                            </div>
+                            <div class="vpngate-node-actions">${actionsHtml}</div>
                         </div>
                     `;
                 }).join("");
             }
-
-            // Render pagination controls
-            $("page_start").textContent = shown.length > 0 ? startIndex + 1 : 0;
-            $("page_end").textContent = endIndex;
-            $("filtered_count").textContent = shown.length;
-            $("current_page_val").textContent = currentPage;
-            $("total_pages_val").textContent = totalPages;
-
-            $("btn_first_page").disabled = currentPage === 1;
-            $("btn_prev_page").disabled = currentPage === 1;
-            $("btn_next_page").disabled = currentPage === totalPages;
-            $("btn_last_page").disabled = currentPage === totalPages;
         }
 
-        $("btn_first_page").onclick = () => { currentPage = 1; render(); };
-        $("btn_prev_page").onclick = () => { if (currentPage > 1) { currentPage--; render(); } };
-        $("btn_next_page").onclick = () => {
-            const shown = getFilteredNodes();
-            const totalPages = Math.ceil(shown.length / pageSize) || 1;
-            if (currentPage < totalPages) { currentPage++; render(); }
-        };
-        $("btn_last_page").onclick = () => {
-            const shown = getFilteredNodes();
-            const totalPages = Math.ceil(shown.length / pageSize) || 1;
-            currentPage = totalPages;
-            render();
-        };
+        async function testAllVpngateNodes() {
+            if (!isFeatureEnabled("vpngate_enabled")) {
+                showToast("请先启动 VPNGate", "warning");
+                return;
+            }
+            const ids = nodes.map(n => n && n.id).filter(Boolean);
+            if (!ids.length) {
+                showToast("暂无可检测节点", "warning");
+                return;
+            }
+            const btn = $("btn_test_all_nodes");
+            const oldHtml = btn ? btn.innerHTML : "";
+            if (btn) {
+                btn.disabled = true;
+                btn.classList.add("is-loading");
+                btn.innerHTML = `<span class="btn-icon icon-refresh" aria-hidden="true"></span>检测中`;
+            }
+            try {
+                const res = await fetch("./api/test_nodes", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ids })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) {
+                    showToast(data.error || "节点检测失败", "error");
+                    return;
+                }
+                const testedNodes = Array.isArray(data.nodes) ? data.nodes : [];
+                const byId = new Map(testedNodes.map(item => [item.id, item]));
+                nodes = nodes.map(item => byId.get(item.id) || item);
+                stableSortNodes();
+                render();
+                showToast("节点检测完成", "success");
+            } catch (e) {
+                showToast("无法连接节点检测接口", "error");
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove("is-loading");
+                    btn.innerHTML = oldHtml || `<span class="btn-icon icon-refresh" aria-hidden="true"></span>检测全部`;
+                }
+            }
+        }
 
         async function connectNode(id) {
             if (!isFeatureEnabled("vpngate_enabled")) {
@@ -1091,9 +1128,15 @@
         }
 
         const searchInput = $("search");
-        if (searchInput) searchInput.oninput = () => { currentPage = 1; render(); };
+        if (searchInput) searchInput.oninput = render;
         const countryFilter = $("country_filter");
-        if (countryFilter) countryFilter.onchange = () => { currentPage = 1; render(); };
+        if (countryFilter) countryFilter.onchange = render;
+        const statusFilter = $("status_filter");
+        if (statusFilter) statusFilter.onchange = render;
+        const ipTypeFilter = $("ip_type_filter");
+        if (ipTypeFilter) ipTypeFilter.onchange = render;
+        const sortFilter = $("sort_filter");
+        if (sortFilter) sortFilter.onchange = render;
 
         async function saveNetwork(e) {
             e.preventDefault();
@@ -1183,4 +1226,5 @@
         window.render = render;
         window.connectNode = connectNode;
         window.syncVpngateNodes = syncVpngateNodes;
+        window.testAllVpngateNodes = testAllVpngateNodes;
         window.saveNetwork = saveNetwork;

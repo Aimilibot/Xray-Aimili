@@ -69,10 +69,6 @@
             warp_enabled: false,
             custom_enabled: true
         };
-        let currentPage = 1;
-        const pageSize = 11;
-        let currentPageNodes = [];
-
         const $ = id => document.getElementById(id);
         const esc = s => String(s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c]));
         const jsArg = s => JSON.stringify(String(s ?? ""));

@@ -262,21 +262,36 @@
               </div>
             </div>
             <section id="active_node_card" class="mb-5"></section>
-            <div id="vpngate_table_region" class="max-h-[calc(100vh-380px)] overflow-y-auto overflow-x-hidden rounded-2xl pr-2" style="display:none">
+            <div id="vpngate_filter_region" class="vpngate-toolbar" style="display:none">
+              <input id="search" class="vpngate-filter-input" placeholder="搜索 IP / 地区 / 运营商">
+              <select id="country_filter" class="vpngate-filter-select"><option value="">所有国家</option></select>
+              <select id="status_filter" class="vpngate-filter-select">
+                <option value="">所有状态</option>
+                <option value="available">可用</option>
+                <option value="not_checked">待检测</option>
+                <option value="unavailable">不可用</option>
+              </select>
+              <select id="ip_type_filter" class="vpngate-filter-select">
+                <option value="">所有类型</option>
+                <option value="residential">住宅 IP</option>
+                <option value="hosting">机房 IP</option>
+                <option value="mobile">移动网</option>
+                <option value="proxy">代理 IP</option>
+              </select>
+              <select id="sort_filter" class="vpngate-filter-select">
+                <option value="score">质量优先</option>
+                <option value="latency">延迟优先</option>
+                <option value="country">国家排序</option>
+                <option value="status">状态排序</option>
+              </select>
+              <button type="button" id="btn_test_all_nodes" onclick="testAllVpngateNodes()" class="btn btn-secondary">
+                <span class="btn-icon icon-refresh" aria-hidden="true"></span>检测全部
+              </button>
+              <span id="vpngate_count_summary" class="vpngate-count">0 个节点</span>
+            </div>
+            <div id="vpngate_table_region" class="vpngate-node-list" style="display:none">
               <div id="rows" class="flex flex-col gap-3">
                 <div class="outbound-state-panel">正在加载节点列表...</div>
-              </div>
-            </div>
-            <div id="vpngate_pagination_region" class="pagination-container flex justify-between items-center flex-wrap gap-4 pt-5 mt-5 border-t border-[color-mix(in_srgb,var(--muted)_14%,transparent)]" style="display:none">
-              <div class="text-[13px] text-muted">
-                显示第 <span id="page_start" class="text-text font-semibold">1</span> – <span id="page_end" class="text-text font-semibold">11</span> 条，共 <span id="filtered_count" class="text-text font-semibold">99</span> 条备选节点
-              </div>
-              <div class="flex gap-2 items-center">
-                <button id="btn_first_page" disabled class="btn btn-secondary btn-sm">首页</button>
-                <button id="btn_prev_page" disabled class="btn btn-secondary btn-sm">上一页</button>
-                <span class="text-[13px] text-muted mx-3">页码 <strong id="current_page_val" class="text-primary">1</strong> / <strong id="total_pages_val" class="text-text">9</strong></span>
-                <button id="btn_next_page" class="btn btn-secondary btn-sm">下一页</button>
-                <button id="btn_last_page" class="btn btn-secondary btn-sm">尾页</button>
               </div>
             </div>
           </div>

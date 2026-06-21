@@ -59,6 +59,7 @@ class FrontendInlineActionsTest(unittest.TestCase):
             "startOpenvpnService",
             "disconnectNode",
             "startConnectionPolling",
+            "testAllVpngateNodes",
         ]
 
         missing = [
@@ -79,6 +80,27 @@ class FrontendInlineActionsTest(unittest.TestCase):
         self.assertEqual(1, vpngate_panel.count('data-feature-power="vpngate_enabled"'))
         self.assertIn("openOpenvpnRoutingModal()", vpngate_panel)
         self.assertIn("规则设置", vpngate_panel)
+
+    def test_vpngate_panel_lists_all_nodes_with_filters(self):
+        index = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+        vpngate_panel = index.split('id="outbound-vpngate-panel"', 1)[1].split('<!-- WARP -->', 1)[0]
+
+        required_controls = [
+            'id="search"',
+            'id="country_filter"',
+            'id="status_filter"',
+            'id="ip_type_filter"',
+            'id="sort_filter"',
+            'id="btn_test_all_nodes"',
+            'id="vpngate_count_summary"',
+        ]
+        for control in required_controls:
+            with self.subTest(control=control):
+                self.assertIn(control, vpngate_panel)
+
+        self.assertIn("检测全部", vpngate_panel)
+        self.assertNotIn("vpngate_pagination_region", vpngate_panel)
+        self.assertNotIn("btn_next_page", vpngate_panel)
 
 
 if __name__ == "__main__":
