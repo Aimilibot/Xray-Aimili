@@ -102,6 +102,18 @@ class FrontendInlineActionsTest(unittest.TestCase):
         self.assertNotIn("vpngate_pagination_region", vpngate_panel)
         self.assertNotIn("btn_next_page", vpngate_panel)
 
+    def test_vpngate_rows_are_compact_and_proxy_status_does_not_mix_ip_latency(self):
+        outbound = (ROOT / "web" / "js" / "outbound.js").read_text(encoding="utf-8")
+        css = (ROOT / "web" / "css" / "theme.css").read_text(encoding="utf-8")
+
+        self.assertIn("nodeEndpointText(activeNode)", outbound)
+        self.assertIn("const isConnecting = state.is_connecting && !confirmedActiveNode", outbound)
+        self.assertNotIn('pIpVal.textContent = state.active_node_latency', outbound)
+        self.assertIn("vpngate-node-endpoint", outbound)
+        self.assertIn("vpngate-node-latency", outbound)
+        self.assertIn("grid-template-columns:minmax(180px, 1.25fr)", css)
+        self.assertIn(".vpngate-node-list #rows { gap:8px !important; }", css)
+
 
 if __name__ == "__main__":
     unittest.main()

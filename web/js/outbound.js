@@ -823,10 +823,26 @@
             });
         }
 
+        function nodeHostText(n) {
+            return n.ip || n.remote_host || "-";
+        }
+
+        function nodeEndpointText(n) {
+            const host = nodeHostText(n);
+            if (host === "-") return "-";
+            return n.remote_port ? `${host}:${n.remote_port}` : host;
+        }
+
+        function nodeLocationText(n) {
+            return n.location || translateCountry(n.country) || n.country_short || nodeHostText(n);
+        }
+
         function render() {
             renderFeatureGateSwitches();
             const activeNodeId = state.active_openvpn_node_id;
-            const activeNode = nodes.find(n => n && (n.active || n.id === activeNodeId));
+            const confirmedActiveNode = nodes.find(n => n && n.active);
+            const activeNode = confirmedActiveNode || (!state.is_connecting ? nodes.find(n => n && n.id === activeNodeId) : null);
+            const isConnecting = state.is_connecting && !confirmedActiveNode;
             const openvpnEnabled = state.openvpn_enabled === true || state.openvpn_running === true;
             const vpngateFeatureEnabled = isFeatureEnabled("vpngate_enabled");
             const vpngateTableRegion = $("vpngate_table_region");
@@ -845,7 +861,7 @@
             const activeCardContainer = $("active_node_card");
             if (!vpngateFeatureEnabled) {
                 activeCardContainer.innerHTML = `<div class="outbound-state-panel">VPNGate 公益节点未启动</div>`;
-            } else if (state.is_connecting && !activeNode) {
+            } else if (isConnecting) {
                 activeCardContainer.innerHTML = `
                     <div class="active-card" style="border-color: var(--yellow); box-shadow: 0 8px 32px rgba(255, 159, 10, 0.12);">
                         <div class="active-card-info">
@@ -871,7 +887,9 @@
             } else if (activeNode) {
                 const latencyClass = getLatencyClass(activeNode.latency_ms);
                 const latencyText = activeNode.latency_ms ? `<span class="latency-val ${latencyClass}">${activeNode.latency_ms} ms</span>` : "-";
-                const displayLocation = activeNode.location || translateCountry(activeNode.country) || "-";
+                const displayLocation = nodeLocationText(activeNode);
+                const activeTitle = displayLocation === "-" ? "当前节点" : `${displayLocation} 节点`;
+                const endpointText = nodeEndpointText(activeNode);
                 activeCardContainer.innerHTML = `
                     <div class="active-card" style="border-color: var(--green); box-shadow: 0 8px 32px rgba(52, 199, 89, 0.08);">
                         <div class="active-card-info">
@@ -881,10 +899,10 @@
                             <div class="active-card-details">
                                 <div class="active-card-title" style="color: var(--green);">
                                     <span class="badge available"><span class="badge-pulse"></span>已连接</span>
-                                    <strong style="margin-left: 8px;">${esc(translateCountry(activeNode.country))} 专线节点</strong>
+                                    <strong style="margin-left: 8px;">${esc(activeTitle)}</strong>
                                 </div>
                                 <div class="active-card-value mono" style="margin-top: 2px;">
-                                    ${esc(activeNode.ip || activeNode.remote_host)}:${activeNode.remote_port || ""}
+                                    ${esc(endpointText)}
                                 </div>
                                 <div class="active-card-meta" style="margin-top: 4px;">
                                     <span>位置: <strong>${esc(displayLocation)}</strong></span>
@@ -936,10 +954,10 @@
                     pIpVal.textContent = "-";
                     pLatVal.innerHTML = `<span style="color: var(--muted); font-size: 11.5px;">OpenVPN 未启动</span>`;
                     pBtn.disabled = true;
-                } else if (state.is_connecting) {
+                } else if (isConnecting) {
                     pBadge.className = "badge warn";
                     pBadge.innerHTML = `<span class="badge-pulse"></span>连接中`;
-                    pIpVal.textContent = state.active_node_latency || "正在连接...";
+                    pIpVal.textContent = "-";
                     pLatVal.innerHTML = `<span style="color: var(--muted); font-size: 11.5px;">${esc(state.last_check_message || "建立隧道中...")}</span>`;
                     pBtn.disabled = true;
                 } else {
@@ -972,8 +990,8 @@
 
             const countSummary = $("vpngate_count_summary");
             if (countSummary) {
-                const availableCount = shown.filter(n => (n.probe_status || "not_checked") === "available").length;
-                countSummary.textContent = `${shown.length} 个节点 / ${availableCount} 可用`;
+                const totalCount = nodes.filter(Boolean).length;
+                countSummary.textContent = `显示 ${shown.length} / 共 ${totalCount}`;
             }
 
             if (shown.length === 0) {
@@ -985,8 +1003,9 @@
 
                     const badgeClass = isCurrentlyActive ? 'available' : (n.probe_status || 'not_checked');
                     const badgeText = isCurrentlyActive ? '<span class="badge-pulse"></span>已连接' : translateStatus(n.probe_status);
-                    const displayLocation = n.location || translateCountry(n.country) || "-";
-                    const ipText = `${n.ip || n.remote_host || "-"}${n.remote_port ? ":" + n.remote_port : ""}`;
+                    const displayLocation = nodeLocationText(n);
+                    const regionText = n.country_short || translateCountry(n.country) || "-";
+                    const ipText = nodeEndpointText(n);
                     const ispText = n.owner || n.as_name || "-";
                     const asnText = n.asn ? `AS${String(n.asn).replace(/^AS/i, "")}` : "-";
                     const latencyText = n.latency_ms ? `${n.latency_ms} ms` : (n.ping ? `${n.ping} ms` : "-");
@@ -998,7 +1017,7 @@
                     let actionsHtml = "";
                     if (isCurrentlyActive) {
                         actionsHtml = `<button class="btn btn-primary btn-sm px-3 pointer-events-none opacity-80" disabled><span class="badge-pulse"></span>已连接</button>`;
-                    } else if (isUnavailable || state.is_connecting) {
+                    } else if (isUnavailable || isConnecting) {
                         actionsHtml = `<button class="btn btn-secondary btn-sm px-3" disabled>${esc(connectLabel)}</button>`;
                     } else {
                         actionsHtml = actionButton(connectLabel, openvpnEnabled ? "stop" : "play", `connectNode(${jsArg(n.id)})`, false, true);
@@ -1006,20 +1025,16 @@
 
                     return `
                         <div class="vpngate-node-card ${isCurrentlyActive ? "is-active" : ""}">
-                            <div class="vpngate-node-main">
-                                <div class="vpngate-node-head">
-                                    <strong class="vpngate-node-title" title="${esc(displayLocation)}">${esc(displayLocation)}</strong>
-                                    <span class="vpngate-node-chip">${esc(n.country_short || translateCountry(n.country) || "-")}</span>
-                                    <span class="badge ${badgeClass}">${badgeText}</span>
-                                </div>
-                                <div class="vpngate-node-meta">
-                                    <span class="vpngate-node-chip mono">${esc(ipText)}</span>
-                                    <span class="vpngate-node-chip mono">${esc(asnText)}</span>
-                                    <span class="vpngate-node-chip">${esc(typeText)}</span>
-                                    <span class="vpngate-node-chip">${esc(latencyText)}</span>
-                                    <span class="vpngate-node-chip" title="${esc(ispText)}">${esc(ispText)}</span>
-                                </div>
+                            <div class="vpngate-node-cell vpngate-node-main">
+                                <strong class="vpngate-node-title" title="${esc(displayLocation)}">${esc(displayLocation)}</strong>
+                                <span class="vpngate-node-sub">${esc(regionText)}</span>
                             </div>
+                            <span class="vpngate-node-cell vpngate-node-endpoint mono">${esc(ipText)}</span>
+                            <span class="vpngate-node-cell vpngate-node-asn mono">${esc(asnText)}</span>
+                            <span class="vpngate-node-cell vpngate-node-type">${esc(typeText)}</span>
+                            <span class="vpngate-node-cell vpngate-node-latency">${esc(latencyText)}</span>
+                            <span class="vpngate-node-cell vpngate-node-isp" title="${esc(ispText)}">${esc(ispText)}</span>
+                            <span class="badge ${badgeClass}">${badgeText}</span>
                             <div class="vpngate-node-actions">${actionsHtml}</div>
                         </div>
                     `;
