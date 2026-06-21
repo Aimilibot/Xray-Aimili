@@ -48,6 +48,8 @@ class FrontendInlineActionsTest(unittest.TestCase):
             "closeOutboundNodeModal",
             "fetchAndConvertOutbound",
             "testAllCustomOutboundNodes",
+            "openOpenvpnRoutingModal",
+            "closeOpenvpnRoutingModal",
             "openRoutingRuleModal",
             "closeRoutingRuleModal",
             "saveRoutingRule",
@@ -66,6 +68,17 @@ class FrontendInlineActionsTest(unittest.TestCase):
         ]
 
         self.assertEqual([], missing)
+
+    def test_vpngate_panel_has_single_start_control(self):
+        outbound = (ROOT / "web" / "js" / "outbound.js").read_text(encoding="utf-8")
+        index = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+        vpngate_panel = index.split('id="outbound-vpngate-panel"', 1)[1].split('<!-- WARP -->', 1)[0]
+
+        self.assertNotIn('onclick="startOpenvpnService()"', outbound)
+        self.assertNotIn("启动 OpenVPN", outbound)
+        self.assertEqual(1, vpngate_panel.count('data-feature-power="vpngate_enabled"'))
+        self.assertIn("openOpenvpnRoutingModal()", vpngate_panel)
+        self.assertIn("规则设置", vpngate_panel)
 
 
 if __name__ == "__main__":

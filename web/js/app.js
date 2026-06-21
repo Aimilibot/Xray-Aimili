@@ -297,7 +297,13 @@
                 await load();
                 if (key === "warp_enabled" && typeof loadWarpState === "function") await loadWarpState();
                 if (key === "custom_enabled" && typeof loadOutboundNodes === "function") await loadOutboundNodes();
-                if (key === "vpngate_enabled" && enabled) startConnectionPolling();
+                if (key === "vpngate_enabled" && enabled) {
+                    if (typeof startOpenvpnService === "function") {
+                        await startOpenvpnService();
+                    } else if (typeof startConnectionPolling === "function") {
+                        startConnectionPolling();
+                    }
+                }
             } catch (e) {
                 showToast("功能开关请求失败", "error");
                 inputs.forEach(input => input.checked = !enabled);

@@ -634,4 +634,16 @@
             }).join("");
         }
         
+        window.switchSubSettingTab = switchSubSettingTab;
+        window.handleRoutingModeChange = handleRoutingModeChange;
+        window.populateRoutingCountries = populateRoutingCountries;
+        window.populateSettingsForms = populateSettingsForms;
+        window.globalSaveSettings = globalSaveSettings;
+        window.toggleDomainCertMode = toggleDomainCertMode;
+        window.toggleManualPaths = toggleManualPaths;
+        window.clearDomainCertConfig = clearDomainCertConfig;
+        window.filterAndRenderLogs = filterAndRenderLogs;
+        window.copyLogContent = copyLogContent;
+        window.exportLogContent = exportLogContent;
+        window.clearLogContent = clearLogContent;
         window.renderLayeredHealthList = renderLayeredHealthList;

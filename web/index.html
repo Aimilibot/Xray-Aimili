@@ -253,6 +253,9 @@
                 <span id="vpngate_status_badge" class="status-badge inactive"><span class="status-dot"></span>未启动</span>
               </div>
               <div class="outbound-panel-actions">
+                <button type="button" onclick="openOpenvpnRoutingModal()" title="规则设置" class="btn btn-secondary">
+                  <span class="btn-icon icon-settings" aria-hidden="true"></span>规则设置
+                </button>
                 <button type="button" data-feature-power="vpngate_enabled" onclick="toggleFeaturePower('vpngate_enabled')" class="feature-power-btn" aria-pressed="false">
                   <span class="feature-power-label">启动</span>
                 </button>

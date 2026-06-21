@@ -698,6 +698,35 @@
                 alert("无法连接后端接口");
             }
         }
+        function openOpenvpnRoutingModal() {
+            const modal = $("openvpn-routing-modal");
+            if (!modal) return;
+            const errorDivEl = $("network_error");
+            const successDiv = $("network_success");
+            if (errorDivEl) errorDivEl.style.display = "none";
+            if (successDiv) successDiv.style.display = "none";
+
+            const proxyPort = $("net_proxy_port");
+            if (proxyPort) proxyPort.value = (state && state.proxy_port) || 7928;
+
+            const mode = (state && state.routing_mode) || "auto";
+            const modeRadio = document.querySelector(`input[name="net_routing_mode"][value="${mode}"]`);
+            if (modeRadio) modeRadio.checked = true;
+
+            if (typeof populateRoutingCountries === "function") {
+                populateRoutingCountries();
+            }
+            const countrySelect = $("net_force_country");
+            if (countrySelect && state) {
+                countrySelect.value = state.force_country || "";
+            }
+            if (typeof handleRoutingModeChange === "function") {
+                handleRoutingModeChange(mode);
+            }
+
+            modal.style.display = "flex";
+        }
+
         function closeOpenvpnRoutingModal() {
             const modal = $("openvpn-routing-modal");
             if (modal) modal.style.display = "none";
@@ -830,9 +859,6 @@
                 const idleIconColor = openvpnEnabled ? "var(--yellow)" : "var(--red)";
                 const idleIconBg = openvpnEnabled ? "rgba(255, 159, 10, 0.12)" : "rgba(255, 69, 58, 0.08)";
                 const idleIconBorder = openvpnEnabled ? "rgba(255, 159, 10, 0.24)" : "rgba(255, 69, 58, 0.15)";
-                const idleAction = openvpnEnabled
-                    ? `<button class="btn btn-danger" onclick="disconnectNode()">停止 OpenVPN</button>`
-                    : `<button class="btn btn-primary" onclick="startOpenvpnService()">启动 OpenVPN</button>`;
                 activeCardContainer.innerHTML = `
                     <div class="active-card" style="background: rgba(255, 255, 255, 0.01); border-style: dashed;">
                         <div class="active-card-info">
@@ -851,7 +877,6 @@
                         </div>
                         <div class="active-card-tools">
                             ${proxyStatusPanelHtml(!openvpnEnabled)}
-                            ${idleAction}
                         </div>
                     </div>
                 `;
@@ -948,7 +973,7 @@
                     const asnText = n.asn ? `AS${String(n.asn).replace(/^AS/i, "")}` : "-";
 
                     const isUnavailable = n.probe_status === "unavailable";
-                    const connectLabel = openvpnEnabled ? "切换" : "启动";
+                    const connectLabel = openvpnEnabled ? "切换" : "连接";
                     
                     let actionsHtml = "";
                     if (isCurrentlyActive) {
@@ -1151,6 +1176,7 @@
         window.fetchAndConvertOutbound = fetchAndConvertOutbound;
         window.deleteOutboundNode = deleteOutboundNode;
         window.toggleOutboundNode = toggleOutboundNode;
+        window.openOpenvpnRoutingModal = openOpenvpnRoutingModal;
         window.closeOpenvpnRoutingModal = closeOpenvpnRoutingModal;
         window.updateCountryFilter = updateCountryFilter;
         window.stableSortNodes = stableSortNodes;
