@@ -358,19 +358,46 @@
         }
 
         function renderCustomOutboundNodes() {
-            const tbody = $("custom_outbound_rows");
-            if (!tbody) return;
+            const container = $("custom_outbound_rows");
+            if (!container) return;
             const disabledState = $("custom_disabled_state");
-            const table = $("custom_outbound_table");
-                renderOutboundNodes();
-            } catch (e) {
+            const tableWrap = $("custom_table_wrap");
+            const emptyState = $("custom_empty_state");
+            const testBtn = $("custom_test_btn");
+            const customNodes = outboundNodes.filter(item =>
+                item.type === "custom-node" || item.type === "subscription" || item.type === "json-config"
+            );
+
+            if (!isFeatureEnabled("custom_enabled")) {
+                if (testBtn) testBtn.style.display = "none";
+                if (tableWrap) tableWrap.style.display = "none";
+                if (emptyState) emptyState.style.display = "none";
+                if (disabledState) {
+                    disabledState.style.display = "flex";
+                    disabledState.textContent = "自定义节点未启动";
+                }
+                return;
+            }
+
+            if (disabledState) {
+                disabledState.style.display = "none";
+                disabledState.textContent = "";
+            }
+
+            if (!customNodes.length) {
                 if (testBtn) testBtn.style.display = "none";
                 if (tableWrap) tableWrap.style.display = "none";
                 if (emptyState) {
                     emptyState.style.display = "flex";
                     emptyState.textContent = "暂未添加自定义节点";
                 }
+                return;
             }
+
+            if (emptyState) emptyState.style.display = "none";
+            if (tableWrap) tableWrap.style.display = "";
+            if (testBtn) testBtn.style.display = "";
+            renderOutboundNodes();
         }
 
         function renderOutboundNodes() {
@@ -1043,9 +1070,6 @@
         const countryFilter = $("country_filter");
         if (countryFilter) countryFilter.onchange = () => { currentPage = 1; render(); };
 
-        window.syncVpngateNodes = syncVpngateNodes;
-
-
         async function saveNetwork(e) {
             e.preventDefault();
             const errorDivEl = $("network_error");
@@ -1110,3 +1134,27 @@
                 submitBtn.textContent = "保存设置";
             }
         }
+
+        window.showOutboundNodeTab = showOutboundNodeTab;
+        window.renderWarpPowerButton = renderWarpPowerButton;
+        window.loadWarpState = loadWarpState;
+        window.toggleWarpFeaturePower = toggleWarpFeaturePower;
+        window.testWarpNode = testWarpNode;
+        window.refreshWarpNode = refreshWarpNode;
+        window.deleteWarpNode = deleteWarpNode;
+        window.toggleEditWarpEndpoint = toggleEditWarpEndpoint;
+        window.saveWarpEndpoint = saveWarpEndpoint;
+        window.loadOutboundNodes = loadOutboundNodes;
+        window.testAllCustomOutboundNodes = testAllCustomOutboundNodes;
+        window.openOutboundNodeModal = openOutboundNodeModal;
+        window.closeOutboundNodeModal = closeOutboundNodeModal;
+        window.fetchAndConvertOutbound = fetchAndConvertOutbound;
+        window.deleteOutboundNode = deleteOutboundNode;
+        window.toggleOutboundNode = toggleOutboundNode;
+        window.closeOpenvpnRoutingModal = closeOpenvpnRoutingModal;
+        window.updateCountryFilter = updateCountryFilter;
+        window.stableSortNodes = stableSortNodes;
+        window.render = render;
+        window.connectNode = connectNode;
+        window.syncVpngateNodes = syncVpngateNodes;
+        window.saveNetwork = saveNetwork;

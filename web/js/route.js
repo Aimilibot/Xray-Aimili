@@ -404,3 +404,12 @@
                 alert("无法连接后端接口");
             }
         }
+
+        window.loadRoutingRules = loadRoutingRules;
+        window.updateRoutingStatusHint = updateRoutingStatusHint;
+        window.openRoutingRuleModal = openRoutingRuleModal;
+        window.editRoutingRule = editRoutingRule;
+        window.closeRoutingRuleModal = closeRoutingRuleModal;
+        window.saveRoutingRule = saveRoutingRule;
+        window.deleteRoutingRule = deleteRoutingRule;
+        window.toggleRoutingRule = toggleRoutingRule;

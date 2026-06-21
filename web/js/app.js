@@ -135,7 +135,10 @@
             } else if (tabId === 'tab-nodes') {
                 load();
                 loadGatewayStatus();
-                loadOutboundNodes();
+                const selectedOutboundTab = document.querySelector('input[name="outbound_node_tab"]:checked');
+                if (typeof showOutboundNodeTab === "function") {
+                    showOutboundNodeTab(selectedOutboundTab ? selectedOutboundTab.value : "vpngate");
+                }
             } else if (tabId === 'tab-settings') {
                 loadGatewayStatus();
                 loadLogs();
@@ -386,5 +389,18 @@
                 });
             });
         }
+
+        window.showTab = showTab;
+        window.toggleFeaturePower = toggleFeaturePower;
+        window.setFeatureGate = setFeatureGate;
+        window.load = load;
+        window.logoutAdmin = logoutAdmin;
+        window.showToast = showToast;
+        window.copyShareText = copyShareText;
+        window.applyTheme = applyTheme;
+        window.isFeatureEnabled = isFeatureEnabled;
+        window.syncFeatureGates = syncFeatureGates;
+        window.renderFeatureGateSwitches = renderFeatureGateSwitches;
+        window.featureDisabledHtml = featureDisabledHtml;
 
         window.addEventListener('DOMContentLoaded', initApp);

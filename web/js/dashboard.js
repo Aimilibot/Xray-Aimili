@@ -457,6 +457,13 @@ function toggleVPSModal() {
 
         window.testLayeredHealth = testLayeredHealth;
         window.renderLayeredHealthDashboard = renderLayeredHealthDashboard;
+        window.startConnectionPolling = startConnectionPolling;
+        window.startOpenvpnService = startOpenvpnService;
+        window.disconnectNode = disconnectNode;
+        window.testLocalProxy = testLocalProxy;
+        window.fetchStats = fetchStats;
+        window.drawTrafficChart = drawTrafficChart;
+        window.proxyStatusPanelHtml = proxyStatusPanelHtml;
         
         let _first_health_done = false;
         const _orig_fetchStats = fetchStats;
