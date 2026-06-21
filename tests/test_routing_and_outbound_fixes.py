@@ -112,6 +112,23 @@ class RoutingAndOutboundFixTests(unittest.TestCase):
                 self.assertTrue(health["policy_routing"]["ok"])
                 self.assertIn("OpenVPN 未连接", health["policy_routing"]["details"])
 
+    def test_policy_routing_requires_rule_and_default_route_for_active_tun(self) -> None:
+        def fake_run(cmd, *args, **kwargs):
+            class Result:
+                returncode = 0
+                stdout = ""
+
+            result = Result()
+            if cmd[:3] == ["ip", "rule", "show"]:
+                result.stdout = "1000: from all oif tun7 lookup 100\n"
+            elif cmd[:4] == ["ip", "route", "show", "table"]:
+                result.stdout = "default dev tun7 scope link\n"
+            return result
+
+        with patch.object(vpn.subprocess, "run", side_effect=fake_run):
+            self.assertTrue(vpn.policy_routing_is_configured("tun7"))
+            self.assertFalse(vpn.policy_routing_is_configured("tun0"))
+
     def test_domain_rules_can_bind_same_inbound_to_different_outbounds(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp).mkdir(parents=True, exist_ok=True)
@@ -181,6 +198,23 @@ class RoutingAndOutboundFixTests(unittest.TestCase):
 
                 self.assertTrue(any(rule.get("domain") == ["site-a.example"] and rule.get("outboundTag") == "warp" for rule in rules))
                 self.assertTrue(any(rule.get("domain") == ["site-b.example"] and rule.get("outboundTag") == "custom-site-a" for rule in rules))
+
+    def test_vpngate_outbound_uses_active_openvpn_interface(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sys_net = Path(tmp) / "sys" / "class" / "net"
+            (sys_net / "tun7").mkdir(parents=True)
+            with self.xray_storage(tmp), \
+                 patch.object(xray.sys, "platform", "linux"), \
+                 patch.object(xray, "SYS_CLASS_NET", sys_net), \
+                 patch.object(xray.vpn_utils, "ACTIVE_TUN_DEVICE", "tun7"):
+                cfg = xray.default_xray_cfg()
+                cfg["outbound_interface"] = "tun0"
+
+                self.assertTrue(xray.write_xray_config(cfg))
+                generated = json.loads(xray.XRAY_CONFIG_FILE.read_text(encoding="utf-8"))
+                outbound = next(item for item in generated["outbounds"] if item.get("tag") == "vpngate-openvpn-active")
+
+                self.assertEqual(outbound["streamSettings"]["sockopt"]["interface"], "tun7")
 
 
 if __name__ == "__main__":

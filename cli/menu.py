@@ -408,7 +408,7 @@ def format_line(label, value, target_width=24):
     return f"{prefix}{label}{padding}:  {value}"
 
 def print_header():
-    runtime = "Docker Stack" if is_docker_install() else "Host Service"
+    runtime = "Docker Stack" if is_docker_install() else "未绑定 Docker"
     print(f"{C_BOLD}{C_CYAN}============================================================{C_END}")
     print(f"{C_BOLD}{C_CYAN}                  AimiliVPN 独立管理终端                    {C_END}")
     print(f"{C_CYAN}                    Runtime: {runtime:<22}{C_END}")
@@ -599,6 +599,9 @@ def run_service_cmd(cmd):
         elif cmd == "restart":
             docker_compose(["restart"], check=False)
         return
+
+    print("当前安装未绑定 Docker Stack。为保证网关安全，请使用 install-docker.sh 重新部署；宿主机只保留 ml 管理菜单。", flush=True)
+    return
 
     if shutil.which("systemctl"):
         subprocess.run(["systemctl", cmd, "aimilivpn.service"])
@@ -1245,13 +1248,13 @@ def update_panel():
             print("清理 Python 编译缓存...")
             cleanup_python_cache()
 
-            if is_docker_install():
-                print("正在重建并启动 Docker Stack...")
-                docker_compose(["up", "-d", "--build"], check=True)
-            else:
-                print("正在刷新宿主机服务配置...")
-                ensure_host_service()
-                run_service_cmd("restart")
+            if not is_docker_install():
+                print(f"{C_FAIL}当前不是 Docker 安装。为保证网关安全，已停止宿主机服务更新路径。请使用 install-docker.sh 重新部署。{C_END}")
+                time.sleep(3)
+                return
+
+            print("正在重建并启动 Docker Stack...")
+            docker_compose(["up", "-d", "--build"], check=True)
 
             ensure_global_launcher()
             print(f"\n{C_GREEN}面板更新完成，配置与运行数据已保留。{C_END}")

@@ -34,6 +34,7 @@ from utils import vpn as vpn_utils
 _openvpn_version = None
 active_test_indexes = set()
 test_indexes_lock = threading.Lock()
+UPSTREAM_PROXY_AUTH_FILE = DATA_DIR / "upstream_proxy_auth.txt"
 
 def parse_int(value: Any) -> int:
     try:
@@ -404,6 +405,22 @@ def ensure_openvpn_auth_file() -> None:
     except OSError:
         pass
 
+def upstream_proxy_auth_file() -> str | None:
+    username, password = vpn_utils.get_upstream_proxy_auth()
+    if username is None:
+        return None
+    try:
+        DATA_DIR.mkdir(exist_ok=True, parents=True)
+        UPSTREAM_PROXY_AUTH_FILE.write_text(f"{username}\n{password or ''}\n", encoding="utf-8")
+        try:
+            UPSTREAM_PROXY_AUTH_FILE.chmod(0o600)
+        except OSError:
+            pass
+        return str(UPSTREAM_PROXY_AUTH_FILE)
+    except Exception as exc:
+        print(f"[上游代理认证] 写入认证文件失败: {exc}", flush=True)
+        return None
+
 def is_openvpn_environment_error(message: str) -> bool:
     return any(
         token in (message or "")
@@ -446,6 +463,7 @@ def openvpn_command(config_file: str, route_nopull: bool, dev: str = "tun0") -> 
             "15",
             "--auth-user-pass",
             str(AUTH_FILE),
+            "--auth-nocache",
         ]
     )
 
@@ -457,14 +475,22 @@ def openvpn_command(config_file: str, route_nopull: bool, dev: str = "tun0") -> 
 
     command.extend(["--verb", "3"])
 
+    if os.path.exists("/etc/ssl/certs"):
+        command.extend(["--capath", "/etc/ssl/certs"])
+
     try:
         content = Path(config_file).read_text(encoding="utf-8", errors="replace")
         if vpn_utils.is_config_tcp(content):
             ptype, host, port = vpn_utils.get_upstream_proxy()
+            auth_file = upstream_proxy_auth_file()
             if ptype == "socks" and host and port:
                 command.extend(["--socks-proxy", host, str(port)])
+                if auth_file:
+                    command.append(auth_file)
             elif ptype == "http" and host and port:
                 command.extend(["--http-proxy", host, str(port)])
+                if auth_file:
+                    command.append(auth_file)
     except Exception:
         pass
 
@@ -626,7 +652,19 @@ def run_openvpn_until_ready(config_file: str, keep_alive: bool, route_nopull: bo
         process = None
     return ok, message, process
 
-def setup_policy_routing(interface: str = "tun0") -> None:
+def policy_routing_is_configured(interface: str = "tun0") -> bool:
+    try:
+        rule_res = subprocess.run(["ip", "rule", "show"], capture_output=True, text=True, timeout=2)
+        route_res = subprocess.run(["ip", "route", "show", "table", "100"], capture_output=True, text=True, timeout=2)
+    except Exception:
+        return False
+    rules = rule_res.stdout or ""
+    routes = route_res.stdout or ""
+    has_rule = rule_res.returncode == 0 and ("lookup 100" in rules or " table 100" in rules or rules.strip().endswith("100"))
+    has_route = route_res.returncode == 0 and f"dev {interface}" in routes and "default" in routes
+    return has_rule and has_route
+
+def setup_policy_routing(interface: str = "tun0") -> bool:
     try:
         subprocess.run(["ip", "rule", "del", "table", "100"], capture_output=True, timeout=2)
     except Exception:
@@ -656,6 +694,7 @@ def setup_policy_routing(interface: str = "tun0") -> None:
     if not success:
         print("[路由配置失败] [错误代码 3003] [ERR_ROUTE_TABLE_ADD_FAILED] 策略路由配置失败。原因: 无法向路由表 100 添加默认路由，这可能会导致通过 VPN 接口的出站路由无法正常解析。请检查系统是否支持策略路由、iproute2 工具是否完整，以及是否具有 root 权限。", flush=True)
         log_to_json("ERROR", "Routing", "[错误代码 3003] [ERR_ROUTE_TABLE_ADD_FAILED] 策略路由配置失败。原因: 无法向路由表 100 添加默认路由")
+    return success
 
 def cleanup_policy_routing() -> None:
     try:
@@ -1594,13 +1633,10 @@ def check_layered_health() -> dict[str, Any]:
             pr_ok = True
             pr_details = "OpenVPN 未连接，策略路由暂不需要检查；连接成功后系统会自动配置 table 100。"
         else:
-            has_table_100 = False
-            try:
-                res = subprocess.run(["ip", "rule", "show"], capture_output=True, text=True, timeout=2)
-                if res.returncode == 0 and ("100" in res.stdout or "lookup 100" in res.stdout):
-                    has_table_100 = True
-            except Exception:
-                pass
+            has_table_100 = policy_routing_is_configured(active_dev)
+            if not has_table_100:
+                setup_policy_routing(active_dev)
+                has_table_100 = policy_routing_is_configured(active_dev)
             
             rp_strict = False
             rp_val = "0"

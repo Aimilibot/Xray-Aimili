@@ -6,11 +6,16 @@ services:
     image: aimili-vpn-panel:latest
     container_name: aimili-vpn-panel
     restart: unless-stopped
-    network_mode: host
     cap_add:
       - NET_ADMIN
     devices:
       - /dev/net/tun:/dev/net/tun
+    sysctls:
+      net.ipv4.conf.all.rp_filter: "2"
+      net.ipv4.conf.default.rp_filter: "2"
+    ports:
+      - "${UI_PORT:-8787}:${UI_PORT:-8787}"
+      - "${LOCAL_PROXY_PORT:-7928}:${LOCAL_PROXY_PORT:-7928}"
     environment:
       AIMILI_SERVICE_MODE: full
       VPNGATE_DATA_DIR: /data

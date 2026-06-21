@@ -29,6 +29,21 @@ class VpnGateOpenVpnDiagnosticsTests(unittest.TestCase):
             self.assertEqual(auth_file.read_text(encoding="utf-8"), "vpn\nvpn\n")
             auth_index = command.index("--auth-user-pass")
             self.assertEqual(command[auth_index + 1], str(auth_file))
+            self.assertIn("--auth-nocache", command)
+
+    def test_openvpn_command_matches_vpngate_script_tls_defaults(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / "node.ovpn"
+            config.write_text("client\nproto udp\nremote 1.2.3.4 1194\n", encoding="utf-8")
+
+            command = vpn.openvpn_command(str(config), route_nopull=True)
+
+            self.assertIn("--route-delay", command)
+            self.assertIn("--connect-retry-max", command)
+            self.assertIn("--connect-timeout", command)
+            if Path("/etc/ssl/certs").exists():
+                self.assertIn("--capath", command)
+                self.assertIn("/etc/ssl/certs", command)
 
     def test_openvpn_auth_prompt_failure_has_specific_diagnostic(self) -> None:
         code, message = vpn_utils.diagnose_openvpn_failure([

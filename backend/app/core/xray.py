@@ -31,6 +31,9 @@ from backend.app.db import (
     load_client_traffic, save_client_traffic, load_ui_config,
     ensure_panel_framework_files, current_timestamp
 )
+from utils import vpn as vpn_utils
+
+SYS_CLASS_NET = Path("/sys/class/net")
 
 def check_xray_installed() -> bool:
     if shutil.which("xray") is not None:
@@ -233,6 +236,20 @@ def normalize_xray_cfg(raw_cfg: dict[str, Any] | None) -> tuple[dict[str, Any], 
 
     cfg["inbounds"] = normalized
     return cfg, ""
+
+def interface_exists(interface: str) -> bool:
+    if not interface:
+        return False
+    if not sys.platform.startswith("linux"):
+        return True
+    return (SYS_CLASS_NET / interface).exists()
+
+def effective_vpn_interface(configured_interface: str | None = None) -> str:
+    active_interface = str(getattr(vpn_utils, "ACTIVE_TUN_DEVICE", "") or "").strip()
+    if active_interface and interface_exists(active_interface):
+        return active_interface
+    configured = str(configured_interface or "tun0").strip() or "tun0"
+    return configured
 
 def load_xray_cfg() -> dict:
     data = None
@@ -765,7 +782,7 @@ def write_xray_config(cfg: dict) -> bool:
                 "tag": "local-warp-test-http"
             })
 
-        outbound_interface = str(cfg.get("outbound_interface") or "tun0")
+        outbound_interface = effective_vpn_interface(cfg.get("outbound_interface"))
         primary_outbound = {
             "tag": "vpn-out",
             "protocol": "freedom",
@@ -987,9 +1004,9 @@ def start_xray() -> bool:
         xray_event("ERROR", state.xray_last_error)
         return False
 
-    outbound_interface = str(cfg.get("outbound_interface") or "tun0")
+    outbound_interface = effective_vpn_interface(cfg.get("outbound_interface"))
     if cfg.get("require_vpn", True) and sys.platform.startswith("linux"):
-        if not active_openvpn_running() or not Path(f"/sys/class/net/{outbound_interface}").exists():
+        if not active_openvpn_running() or not interface_exists(outbound_interface):
             state.xray_last_error = f"[错误代码 2102] [ERR_XRAY_NEEDS_VPN] Xray 暂不能启动。原因: 当前配置要求 Xray 出站经由 {outbound_interface}，但 OpenVPN 未连接成功或该网卡不存在。"
             xray_event("ERROR", state.xray_last_error)
             return False
@@ -1994,11 +2011,8 @@ def set_subscription_node_enabled(node_id: str, enabled: bool) -> tuple[dict[str
 def inject_outbound_sockopt(outbound: dict, interface: str) -> None:
     if not interface:
         return
-    import sys
-    if sys.platform.startswith("linux"):
-        from pathlib import Path
-        if not Path(f"/sys/class/net/{interface}").exists():
-            return
+    if sys.platform.startswith("linux") and not interface_exists(interface):
+        return
     stream_settings = outbound.setdefault("streamSettings", {})
     sockopt = stream_settings.setdefault("sockopt", {})
     sockopt["interface"] = interface
