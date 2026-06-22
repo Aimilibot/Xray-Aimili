@@ -754,7 +754,6 @@
         }
 
         function getFilteredNodes() {
-            const keyword = (($("search") && $("search").value) || "").trim().toLowerCase();
             const country = (($("country_filter") && $("country_filter").value) || "").trim();
             const status = (($("status_filter") && $("status_filter").value) || "").trim();
             const ipType = (($("ip_type_filter") && $("ip_type_filter").value) || "").trim();
@@ -765,25 +764,6 @@
                 if (country && n.country !== country) return false;
                 if (status && (n.probe_status || "not_checked") !== status) return false;
                 if (ipType && (n.ip_type || "") !== ipType) return false;
-                if (keyword) {
-                    const haystack = [
-                        n.ip,
-                        n.remote_host,
-                        n.remote_port,
-                        n.location,
-                        n.country,
-                        translateCountry(n.country),
-                        n.country_short,
-                        n.owner,
-                        n.as_name,
-                        n.asn,
-                        n.ip_type,
-                        translateIpType(n.ip_type),
-                        n.quality,
-                        translateQuality(n.quality)
-                    ].join(" ").toLowerCase();
-                    if (!haystack.includes(keyword)) return false;
-                }
                 return true;
             });
 
@@ -828,9 +808,7 @@
         }
 
         function nodeEndpointText(n) {
-            const host = nodeHostText(n);
-            if (host === "-") return "-";
-            return n.remote_port ? `${host}:${n.remote_port}` : host;
+            return nodeHostText(n);
         }
 
         function nodeLocationText(n) {
@@ -1004,7 +982,6 @@
                     const regionText = n.country_short || translateCountry(n.country) || "-";
                     const ipText = nodeEndpointText(n);
                     const ispText = n.owner || n.as_name || "-";
-                    const asnText = n.asn ? `AS${String(n.asn).replace(/^AS/i, "")}` : "-";
                     const latencyText = n.latency_ms ? `${n.latency_ms} ms` : (n.ping ? `${n.ping} ms` : "-");
                     const typeText = translateIpType(n.ip_type) || "-";
 
@@ -1024,11 +1001,9 @@
                         <div class="vpngate-node-card ${isCurrentlyActive ? "is-active" : ""}">
                             <div class="vpngate-node-cell vpngate-node-main">
                                 <strong class="vpngate-node-title" title="${esc(displayLocation)}">${esc(displayLocation)}</strong>
-                                <span class="vpngate-node-sub">${esc(regionText)}</span>
+                                <span class="vpngate-node-sub">${esc(regionText)} · ${esc(typeText)}</span>
                             </div>
                             <span class="vpngate-node-cell vpngate-node-endpoint mono">${esc(ipText)}</span>
-                            <span class="vpngate-node-cell vpngate-node-asn mono">${esc(asnText)}</span>
-                            <span class="vpngate-node-cell vpngate-node-type">${esc(typeText)}</span>
                             <span class="vpngate-node-cell vpngate-node-latency">${esc(latencyText)}</span>
                             <span class="vpngate-node-cell vpngate-node-isp" title="${esc(ispText)}">${esc(ispText)}</span>
                             <span class="badge ${badgeClass}">${badgeText}</span>
@@ -1036,51 +1011,6 @@
                         </div>
                     `;
                 }).join("");
-            }
-        }
-
-        async function testAllVpngateNodes() {
-            if (!isFeatureEnabled("vpngate_enabled")) {
-                showToast("请先启动 VPNGate", "warning");
-                return;
-            }
-            const ids = nodes.map(n => n && n.id).filter(Boolean);
-            if (!ids.length) {
-                showToast("暂无可检测节点", "warning");
-                return;
-            }
-            const btn = $("btn_test_all_nodes");
-            const oldHtml = btn ? btn.innerHTML : "";
-            if (btn) {
-                btn.disabled = true;
-                btn.classList.add("is-loading");
-                btn.innerHTML = `<i data-lucide="refresh-cw" class="btn-icon" aria-hidden="true"></i>检测中`;
-            }
-            try {
-                const res = await fetch("./api/test_nodes", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ ids })
-                });
-                const data = await res.json();
-                if (!res.ok || !data.ok) {
-                    showToast(data.error || "节点检测失败", "error");
-                    return;
-                }
-                const testedNodes = Array.isArray(data.nodes) ? data.nodes : [];
-                const byId = new Map(testedNodes.map(item => [item.id, item]));
-                nodes = nodes.map(item => byId.get(item.id) || item);
-                stableSortNodes();
-                render();
-                showToast("节点检测完成", "success");
-            } catch (e) {
-                showToast("无法连接节点检测接口", "error");
-            } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.classList.remove("is-loading");
-                    btn.innerHTML = oldHtml || `<i data-lucide="refresh-cw" class="btn-icon" aria-hidden="true"></i>检测全部`;
-                }
             }
         }
 
@@ -1139,8 +1069,6 @@
             }
         }
 
-        const searchInput = $("search");
-        if (searchInput) searchInput.oninput = render;
         const countryFilter = $("country_filter");
         if (countryFilter) countryFilter.onchange = render;
         const statusFilter = $("status_filter");
@@ -1238,5 +1166,4 @@
         window.render = render;
         window.connectNode = connectNode;
         window.syncVpngateNodes = syncVpngateNodes;
-        window.testAllVpngateNodes = testAllVpngateNodes;
         window.saveNetwork = saveNetwork;

@@ -59,7 +59,6 @@ class FrontendInlineActionsTest(unittest.TestCase):
             "startOpenvpnService",
             "disconnectNode",
             "startConnectionPolling",
-            "testAllVpngateNodes",
         ]
 
         missing = [
@@ -86,19 +85,17 @@ class FrontendInlineActionsTest(unittest.TestCase):
         vpngate_panel = index.split('id="outbound-vpngate-panel"', 1)[1].split('id="outbound-warp-panel"', 1)[0]
 
         required_controls = [
-            'id="search"',
             'id="country_filter"',
             'id="status_filter"',
             'id="ip_type_filter"',
             'id="sort_filter"',
-            'id="btn_test_all_nodes"',
             'id="vpngate_count_summary"',
         ]
         for control in required_controls:
             with self.subTest(control=control):
                 self.assertIn(control, vpngate_panel)
 
-        self.assertIn("检测全部", vpngate_panel)
+        self.assertNotIn("检测全部", vpngate_panel)
         self.assertNotIn("vpngate_pagination_region", vpngate_panel)
         self.assertNotIn("btn_next_page", vpngate_panel)
 
@@ -111,7 +108,7 @@ class FrontendInlineActionsTest(unittest.TestCase):
         self.assertNotIn('pIpVal.textContent = state.active_node_latency', outbound)
         self.assertIn("vpngate-node-endpoint", outbound)
         self.assertIn("vpngate-node-latency", outbound)
-        self.assertIn("grid-template-columns:minmax(180px, 1.25fr)", css)
+        self.assertIn("grid-template-columns:minmax(220px, 1.45fr)", css)
         self.assertIn(".vpngate-node-list #rows { gap:8px !important; }", css)
 
 

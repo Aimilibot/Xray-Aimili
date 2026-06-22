@@ -136,7 +136,7 @@ function toggleVPSModal() {
                 setText('vpngate_openvpn_text', openvpnStatusText);
                 const activeNode = Array.isArray(nodes) ? nodes.find(item => item.id === state.active_openvpn_node_id) : null;
                 const activeNodeLabel = activeNode
-                    ? `${translateCountry(activeNode.country)} ${activeNode.ip || activeNode.remote_host || ""}:${activeNode.remote_port || ""}`
+                    ? `${translateCountry(activeNode.country)} ${activeNode.ip || activeNode.remote_host || ""}`
                     : (state.active_openvpn_node_id || "未连接");
                 setText('vpngate_node_text', activeNodeLabel);
                 const proxyText = state.proxy_ok

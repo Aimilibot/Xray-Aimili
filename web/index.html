@@ -103,7 +103,7 @@
     </aside>
 
     <button id="vps-floating-trigger" onclick="toggleVPSModal()" title="VPS">
-      <span>★</span>
+      <i data-lucide="server-cog" class="btn-icon" aria-hidden="true"></i>
       <strong>VPS</strong>
     </button>
 
@@ -246,7 +246,6 @@
             </div>
             <section id="active_node_card" class="mb-5"></section>
             <div id="vpngate_filter_region" class="vpngate-toolbar" style="display:none">
-              <input id="search" class="vpngate-filter-input" placeholder="搜索 IP / 地区 / 运营商">
               <select id="country_filter" class="vpngate-filter-select"><option value="">所有国家</option></select>
               <select id="status_filter" class="vpngate-filter-select">
                 <option value="">所有状态</option>
@@ -267,9 +266,6 @@
                 <option value="country">国家排序</option>
                 <option value="status">状态排序</option>
               </select>
-              <button type="button" id="btn_test_all_nodes" onclick="testAllVpngateNodes()" class="btn btn-secondary">
-                <i data-lucide="refresh-cw" class="btn-icon" aria-hidden="true"></i>检测全部
-              </button>
               <span id="vpngate_count_summary" class="vpngate-count">0 个节点</span>
             </div>
             <div id="vpngate_table_region" class="vpngate-node-list" style="display:none">
