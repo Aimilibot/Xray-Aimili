@@ -235,7 +235,7 @@ def get_service_pid():
                 try:
                     with open(os.path.join('/proc', pid_dir, 'cmdline'), 'r') as f:
                         cmd = f.read()
-                        if 'vpngate_manager.py' in cmd:
+                        if 'backend.app.main' in cmd or 'vpngate_manager.py' in cmd:
                             return pid_dir
                 except Exception:
                     continue
@@ -1107,47 +1107,6 @@ def cleanup_python_cache():
             if filename.endswith((".pyc", ".pyo")):
                 safe_remove_path(Path(root) / filename)
 
-def ensure_host_service():
-    if shutil.which("systemctl"):
-        service = Path("/etc/systemd/system/aimilivpn.service")
-        service.write_text(
-            "[Unit]\n"
-            "Description=AimiliVPN OpenVPN Manager with HTTP/SOCKS5 Proxy\n"
-            "After=network.target\n\n"
-            "[Service]\n"
-            "Type=simple\n"
-            f"WorkingDirectory={INSTALL_DIR}\n"
-            "ExecStart=/usr/bin/python3 backend/vpngate_manager.py\n"
-            "Restart=always\n"
-            "RestartSec=5\n"
-            "EnvironmentFile=-/etc/default/aimilivpn\n\n"
-            "[Install]\n"
-            "WantedBy=multi-user.target\n",
-            encoding="utf-8",
-        )
-        run_quiet(["systemctl", "daemon-reload"])
-        run_quiet(["systemctl", "enable", "aimilivpn.service"])
-        return
-
-    if shutil.which("rc-service"):
-        service = Path("/etc/init.d/aimilivpn")
-        service.write_text(
-            "#!/sbin/openrc-run\n\n"
-            "description=\"AimiliVPN OpenVPN Manager with HTTP/SOCKS5 Proxy\"\n"
-            "command=\"/usr/bin/python3\"\n"
-            f"command_args=\"{INSTALL_DIR}/backend/vpngate_manager.py\"\n"
-            "command_background=\"yes\"\n"
-            f"directory=\"{INSTALL_DIR}\"\n"
-            "pidfile=\"/run/aimilivpn.pid\"\n\n"
-            "depend() {\n"
-            "    need net\n"
-            "    after firewall\n"
-            "}\n",
-            encoding="utf-8",
-        )
-        service.chmod(0o755)
-        run_quiet(["rc-update", "add", "aimilivpn", "default"])
-
 def cleanup_service_files():
     for svc in SERVICE_NAMES:
         base = svc[:-8] if svc.endswith(".service") else svc
@@ -1170,11 +1129,11 @@ def cleanup_service_files():
         run_quiet(["systemctl", "daemon-reload"])
 
 def cleanup_processes():
-    for pattern in ("vpngate_manager.py", "aimili-xray"):
+    for pattern in ("backend.app.main", "vpngate_manager.py", "aimili-xray"):
         run_quiet(["pkill", "-TERM", "-f", pattern])
     run_quiet(["pkill", "-TERM", "-x", "xray"])
     time.sleep(1)
-    for pattern in ("vpngate_manager.py", "aimili-xray"):
+    for pattern in ("backend.app.main", "vpngate_manager.py", "aimili-xray"):
         run_quiet(["pkill", "-KILL", "-f", pattern])
     run_quiet(["pkill", "-KILL", "-x", "xray"])
 

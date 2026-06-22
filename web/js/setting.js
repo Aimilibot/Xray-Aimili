@@ -164,10 +164,6 @@
         let domainCertsList = [];
         let manualCertPaths = false;
 
-        function renderDomainCertsList() {
-            // No-op as pool list UI is removed
-        }
-
         function getLetsEncryptPaths(domain) {
             const safeDomain = (domain || "").trim();
             return {
@@ -396,7 +392,6 @@
         }
 
         async function loadGatewayStatusCall() {
-            // Only fetch when tab is active
             const currentTab = sessionStorage.getItem('currentTab') || 'tab-host';
             if (currentTab !== 'tab-settings' && currentTab !== 'tab-host') {
                 if (gatewayPollInterval) {

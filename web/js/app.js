@@ -90,12 +90,34 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
 
-        function applyTheme(themeName) {
-            document.body.className = themeName === 'default' ? '' : themeName;
-            localStorage.setItem('theme', themeName);
-            document.querySelectorAll('.theme-option').forEach(card => card.classList.remove('active'));
-            const selectedCard = document.querySelector(`.theme-option[data-theme="${themeName}"]`);
-            if (selectedCard) selectedCard.classList.add('active');
+        let iconRefreshQueued = false;
+        function refreshIcons() {
+            if (!window.lucide || iconRefreshQueued) return;
+            iconRefreshQueued = true;
+            requestAnimationFrame(() => {
+                window.lucide.createIcons({
+                    attrs: {
+                        "stroke-width": 1.8,
+                        "stroke-linecap": "round",
+                        "stroke-linejoin": "round"
+                    }
+                });
+                iconRefreshQueued = false;
+            });
+        }
+
+        function observeIconMounts() {
+            if (!window.MutationObserver || !document.body) {
+                refreshIcons();
+                return;
+            }
+            const observer = new MutationObserver(mutations => {
+                if (mutations.some(item => item.addedNodes.length > 0)) {
+                    refreshIcons();
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            refreshIcons();
         }
 
         function showTab(tabId) {
@@ -122,7 +144,6 @@
 
             sessionStorage.setItem('currentTab', tabId);
 
-            // Tab-specific loading
             if (tabId === 'tab-host') {
                 loadGatewayStatus();
                 loadXrayPanel();
@@ -145,18 +166,18 @@
 
         const rowIcon = (name) => {
             const icons = {
-                add: `<path d="M12 5v14M5 12h14"></path>`,
-                star: `<path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.8 1-6.1-4.4-4.3 6.1-.9Z"></path>`,
-                copy: `<rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>`,
-                qr: `<rect x="3" y="3" width="6" height="6" rx="1"></rect><rect x="15" y="3" width="6" height="6" rx="1"></rect><rect x="3" y="15" width="6" height="6" rx="1"></rect><path d="M15 15h2v2h-2z"></path><path d="M19 15h2"></path><path d="M15 19h6"></path><path d="M11 3h1"></path><path d="M11 7h1"></path><path d="M3 11h1"></path><path d="M7 11h1"></path>`,
-                power: `<path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0"></path>`,
-                edit: `<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>`,
-                trash: `<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"></path>`,
-                check: `<polyline points="20 6 9 17 4 12"></polyline>`,
-                play: `<path d="M5 3l14 9-14 9V3z"></path>`,
-                stop: `<rect x="6" y="6" width="12" height="12"></rect>`
+                add: "plus",
+                star: "star",
+                copy: "copy",
+                qr: "qr-code",
+                power: "power",
+                edit: "square-pen",
+                trash: "trash-2",
+                check: "check",
+                play: "play",
+                stop: "square"
             };
-            return `<svg class="row-action__icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${icons[name] || icons.edit}</svg>`;
+            return `<i data-lucide="${icons[name] || icons.edit}" class="row-action__icon" aria-hidden="true"></i>`;
         };
 
         const actionButton = (label, icon, onclick, danger = false, showText = false, extraClass = '') => `
@@ -349,6 +370,7 @@
         });
 
         function initApp() {
+            observeIconMounts();
             loadFeatureGates();
             load();
 
@@ -399,7 +421,7 @@
         window.logoutAdmin = logoutAdmin;
         window.showToast = showToast;
         window.copyShareText = copyShareText;
-        window.applyTheme = applyTheme;
+        window.refreshIcons = refreshIcons;
         window.isFeatureEnabled = isFeatureEnabled;
         window.syncFeatureGates = syncFeatureGates;
         window.renderFeatureGateSwitches = renderFeatureGateSwitches;

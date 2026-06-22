@@ -3,7 +3,6 @@
             if (window.crypto && window.crypto.randomUUID) {
                 return window.crypto.randomUUID();
             }
-            // RFC4122 v4 compliant fallback for non-secure HTTP contexts
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                 const r = Math.random() * 16 | 0;
                 const v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -244,7 +243,7 @@
 
         async function loadSubscriptionLinks() {
             const container = $("subscription_items_container");
-            if (container) container.innerHTML = `<div class="text-center py-8 text-muted">正在加载入站列表...</div>`;
+            if (container) container.innerHTML = `<div class="text-center py-8 text-muted">正在加载订阅节点...</div>`;
             try {
                 const res = await fetch("./api/panel/subscription-links");
                 const data = await res.json();
@@ -255,7 +254,7 @@
                 if (!subscriptionLinks.length) selectedSubscriptionLinkId = "";
                 renderSubscriptionItems();
             } catch (e) {
-                if (container) container.innerHTML = `<div class="text-center py-8 text-danger">入站列表加载失败</div>`;
+                if (container) container.innerHTML = `<div class="text-center py-8 text-danger">订阅节点加载失败</div>`;
             }
         }
 
@@ -267,13 +266,13 @@
                 renderSubscriptionItems();
             } catch (e) {
                 const container = $("subscription_items_container");
-                if (container) container.innerHTML = `<div class="text-center py-8 text-danger">入站列表加载失败</div>`;
+                if (container) container.innerHTML = `<div class="text-center py-8 text-danger">订阅节点加载失败</div>`;
             }
         }
 
         async function loadSubscriptionWorkspace() {
             const container = $("subscription_items_container");
-            if (container) container.innerHTML = `<div class="text-center py-8 text-muted">正在加载入站列表...</div>`;
+            if (container) container.innerHTML = `<div class="text-center py-8 text-muted">正在加载订阅节点...</div>`;
             try {
                 const [linksRes, nodesRes, rulesRes, outNodesRes] = await Promise.all([
                     fetch("./api/panel/subscription-links"),
@@ -295,7 +294,7 @@
                 if (!subscriptionLinks.length) selectedSubscriptionLinkId = "";
                 renderSubscriptionItems();
             } catch (e) {
-                if (container) container.innerHTML = `<div class="text-center py-8 text-danger">入站列表加载失败</div>`;
+                if (container) container.innerHTML = `<div class="text-center py-8 text-danger">订阅节点加载失败</div>`;
             }
         }
 
@@ -364,10 +363,8 @@
                 return `
                     <div class="node-card bg-[rgba(255,255,255,0.015)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] rounded-lg py-1.5 px-3 flex items-center justify-between gap-3 hover:bg-[rgba(255,255,255,0.04)] transition-all duration-200 w-full">
                         <div class="flex items-center gap-2.5 min-w-0">
-                            <!-- Status dot -->
                             <span class="w-2 h-2 rounded-full ${enabled ? 'bg-[var(--success)] shadow-[0_0_6px_var(--success)]' : 'bg-[var(--muted)]'} flex-none" title="${statusText}"></span>
                             
-                            <!-- Horizontal info list -->
                             <div class="flex items-center gap-3 text-[12.5px] flex-wrap text-text min-w-0">
                                 <strong class="text-[13px] font-semibold text-text truncate max-w-[150px]" title="${esc(node.name || '-')}">${esc(node.name || "-")}</strong>
                                 <span class="px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] text-muted text-[11px] font-mono leading-none">${esc(protocolName)}</span>
@@ -377,7 +374,6 @@
                             </div>
                         </div>
                         
-                        <!-- Actions -->
                         <div class="flex items-center gap-1 flex-none" onclick="event.stopPropagation()">
                             ${actionsHtml}
                         </div>
@@ -400,9 +396,7 @@
                     actionButton("删除", "trash", `deleteSubscriptionLink('${esc(link.id)}')`, true)
                 ].join("");
 
-                const expandIcon = expanded 
-                    ? `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path></svg>`
-                    : `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>`;
+                const expandIcon = `<i data-lucide="${expanded ? 'minus' : 'plus'}" class="w-3.5 h-3.5" aria-hidden="true"></i>`;
 
                 const nodesListHtml = childNodes.length 
                     ? childNodes.map(node => renderNodeCard(node, true)).join("")
@@ -410,31 +404,24 @@
 
                 return `
                     <div class="sub-link-card bg-glass border border-border rounded-2xl p-4 shadow-soft-shadow hover:shadow-shadow transition-all duration-300 flex flex-col gap-3">
-                        <!-- Card Header -->
                         <div class="flex items-center justify-between gap-3 w-full">
                             <div class="flex items-center gap-3 min-w-0">
-                                <!-- Serial Number -->
                                 <span class="text-[13.5px] font-mono text-muted font-bold flex-none">${idx}</span>
                                 
-                                <!-- Expand Button -->
                                 <button type="button" class="w-6 h-6 flex items-center justify-center rounded-md bg-glass border border-border text-muted transition-all duration-200 hover:text-primary hover:border-primary flex-none" onclick="${esc(`toggleSubscriptionExpand(${jsArg(link.id)}, event)`)}" aria-label="${expanded ? '折叠' : '展开'}">
                                     ${expandIcon}
                                 </button>
                                 
-                                <!-- Name -->
                                 <span class="font-bold text-[14.5px] text-text truncate max-w-[200px]" title="${esc(link.name || '-')}">${esc(link.name || "-")}</span>
                                 
-                                <!-- Status Text -->
                                 <span class="text-[12px] font-semibold ${enabled ? 'text-success' : 'text-muted'} flex-none">${statusText}</span>
                             </div>
                             
-                            <!-- Actions -->
                             <div class="flex items-center gap-1 flex-none" onclick="event.stopPropagation()">
                                 ${actionsHtml}
                             </div>
                         </div>
                         
-                        <!-- Collapsible Body -->
                         ${expanded ? `
                         <div class="sub-card-nodes-list border-t border-[color-mix(in_srgb,var(--surface-line)_50%,transparent)] pt-3 flex flex-col gap-2.5 animate-[fadeIn_200ms_ease]">
                             ${nodesListHtml}
@@ -451,12 +438,10 @@
 
             const cards = [];
             
-            // 1. Render Subscriptions Cards
             subscriptionLinks.forEach((link, idx) => {
                 cards.push(renderSubscriptionCard(link, idx + 1));
             });
             
-            // 2. Render Independent Nodes Group
             const independentNodes = independentSubscriptionNodes();
             if (independentNodes.length) {
                 cards.push(`

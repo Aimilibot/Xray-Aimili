@@ -254,10 +254,12 @@ cleanup_host_conflicts_and_residuals() {
 
     # 2. Kill leftover host processes (avoiding port conflicts)
     pkill -TERM -f "vpngate_manager.py" >/dev/null 2>&1 || true
+    pkill -TERM -f "backend.app.main" >/dev/null 2>&1 || true
     pkill -TERM -f "aimili-xray" >/dev/null 2>&1 || true
     pkill -TERM -x xray >/dev/null 2>&1 || true
     sleep 1
     pkill -KILL -f "vpngate_manager.py" >/dev/null 2>&1 || true
+    pkill -KILL -f "backend.app.main" >/dev/null 2>&1 || true
     pkill -KILL -f "aimili-xray" >/dev/null 2>&1 || true
     pkill -KILL -x xray >/dev/null 2>&1 || true
 

@@ -222,7 +222,7 @@
             if (btn) {
                 btn.disabled = true;
                 btn.classList.add("is-loading");
-                btn.innerHTML = `<span class="btn-icon icon-refresh" aria-hidden="true"></span>重置中`;
+                btn.innerHTML = `<i data-lucide="rotate-ccw" class="btn-icon" aria-hidden="true"></i>重置中`;
             }
             try {
                 const res = await fetch("./api/panel/outbound-nodes/warp/refresh", {
@@ -243,7 +243,7 @@
                 if (btn) {
                     btn.disabled = false;
                     btn.classList.remove("is-loading");
-                    btn.innerHTML = `<span class="btn-icon icon-refresh" aria-hidden="true"></span>重置`;
+                    btn.innerHTML = `<i data-lucide="rotate-ccw" class="btn-icon" aria-hidden="true"></i>重置`;
                 }
             }
         }
@@ -857,7 +857,6 @@
                 vpngateStatusBadge.innerHTML = `<span class="status-dot"></span>${statusText}`;
             }
 
-            // Render active node details card
             const activeCardContainer = $("active_node_card");
             if (!vpngateFeatureEnabled) {
                 activeCardContainer.innerHTML = `<div class="outbound-state-panel">VPNGate 公益节点未启动</div>`;
@@ -865,8 +864,8 @@
                 activeCardContainer.innerHTML = `
                     <div class="active-card" style="border-color: var(--yellow); box-shadow: 0 8px 32px rgba(255, 159, 10, 0.12);">
                         <div class="active-card-info">
-                            <div style="background: rgba(255, 159, 10, 0.15); border: 1px solid rgba(255, 159, 10, 0.3); width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                                <svg xmlns="http://www.w3.org/2000/svg" style="color: var(--yellow); width: 22px; height: 22px; animation: spin 2s linear infinite;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18" /></svg>
+                            <div style="background: rgba(255, 159, 10, 0.15); border: 1px solid rgba(255, 159, 10, 0.3); color: var(--yellow); width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <i data-lucide="refresh-cw" class="connection-state-icon is-spinning" aria-hidden="true"></i>
                             </div>
                             <div class="active-card-details">
                                 <div class="active-card-title" style="color: var(--yellow);">
@@ -893,8 +892,8 @@
                 activeCardContainer.innerHTML = `
                     <div class="active-card" style="border-color: var(--green); box-shadow: 0 8px 32px rgba(52, 199, 89, 0.08);">
                         <div class="active-card-info">
-                            <div style="background: rgba(52, 199, 89, 0.15); border: 1px solid rgba(52, 199, 89, 0.3); width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                                <svg xmlns="http://www.w3.org/2000/svg" style="color: var(--green); width: 22px; height: 22px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            <div style="background: rgba(52, 199, 89, 0.15); border: 1px solid rgba(52, 199, 89, 0.3); color: var(--green); width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <i data-lucide="zap" class="connection-state-icon" aria-hidden="true"></i>
                             </div>
                             <div class="active-card-details">
                                 <div class="active-card-title" style="color: var(--green);">
@@ -924,7 +923,6 @@
 
             const shown = vpngateFeatureEnabled ? getFilteredNodes() : [];
 
-            // Update user tag
             const displayUsername = $("display-username");
             if (displayUsername) {
                 displayUsername.innerText = state.username || "admin";
@@ -942,7 +940,6 @@
                 }
             });
 
-            // Update proxy test status card based on background checks
             const pBadge = $("proxy_status_badge");
             const pIpVal = $("proxy_ip_val");
             const pLatVal = $("proxy_latency_val");
@@ -1057,7 +1054,7 @@
             if (btn) {
                 btn.disabled = true;
                 btn.classList.add("is-loading");
-                btn.innerHTML = `<span class="btn-icon icon-refresh" aria-hidden="true"></span>检测中`;
+                btn.innerHTML = `<i data-lucide="refresh-cw" class="btn-icon" aria-hidden="true"></i>检测中`;
             }
             try {
                 const res = await fetch("./api/test_nodes", {
@@ -1082,7 +1079,7 @@
                 if (btn) {
                     btn.disabled = false;
                     btn.classList.remove("is-loading");
-                    btn.innerHTML = oldHtml || `<span class="btn-icon icon-refresh" aria-hidden="true"></span>检测全部`;
+                    btn.innerHTML = oldHtml || `<i data-lucide="refresh-cw" class="btn-icon" aria-hidden="true"></i>检测全部`;
                 }
             }
         }

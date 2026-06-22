@@ -3,6 +3,7 @@ import json
 import os
 import re
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -15,7 +16,6 @@ from pathlib import Path
 from typing import Any
 import uuid
 
-# Import from backend.app
 from backend.app import state
 from backend.app.config import (
     ROOT_DIR, DATA_DIR, WEB_DIR, LOCAL_PROXY_HOST, LOCAL_PROXY_PORT,
@@ -265,7 +265,6 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 try:
                     import urllib.request
-                    import json
                     req = urllib.request.Request("http://ip-api.com/json", headers={'User-Agent': 'Mozilla/5.0'})
                     with urllib.request.urlopen(req, timeout=3) as resp:
                         data = json.loads(resp.read().decode())

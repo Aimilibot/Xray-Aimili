@@ -50,4 +50,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD python -c "import socket; s=socket.create_connection(('127.0.0.1', int(__import__('os').environ.get('UI_PORT', '8787'))), 3); s.close()"
 
 ENTRYPOINT ["/usr/local/bin/aimili-full-entrypoint"]
-CMD ["python", "/app/backend/vpngate_manager.py"]
+CMD ["python", "-m", "backend.app.main"]

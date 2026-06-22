@@ -6,7 +6,6 @@
   <title>登录 - Aimili-VPNGate 面板</title>
   <link rel="stylesheet" href="css/theme.css">
   <style>
-    /* 登录页独有的极光背景，使用主题变量 */
     :root {
       --grid: rgba(30, 60, 120, 0.055);
       --glow-1: rgba(233, 157, 102, 0.18);
@@ -54,7 +53,6 @@
       100% { transform: translate(-46%, -48%) scale(1.1) rotate(18deg); }
     }
 
-    /* 登录卡片 */
     .login-card {
       background: var(--card);
       backdrop-filter: blur(30px) saturate(180%);
@@ -137,7 +135,6 @@
       40%, 80% { transform: translateX(6px); }
     }
 
-    /* 赤黑主题登录页覆盖 */
     body:has(#theme-red:checked) .form-input {
       background: rgba(255, 255, 255, 0.05);
     }
@@ -154,7 +151,6 @@
   </style>
 </head>
 <body>
-  <!-- 主题切换 (与主面板共享 localStorage key) -->
   <input type="radio" name="theme" id="theme-orange" checked style="display:none">
   <input type="radio" name="theme" id="theme-red" style="display:none">
 

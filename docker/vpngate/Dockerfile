@@ -21,7 +21,6 @@ RUN apt-get update \
         unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Automatically detect system architecture and download/install Xray Core
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then XRAY_ARCH="64"; \
     elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then XRAY_ARCH="arm64-v8a"; \
@@ -51,4 +50,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD python -c "import socket; s=socket.create_connection(('127.0.0.1', 7928), 3); s.close()"
 
 ENTRYPOINT ["/usr/local/bin/aimili-vpngate-entrypoint"]
-CMD ["python", "/app/backend/vpngate_manager.py"]
+CMD ["python", "-m", "backend.app.main"]

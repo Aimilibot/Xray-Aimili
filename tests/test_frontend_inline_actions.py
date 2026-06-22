@@ -73,7 +73,7 @@ class FrontendInlineActionsTest(unittest.TestCase):
     def test_vpngate_panel_has_single_start_control(self):
         outbound = (ROOT / "web" / "js" / "outbound.js").read_text(encoding="utf-8")
         index = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
-        vpngate_panel = index.split('id="outbound-vpngate-panel"', 1)[1].split('<!-- WARP -->', 1)[0]
+        vpngate_panel = index.split('id="outbound-vpngate-panel"', 1)[1].split('id="outbound-warp-panel"', 1)[0]
 
         self.assertNotIn('onclick="startOpenvpnService()"', outbound)
         self.assertNotIn("启动 OpenVPN", outbound)
@@ -83,7 +83,7 @@ class FrontendInlineActionsTest(unittest.TestCase):
 
     def test_vpngate_panel_lists_all_nodes_with_filters(self):
         index = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
-        vpngate_panel = index.split('id="outbound-vpngate-panel"', 1)[1].split('<!-- WARP -->', 1)[0]
+        vpngate_panel = index.split('id="outbound-vpngate-panel"', 1)[1].split('id="outbound-warp-panel"', 1)[0]
 
         required_controls = [
             'id="search"',

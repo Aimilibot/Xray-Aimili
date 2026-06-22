@@ -14,7 +14,6 @@ from backend.app.config import (
     ALLOWED_SUBSCRIPTION_PROTOCOLS, FEATURE_FLAGS_FILE
 )
 
-# Global tracker for old logs cleanup throttle
 _last_cleanup_time = 0.0
 XRAY_TRAFFIC_FILE = DATA_DIR / "client_traffic.json"
 DEFAULT_FEATURE_FLAGS = {
@@ -43,7 +42,6 @@ def read_json_list(path: Path) -> list[dict[str, Any]]:
     return [item for item in data if isinstance(item, dict)]
 
 def ensure_panel_framework_files() -> None:
-    # We defer migrate_subscription_hierarchy imports to avoid circular import issues
     from backend.app.core.xray import migrate_subscription_hierarchy
     defaults: list[tuple[Path, Any]] = [
         (SUBSCRIPTION_NODES_FILE, []),
@@ -59,8 +57,6 @@ def ensure_panel_framework_files() -> None:
 def ensure_dirs() -> None:
     DATA_DIR.mkdir(exist_ok=True, parents=True)
     CONFIG_DIR.mkdir(exist_ok=True, parents=True)
-    # Deprecated writing plain credentials to disk for security.
-    # Pass via in-memory stdin pipe to OpenVPN instead.
     if AUTH_FILE.exists():
         try:
             AUTH_FILE.unlink()
@@ -402,7 +398,6 @@ def get_state() -> dict[str, Any]:
     current_state.setdefault("blacklisted_nodes", 0)
     current_state["feature_flags"] = load_feature_flags()
 
-    # Pre-populate settings inputs in UI
     ui_cfg = load_ui_config()
     current_state["username"] = ui_cfg.get("username", "admin")
     current_state["port"] = ui_cfg.get("port", 8787)

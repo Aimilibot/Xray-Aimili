@@ -6,7 +6,6 @@ import signal
 import threading
 from pathlib import Path
 
-# Add workspace root to sys.path to allow imports from proxy and utils
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
@@ -118,7 +117,6 @@ def main() -> None:
     )
     threading.Thread(target=proxy_server.start_proxy_server, args=(LOCAL_PROXY_HOST, local_proxy_port), daemon=True).start()
 
-    # Wait for the gateway to officially start
     print("[网关] 正在启动代理网关...", flush=True)
     gateway_ready = False
     is_ipv6 = ":" in LOCAL_PROXY_HOST
@@ -170,7 +168,6 @@ def main() -> None:
 
     secret_path = ui_cfg.get("secret_path", "")
 
-    # Clean display of UI address (handle IPv6 host formatting)
     ui_host_display = f"[{ui_host}]" if ":" in ui_host else ui_host
 
     print(f"==========================================================", flush=True)

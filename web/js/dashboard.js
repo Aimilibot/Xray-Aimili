@@ -92,7 +92,6 @@ function toggleVPSModal() {
             container.innerHTML = `<svg width="100%" height="${height}" style="overflow: visible;">${svgContent}</svg>`;
         }
 
-        // Fetch CPU/RAM stats dynamically
         async function fetchStats() {
             try {
                 const response = await fetch("./api/stats");
@@ -102,10 +101,6 @@ function toggleVPSModal() {
                     const el = document.getElementById(id);
                     if (el) el.innerText = value;
                 };
-                const setWidth = (id, value) => {
-                    const el = document.getElementById(id);
-                    if (el) el.style.width = value;
-                };
                 const setRing = (id, value) => {
                     const el = document.getElementById(id);
                     if (!el) return;
@@ -113,7 +108,6 @@ function toggleVPSModal() {
                     el.style.setProperty("--pct", pct);
                 };
 
-                // 1. KPI Progress Bars & Values
                 setText('cpu-val', `${stats.cpu_percent}%`);
                 setRing('cpu-ring', stats.cpu_percent);
                 setText('cpu-detail', `${stats.cpu_cores || 1} 核心，${stats.cpu_percent < 70 ? '负载正常' : stats.cpu_percent < 90 ? '负载较高' : '负载高'}`);
@@ -126,7 +120,6 @@ function toggleVPSModal() {
                 setRing('disk-ring', stats.disk_percent);
                 setText('disk-detail', `${stats.disk_used_gb} / ${stats.disk_total_gb} GB`);
 
-                // 2. System Details
                 let uptime_str = "未知";
                 if (stats.uptime_seconds > 0) {
                     const days = Math.floor(stats.uptime_seconds / (3600 * 24));
@@ -390,7 +383,7 @@ function toggleVPSModal() {
             if (force && btn) {
                 btn.disabled = true;
                 btn.classList.add("is-loading");
-                btn.innerHTML = `<span class="btn-icon icon-refresh" aria-hidden="true"></span>自检中`;
+                btn.innerHTML = `<i data-lucide="refresh-cw" class="btn-icon" aria-hidden="true"></i>自检中`;
             }
             
             try {
@@ -406,7 +399,7 @@ function toggleVPSModal() {
                 if (btn) {
                     btn.disabled = false;
                     btn.classList.remove("is-loading");
-                    btn.innerHTML = `<span class="btn-icon icon-refresh" aria-hidden="true"></span>一键自检`;
+                    btn.innerHTML = `<i data-lucide="refresh-cw" class="btn-icon" aria-hidden="true"></i>一键自检`;
                 }
             }
         }
