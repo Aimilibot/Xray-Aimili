@@ -184,10 +184,12 @@ function toggleVPSModal() {
             return `
                 <div class="proxy-status-panel">
                     <div class="proxy-status-main">
-                        <div class="proxy-status-title">本地代理出口</div>
-                        <div class="proxy-status-line">
+                        <div class="proxy-status-heading">
+                            <div class="proxy-status-title">本地代理出口</div>
                             <span id="proxy_status_badge" class="badge not_checked">未检测</span>
-                            <span>IP: <strong id="proxy_ip_val">--</strong></span>
+                        </div>
+                        <div class="proxy-status-line">
+                            <span class="proxy-status-value">IP <strong id="proxy_ip_val">--</strong></span>
                             <span id="proxy_latency_val"></span>
                         </div>
                     </div>

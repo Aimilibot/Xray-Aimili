@@ -1,5 +1,6 @@
 
         let outboundNodes = [];
+        const vpngateTestingNodeIds = new Set();
         const virtualOutboundNodes = [
             { id: "vpngate-openvpn-active", name: "VPNGate 当前 OpenVPN", type: "vpngate-openvpn" }
         ];
@@ -987,14 +988,22 @@
 
                     const isUnavailable = n.probe_status === "unavailable";
                     const connectLabel = openvpnEnabled ? "切换" : "连接";
+                    const isTesting = vpngateTestingNodeIds.has(n.id);
+                    const testLabel = isTesting ? "检测中" : "检测";
 
                     let actionsHtml = "";
                     if (isCurrentlyActive) {
-                        actionsHtml = `<button class="btn btn-primary btn-sm px-3 pointer-events-none opacity-80" disabled><span class="badge-pulse"></span>已连接</button>`;
+                        actionsHtml = `<button class="btn btn-primary btn-sm vpngate-row-btn pointer-events-none opacity-80" disabled><span class="badge-pulse"></span>已连接</button>`;
                     } else if (isUnavailable || isConnecting) {
-                        actionsHtml = `<button class="btn btn-secondary btn-sm px-3" disabled>${esc(connectLabel)}</button>`;
+                        actionsHtml = [
+                            actionButton(testLabel, "activity", `testVpngateNode(${jsArg(n.id)})`, false, true, isTesting ? " is-loading" : ""),
+                            `<button class="btn btn-secondary btn-sm vpngate-row-btn" disabled>${esc(connectLabel)}</button>`
+                        ].join("");
                     } else {
-                        actionsHtml = actionButton(connectLabel, openvpnEnabled ? "stop" : "play", `connectNode(${jsArg(n.id)})`, false, true);
+                        actionsHtml = [
+                            actionButton(testLabel, "activity", `testVpngateNode(${jsArg(n.id)})`, false, true, isTesting ? " is-loading" : ""),
+                            actionButton(connectLabel, openvpnEnabled ? "switch" : "play", `connectNode(${jsArg(n.id)})`, false, true)
+                        ].join("");
                     }
 
                     return `
@@ -1054,6 +1063,51 @@
                 state.is_connecting = false;
                 render();
             }
+        }
+
+        async function testVpngateNode(id) {
+            if (!isFeatureEnabled("vpngate_enabled")) {
+                showToast("请先开启 VPNGate 公益节点功能", "warning");
+                return;
+            }
+            if (!id || vpngateTestingNodeIds.has(id)) return;
+            vpngateTestingNodeIds.add(id);
+            render();
+            try {
+                const res = await fetch("./api/test_node", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok || !data.node) {
+                    showToast(data.error || "节点检测失败", "error");
+                    return;
+                }
+                nodes = nodes.map(item => item && item.id === id ? data.node : item);
+                stableSortNodes();
+                const statusText = translateStatus(data.node.probe_status);
+                showToast(`节点检测完成：${statusText}`, data.node.probe_status === "available" ? "success" : "warning");
+            } catch (e) {
+                showToast("无法连接节点检测接口", "error");
+            } finally {
+                vpngateTestingNodeIds.delete(id);
+                render();
+            }
+        }
+
+        function testNextVpngateNode() {
+            if (!isFeatureEnabled("vpngate_enabled")) {
+                showToast("请先开启 VPNGate 公益节点功能", "warning");
+                return;
+            }
+            const nextNode = getFilteredNodes().find(item => item && !vpngateTestingNodeIds.has(item.id) && (item.probe_status || "not_checked") === "not_checked")
+                || getFilteredNodes().find(item => item && !vpngateTestingNodeIds.has(item.id) && item.probe_status !== "available");
+            if (!nextNode) {
+                showToast("当前筛选结果里没有需要检测的节点", "info");
+                return;
+            }
+            testVpngateNode(nextNode.id);
         }
 
         async function syncVpngateNodes() {
@@ -1165,5 +1219,7 @@
         window.stableSortNodes = stableSortNodes;
         window.render = render;
         window.connectNode = connectNode;
+        window.testVpngateNode = testVpngateNode;
+        window.testNextVpngateNode = testNextVpngateNode;
         window.syncVpngateNodes = syncVpngateNodes;
         window.saveNetwork = saveNetwork;

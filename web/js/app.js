@@ -175,7 +175,9 @@
                 trash: "trash-2",
                 check: "check",
                 play: "play",
-                stop: "square"
+                stop: "square",
+                switch: "arrow-right-left",
+                activity: "activity"
             };
             return `<i data-lucide="${icons[name] || icons.edit}" class="row-action__icon" aria-hidden="true"></i>`;
         };

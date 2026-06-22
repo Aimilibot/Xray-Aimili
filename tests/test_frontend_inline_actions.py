@@ -59,6 +59,8 @@ class FrontendInlineActionsTest(unittest.TestCase):
             "startOpenvpnService",
             "disconnectNode",
             "startConnectionPolling",
+            "testVpngateNode",
+            "testNextVpngateNode",
         ]
 
         missing = [
@@ -89,6 +91,7 @@ class FrontendInlineActionsTest(unittest.TestCase):
             'id="status_filter"',
             'id="ip_type_filter"',
             'id="sort_filter"',
+            'id="btn_test_next_node"',
             'id="vpngate_count_summary"',
         ]
         for control in required_controls:
@@ -108,8 +111,8 @@ class FrontendInlineActionsTest(unittest.TestCase):
         self.assertNotIn('pIpVal.textContent = state.active_node_latency', outbound)
         self.assertIn("vpngate-node-endpoint", outbound)
         self.assertIn("vpngate-node-latency", outbound)
-        self.assertIn("grid-template-columns:minmax(220px, 1.45fr)", css)
-        self.assertIn(".vpngate-node-list #rows { gap:8px !important; }", css)
+        self.assertIn("grid-template-columns:minmax(210px, 1.25fr)", css)
+        self.assertIn(".vpngate-node-list #rows { gap:4px !important; }", css)
 
 
 if __name__ == "__main__":

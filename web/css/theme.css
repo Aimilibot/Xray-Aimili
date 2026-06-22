@@ -333,16 +333,16 @@ label { color:var(--muted); font-weight:600; }
 }
 .vpngate-toolbar {
   display:grid;
-  grid-template-columns:repeat(4, minmax(132px, 1fr)) auto;
-  gap:10px;
+  grid-template-columns:repeat(4, minmax(126px, 1fr)) auto auto;
+  gap:8px;
   align-items:center;
-  margin:0 0 16px;
+  margin:0 0 12px;
 }
 .vpngate-filter-select {
-  width:100%; min-height:38px; padding:0 12px;
+  width:100%; min-height:34px; padding:0 10px;
   border:1px solid var(--surface-line); border-radius:10px;
   background:var(--glass); color:var(--text);
-  font-size:13px; font-weight:650; outline:none;
+  font-size:12.5px; font-weight:700; outline:none;
 }
 .vpngate-filter-select:focus {
   border-color:color-mix(in srgb, var(--primary) 45%, var(--surface-line));
@@ -352,15 +352,15 @@ label { color:var(--muted); font-weight:600; }
   justify-self:end; color:var(--muted); font-size:12px; font-weight:800; white-space:nowrap;
 }
 .vpngate-node-list {
-  max-height:calc(100vh - 375px); overflow-y:auto; overflow-x:hidden; padding-right:6px;
+  max-height:calc(100vh - 365px); overflow-y:auto; overflow-x:hidden; padding-right:6px;
 }
-.vpngate-node-list #rows { gap:8px !important; }
+.vpngate-node-list #rows { gap:4px !important; }
 .vpngate-node-card {
   display:grid;
-  grid-template-columns:minmax(220px, 1.45fr) minmax(126px, .72fr) 80px minmax(150px, .95fr) 78px 74px;
-  gap:12px; align-items:center;
+  grid-template-columns:minmax(210px, 1.25fr) minmax(126px, .78fr) 72px minmax(148px, .9fr) 78px 124px;
+  gap:10px; align-items:center;
   border:1px solid color-mix(in srgb, var(--border) 28%, transparent);
-  border-radius:10px; padding:9px 12px; min-height:52px;
+  border-radius:10px; padding:7px 10px; min-height:44px;
   background:rgba(255,255,255,.015);
   transition:background .18s ease, border-color .18s ease, transform .18s ease;
 }
@@ -374,21 +374,31 @@ label { color:var(--muted); font-weight:600; }
 }
 .vpngate-node-cell {
   min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  color:var(--muted); font-size:12px; font-weight:750;
+  color:var(--muted); font-size:12.5px; font-weight:700;
 }
-.vpngate-node-main { display:flex; flex-direction:column; gap:4px; }
+.vpngate-node-main { display:flex; flex-direction:column; gap:2px; }
 .vpngate-node-title {
   min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  color:var(--text); font-size:13.5px; font-weight:850;
+  color:var(--text); font-size:13px; font-weight:800;
 }
-.vpngate-node-sub { color:var(--muted); font-size:11px; font-weight:800; line-height:1; }
+.vpngate-node-sub { color:var(--muted); font-size:11px; font-weight:700; line-height:1.2; }
 .vpngate-node-isp { max-width:100%; }
-.vpngate-node-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+.vpngate-node-card > .badge {
+  justify-self:start; min-width:72px; justify-content:center;
+}
+.vpngate-node-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; }
+.vpngate-node-actions .row-action-btn--text,
+.vpngate-row-btn {
+  min-height:28px; height:28px; border-radius:8px; padding:0 8px;
+}
+.row-action-btn.is-loading .row-action__icon {
+  animation:spin .8s linear infinite;
+}
 @media (max-width:1040px) {
   .vpngate-toolbar { grid-template-columns:1fr 1fr; }
   .vpngate-count { justify-self:start; }
   .vpngate-node-card {
-    grid-template-columns:minmax(180px, 1fr) minmax(120px, .9fr) 80px 78px 74px;
+    grid-template-columns:minmax(180px, 1fr) minmax(120px, .9fr) 72px 78px 124px;
   }
   .vpngate-node-isp { display:none; }
 }
@@ -637,14 +647,16 @@ svg.btn-icon { width:15px; height:15px; stroke-width:1.9; }
 }
 
 .proxy-status-panel {
-  display:flex; align-items:center; gap:12px;
-  padding:8px 12px; border-radius:14px;
+  display:flex; align-items:center; gap:10px;
+  padding:7px 10px; border-radius:12px;
   border:1px solid var(--border);
   background:color-mix(in srgb, var(--glass-strong) 60%, transparent);
 }
-.proxy-status-main { display:flex; align-items:center; gap:8px; min-width:0; }
-.proxy-status-title { font-size:12px; font-weight:600; color:var(--muted); white-space:nowrap; }
-.proxy-status-line { display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:0; }
+.proxy-status-main { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.proxy-status-heading { display:flex; align-items:center; gap:7px; min-width:0; }
+.proxy-status-title { font-size:11.5px; font-weight:750; color:var(--muted); white-space:nowrap; }
+.proxy-status-line { display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0; color:var(--muted); font-size:11.5px; font-weight:700; }
+.proxy-status-value strong { color:var(--text); font-weight:800; }
 .proxy-status-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
 .proxy-check-btn { min-height:28px; padding:4px 10px; font-size:11.5px; font-weight:650; }
 
