@@ -1541,16 +1541,41 @@ def migrate_subscription_hierarchy() -> None:
     if changed_nodes:
         write_json(SUBSCRIPTION_NODES_FILE, nodes)
 
+def traffic_for_subscription_node(node: dict[str, Any], traffic: dict[str, Any]) -> dict[str, int]:
+    stats = traffic.get(str(node.get("name") or ""), {})
+    if not isinstance(stats, dict):
+        stats = {}
+    uploaded = int(stats.get("uploaded", 0) or 0)
+    downloaded = int(stats.get("downloaded", 0) or 0)
+    return {"uploaded": uploaded, "downloaded": downloaded, "total": uploaded + downloaded}
+
+def enrich_subscription_nodes(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    traffic = load_client_traffic()
+    enriched = []
+    for node in nodes:
+        item = dict(node)
+        item["traffic"] = traffic_for_subscription_node(item, traffic)
+        enriched.append(item)
+    return enriched
+
 def enrich_subscription_links(links: list[dict[str, Any]], nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    traffic = load_client_traffic()
     enriched: list[dict[str, Any]] = []
     for link in links:
         link_id = str(link.get("id") or "")
         child_nodes = [node for node in nodes if str(node.get("subscription_id") or "") == link_id]
         protocol_ids = {str(node.get("protocol") or "") for node in child_nodes if node.get("protocol")}
+        uploaded = 0
+        downloaded = 0
+        for node in child_nodes:
+            node_traffic = traffic_for_subscription_node(node, traffic)
+            uploaded += node_traffic["uploaded"]
+            downloaded += node_traffic["downloaded"]
         item = dict(link)
         item["node_count"] = len(child_nodes)
         item["enabled_node_count"] = len([node for node in child_nodes if node.get("enabled") is True])
         item["protocol_count"] = len(protocol_ids)
+        item["traffic"] = {"uploaded": uploaded, "downloaded": downloaded, "total": uploaded + downloaded}
         enriched.append(item)
     return enriched
 

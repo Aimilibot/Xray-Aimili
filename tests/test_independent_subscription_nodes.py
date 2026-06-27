@@ -103,6 +103,24 @@ class IndependentSubscriptionNodeTests(unittest.TestCase):
                 self.assertEqual(link["port"], 10086)
                 self.assertEqual(link["camouflage_host"], "www.microsoft.com")
 
+    def test_subscription_traffic_is_enriched_by_node_name(self) -> None:
+        links = [{"id": "sublink-1", "name": "main"}]
+        nodes = [
+            {"id": "node-1", "subscription_id": "sublink-1", "name": "line-a", "enabled": True},
+            {"id": "node-2", "subscription_id": "sublink-1", "name": "line-b", "enabled": True},
+        ]
+        traffic = {
+            "line-a": {"uploaded": 100, "downloaded": 200},
+            "line-b": {"uploaded": 300, "downloaded": 400},
+        }
+
+        with patch.object(xray, "load_client_traffic", lambda: traffic):
+            enriched_nodes = xray.enrich_subscription_nodes(nodes)
+            enriched_links = xray.enrich_subscription_links(links, nodes)
+
+        self.assertEqual(enriched_nodes[0]["traffic"], {"uploaded": 100, "downloaded": 200, "total": 300})
+        self.assertEqual(enriched_links[0]["traffic"], {"uploaded": 400, "downloaded": 600, "total": 1000})
+
     def test_write_xray_config_adds_independent_socks_inbound(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with self.enter_patches(tmp):

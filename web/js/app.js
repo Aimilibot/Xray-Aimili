@@ -272,8 +272,7 @@
 
         async function loadFeatureGates() {
             try {
-                const res = await fetch("./api/features");
-                const data = await res.json();
+                const { data } = await apiJson("./api/features");
                 if (data && data.features) syncFeatureGates(data.features);
             } catch (e) {
                 renderFeatureGateSwitches();
@@ -300,13 +299,8 @@
             const powerControl = document.querySelector(`[data-feature-power="${key}"]`);
             if (powerControl) powerControl.disabled = true;
             try {
-                const res = await fetch("./api/features/toggle", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ key, enabled })
-                });
-                const data = await res.json();
-                if (!res.ok || !data.ok) {
+                const { response, data } = await apiPostJson("./api/features/toggle", { key, enabled });
+                if (!response.ok || !data.ok) {
                     showToast(data.error || "功能开关更新失败", "error");
                     inputs.forEach(input => input.checked = !enabled);
                     return;
@@ -336,8 +330,7 @@
 
         async function load() {
             try {
-                const r = await fetch("./api/nodes");
-                const d = await r.json();
+                const { data: d } = await apiJson("./api/nodes");
                 nodes = d.nodes || [];
                 state = d.state || {};
                 syncFeatureGates(state.feature_flags || d.features);
@@ -379,12 +372,11 @@
             setInterval(async () => {
                 if (typeof state !== "undefined" && !state.is_connecting && document.visibilityState === "visible") {
                     try {
-                        const r = await fetch("./api/nodes");
-                    const d = await r.json();
-                    nodes = d.nodes || [];
-                    state = d.state || {};
-                    syncFeatureGates(state.feature_flags || d.features);
-                    stableSortNodes();
+                        const { data: d } = await apiJson("./api/nodes");
+                        nodes = d.nodes || [];
+                        state = d.state || {};
+                        syncFeatureGates(state.feature_flags || d.features);
+                        stableSortNodes();
                         render();
                         fetchStats();
                     } catch (e) { }

@@ -25,16 +25,19 @@ from backend.app.config import (
 from backend.app.db import (
     load_ui_config, read_json, write_json, read_json_list,
     load_panel_framework_state, ensure_panel_framework_files,
-    load_client_traffic, load_traffic_stats, get_state, set_state, log_to_json,
-    load_feature_flags, save_feature_flags
+    load_client_traffic, save_client_traffic, load_traffic_stats, get_state, set_state, log_to_json,
+    load_feature_flags
 )
+from backend.app.api.http_utils import (
+    InvalidWebPath, content_type_for, is_web_asset, read_json_body,
+    read_web_html, resolve_web_asset
+)
+from backend.app.api.routes_features import handle_feature_toggle
+from backend.app.api.routes_panel import handle_panel_post
 from backend.app.core.xray import (
     build_panel_subscription_content, load_xray_cfg, save_xray_cfg,
     generate_xray_share_link, check_xray_installed, active_xray_running,
-    enrich_subscription_links, save_subscription_link, delete_subscription_link,
-    set_subscription_link_enabled, save_subscription_node, delete_subscription_node,
-    set_subscription_node_enabled, generate_panel_node_share_link,
-    save_routing_rule, delete_routing_rule, set_routing_rule_enabled,
+    enrich_subscription_links, enrich_subscription_nodes,
     save_outbound_node, delete_outbound_node, set_outbound_node_enabled,
     parse_share_link, test_outbound_node_via_temp_xray, register_warp_account,
     delete_warp_node,
@@ -50,13 +53,6 @@ from backend.app.core.vpn import (
     parse_int, check_layered_health
 )
 from utils import vpn as vpn_utils
-
-def read_web_html(name: str) -> str:
-    path = WEB_DIR / name
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError as exc:
-        raise RuntimeError(f"Missing web page file: {path}") from exc
 
 LOGIN_HTML = read_web_html("login.html")
 INDEX_HTML = read_web_html("index.html")
@@ -127,6 +123,9 @@ class Handler(BaseHTTPRequestHandler):
     def send_json(self, data: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
         self.send_bytes(json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8", status)
 
+    def read_json_body(self) -> dict[str, Any]:
+        return read_json_body(self)
+
     def handle_xray_subscription(self) -> None:
         try:
             token = ""
@@ -190,7 +189,7 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:
                     self.send_bytes(LOGIN_HTML.encode("utf-8"), "text/html; charset=utf-8")
                 return
-            elif effective_path.startswith("/css/") or effective_path.startswith("/js/"):
+            elif is_web_asset(effective_path):
                 pass
             else:
                 self.send_json({"error": "Unauthorized"}, HTTPStatus.UNAUTHORIZED)
@@ -202,43 +201,23 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_bytes(content.encode("utf-8"), "text/html; charset=utf-8")
             except Exception:
                 self.send_bytes(INDEX_HTML.encode("utf-8"), "text/html; charset=utf-8")
-        elif effective_path.startswith("/css/") or effective_path.startswith("/js/"):
-            rel_path = effective_path.lstrip("/")
-            normalized_rel_path = os.path.normpath(rel_path)
-            if normalized_rel_path.startswith("..") or os.path.isabs(normalized_rel_path):
+        elif is_web_asset(effective_path):
+            try:
+                file_path = resolve_web_asset(effective_path)
+            except InvalidWebPath:
                 self.send_response(HTTPStatus.FORBIDDEN)
                 self.end_headers()
                 return
-            
-            file_path = WEB_DIR / normalized_rel_path
+
             if not file_path.is_file():
                 self.send_response(HTTPStatus.NOT_FOUND)
                 self.end_headers()
                 return
-            
-            content_type = "application/octet-stream"
-            if file_path.suffix == ".css":
-                content_type = "text/css; charset=utf-8"
-            elif file_path.suffix == ".js":
-                content_type = "application/javascript; charset=utf-8"
-            elif file_path.suffix == ".html":
-                content_type = "text/html; charset=utf-8"
-            elif file_path.suffix in (".png", ".jpg", ".jpeg", ".webp", ".svg", ".ico"):
-                if file_path.suffix == ".svg":
-                    content_type = "image/svg+xml"
-                elif file_path.suffix == ".png":
-                    content_type = "image/png"
-                elif file_path.suffix in (".jpg", ".jpeg"):
-                    content_type = "image/jpeg"
-                elif file_path.suffix == ".webp":
-                    content_type = "image/webp"
-                elif file_path.suffix == ".ico":
-                    content_type = "image/x-icon"
-            
+
             try:
                 content = file_path.read_bytes()
-                self.send_bytes(content, content_type)
-            except Exception as e:
+                self.send_bytes(content, content_type_for(file_path))
+            except Exception:
                 self.send_response(HTTPStatus.INTERNAL_SERVER_ERROR)
                 self.end_headers()
                 return
@@ -280,7 +259,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"ok": True, "features": load_feature_flags()})
         elif effective_path == "/api/panel/subscription-nodes":
             ensure_panel_framework_files()
-            self.send_json({"ok": True, "nodes": read_json_list(SUBSCRIPTION_NODES_FILE)})
+            self.send_json({"ok": True, "nodes": enrich_subscription_nodes(read_json_list(SUBSCRIPTION_NODES_FILE))})
         elif effective_path == "/api/panel/subscription-links":
             ensure_panel_framework_files()
             links = read_json_list(SUBSCRIPTION_LINKS_FILE)
@@ -723,8 +702,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if effective_path == "/api/login":
             try:
-                length = parse_int(self.headers.get("Content-Length"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+                payload = self.read_json_body()
                 input_pwd = str(payload.get("password") or "")
                 input_uname = str(payload.get("username") or "")
 
@@ -779,226 +757,10 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if effective_path == "/api/features/toggle":
-            try:
-                length = parse_int(self.headers.get("Content-Length"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-                key = str(payload.get("key") or "").strip()
-                enabled = payload.get("enabled") is True
-                valid_keys = {"vpngate_enabled", "warp_enabled", "custom_enabled"}
-                if key not in valid_keys:
-                    self.send_json({"ok": False, "error": "未知功能开关"}, HTTPStatus.BAD_REQUEST)
-                    return
-
-                flags = load_feature_flags()
-                flags[key] = enabled
-                flags = save_feature_flags(flags)
-
-                if key == "vpngate_enabled":
-                    if enabled:
-                        threading.Thread(target=maintain_valid_nodes, args=(False,), daemon=True).start()
-                        message = "VPNGate 公益节点已开启，正在后台加载节点资源。"
-                    else:
-                        stop_openvpn_service("VPNGate 功能已关闭")
-                        message = "VPNGate 公益节点已关闭，OpenVPN 已停止。"
-                elif key == "warp_enabled":
-                    if not enabled:
-                        nodes = read_json_list(OUTBOUND_NODES_FILE)
-                        if any(node.get("type") == "warp" for node in nodes):
-                            write_json(OUTBOUND_NODES_FILE, [node for node in nodes if node.get("type") != "warp"])
-                            try:
-                                sync_panel_subscription_nodes_to_xray(True)
-                            except Exception as exc:
-                                xray_event("WARNING", f"WARP 关闭后同步 Xray 失败: {exc}")
-                    message = "Cloudflare WARP 已开启。" if enabled else "Cloudflare WARP 已关闭，出站配置已删除。"
-                else:
-                    if not enabled:
-                        nodes = read_json_list(OUTBOUND_NODES_FILE)
-                        changed = False
-                        for node in nodes:
-                            if node.get("type") in ("custom-node", "subscription", "json-config") and node.get("enabled") is not False:
-                                node["enabled"] = False
-                                changed = True
-                        if changed:
-                            write_json(OUTBOUND_NODES_FILE, nodes)
-                            try:
-                                sync_panel_subscription_nodes_to_xray(True)
-                            except Exception as exc:
-                                xray_event("WARNING", f"自定义节点关闭后同步 Xray 失败: {exc}")
-                    message = "自定义节点已开启。" if enabled else "自定义节点已关闭。"
-
-                self.send_json({"ok": True, "features": flags, "message": message})
-            except Exception as exc:
-                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            handle_feature_toggle(self)
             return
 
-        if effective_path == "/api/panel/subscription-links":
-            try:
-                ensure_panel_framework_files()
-                length = parse_int(self.headers.get("Content-Length"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-                subscription, error = save_subscription_link(payload)
-                if error:
-                    self.send_json({"ok": False, "error": error}, HTTPStatus.BAD_REQUEST)
-                    return
-                self.send_json({"ok": True, "subscription": subscription, "message": "订阅链接已保存。"})
-            except Exception as exc:
-                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
-            return
-
-        if effective_path == "/api/panel/subscription-links/delete":
-            try:
-                ensure_panel_framework_files()
-                length = parse_int(self.headers.get("Content-Length"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-                link_id = str(payload.get("id") or "").strip()
-                if not link_id:
-                    self.send_json({"ok": False, "error": "缺少订阅链接 ID"}, HTTPStatus.BAD_REQUEST)
-                    return
-                deleted, deleted_nodes = delete_subscription_link(link_id)
-                if not deleted:
-                    self.send_json({"ok": False, "error": "订阅链接不存在"}, HTTPStatus.NOT_FOUND)
-                    return
-                self.send_json({"ok": True, "message": f"订阅链接已删除，{deleted_nodes} 个包含的节点链接已同步删除。"})
-            except Exception as exc:
-                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
-            return
-
-        if effective_path == "/api/panel/subscription-links/toggle":
-            try:
-                ensure_panel_framework_files()
-                length = parse_int(self.headers.get("Content-Length"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-                link_id = str(payload.get("id") or "").strip()
-                subscription, error = set_subscription_link_enabled(link_id, bool(payload.get("enabled", False)))
-                if error:
-                    self.send_json({"ok": False, "error": error}, HTTPStatus.NOT_FOUND)
-                    return
-                self.send_json({"ok": True, "subscription": subscription, "message": "订阅链接状态已更新。"})
-            except Exception as exc:
-                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
-            return
-
-        if effective_path == "/api/panel/subscription-nodes":
-            try:
-                ensure_panel_framework_files()
-                length = parse_int(self.headers.get("Content-Length"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-                node, error = save_subscription_node(payload)
-                if error:
-                    self.send_json({"ok": False, "error": error}, HTTPStatus.BAD_REQUEST)
-                    return
-                self.send_json({"ok": True, "node": node, "message": "订阅节点已保存。"})
-            except Exception as exc:
-                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
-            return
-
-        if effective_path == "/api/panel/subscription-nodes/delete":
-            try:
-                ensure_panel_framework_files()
-                length = parse_int(self.headers.get("Content-Length"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-                node_id = str(payload.get("id") or "").strip()
-                if not node_id:
-                    self.send_json({"ok": False, "error": "缺少订阅节点 ID"}, HTTPStatus.BAD_REQUEST)
-                    return
-                if not delete_subscription_node(node_id):
-                    self.send_json({"ok": False, "error": "订阅节点不存在"}, HTTPStatus.NOT_FOUND)
-                    return
-                self.send_json({"ok": True, "message": "订阅节点已删除。"})
-            except Exception as exc:
-                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
-            return
-
-        if effective_path == "/api/panel/subscription-nodes/toggle":
-            try:
-                ensure_panel_framework_files()
-                length = parse_int(self.headers.get("Content-Length"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-                node_id = str(payload.get("id") or "").strip()
-                node, error = set_subscription_node_enabled(node_id, bool(payload.get("enabled", False)))
-                if error:
-                    self.send_json({"ok": False, "error": error}, HTTPStatus.NOT_FOUND)
-                    return
-                self.send_json({"ok": True, "node": node, "message": "订阅节点状态已更新。"})
-            except Exception as exc:
-                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
-            return
-
-        if effective_path == "/api/panel/subscription-nodes/share-link":
-            try:
-                ensure_panel_framework_files()
-                length = parse_int(self.headers.get("Content-Length"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-                node_id = str(payload.get("id") or "").strip()
-                if not node_id:
-                    self.send_json({"ok": False, "error": "缺少订阅节点 ID"}, HTTPStatus.BAD_REQUEST)
-                    return
-                nodes = read_json_list(SUBSCRIPTION_NODES_FILE)
-                node = next((n for n in nodes if n.get("id") == node_id), None)
-                if not node:
-                    self.send_json({"ok": False, "error": "订阅节点不存在"}, HTTPStatus.NOT_FOUND)
-                    return
-                host = get_public_ip_or_domain()
-                link = generate_panel_node_share_link(node, host)
-                if link and (link.startswith("vless://") or link.startswith("socks://") or link.startswith("ss://") or link.startswith("trojan://")):
-                    import base64
-                    link = base64.b64encode(link.encode("utf-8")).decode("utf-8")
-                self.send_json({
-                    "ok": True,
-                    "node": {
-                        "name": node.get("name", ""),
-                        "link": link
-                    }
-                })
-            except Exception as exc:
-                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
-            return
-
-        if effective_path == "/api/panel/routing-rules":
-            try:
-                ensure_panel_framework_files()
-                length = parse_int(self.headers.get("Content-Length"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-                rule, error = save_routing_rule(payload)
-                if error:
-                    self.send_json({"ok": False, "error": error}, HTTPStatus.BAD_REQUEST)
-                    return
-                message = "路由规则已保存并应用。" if payload.get("apply_immediately") is not False else "路由规则已创建为草稿，尚未应用到 Xray。"
-                self.send_json({"ok": True, "rule": rule, "message": message})
-            except Exception as exc:
-                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
-            return
-
-        if effective_path == "/api/panel/routing-rules/delete":
-            try:
-                ensure_panel_framework_files()
-                length = parse_int(self.headers.get("Content-Length"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-                rule_id = str(payload.get("id") or "").strip()
-                if not rule_id:
-                    self.send_json({"ok": False, "error": "缺少路由规则 ID"}, HTTPStatus.BAD_REQUEST)
-                    return
-                if not delete_routing_rule(rule_id):
-                    self.send_json({"ok": False, "error": "路由规则不存在"}, HTTPStatus.NOT_FOUND)
-                    return
-                self.send_json({"ok": True, "message": "路由规则已删除。"})
-            except Exception as exc:
-                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
-            return
-
-        if effective_path == "/api/panel/routing-rules/toggle":
-            try:
-                ensure_panel_framework_files()
-                length = parse_int(self.headers.get("Content-Length"))
-                payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-                rule_id = str(payload.get("id") or "").strip()
-                rule, error = set_routing_rule_enabled(rule_id, bool(payload.get("enabled", False)))
-                if error:
-                    self.send_json({"ok": False, "error": error}, HTTPStatus.NOT_FOUND)
-                    return
-                self.send_json({"ok": True, "rule": rule, "message": "路由规则状态已更新。"})
-            except Exception as exc:
-                self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+        if handle_panel_post(self, effective_path):
             return
 
         if effective_path == "/api/panel/outbound-nodes":

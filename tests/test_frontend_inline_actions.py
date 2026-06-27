@@ -19,10 +19,12 @@ class FrontendInlineActionsTest(unittest.TestCase):
             self.skipTest("node is not installed")
 
         scripts = [
+            ROOT / "web" / "js" / "api.js",
             ROOT / "web" / "js" / "app.js",
             ROOT / "web" / "js" / "outbound.js",
             ROOT / "web" / "js" / "route.js",
             ROOT / "web" / "js" / "dashboard.js",
+            ROOT / "web" / "js" / "sub.js",
         ]
         for script in scripts:
             with self.subTest(script=script.name):

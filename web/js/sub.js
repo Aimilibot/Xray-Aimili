@@ -215,6 +215,13 @@
             return link ? link.name : (id || "-");
         }
 
+        function trafficLine(traffic) {
+            const uploaded = Number(traffic && traffic.uploaded) || 0;
+            const downloaded = Number(traffic && traffic.downloaded) || 0;
+            const total = Number(traffic && traffic.total) || uploaded + downloaded;
+            return `↑ ${formatBytes(uploaded)} / ↓ ${formatBytes(downloaded)} / 合计 ${formatBytes(total)}`;
+        }
+
         function subscriptionUrl(link) {
             if (!link || !link.token) return "";
             return `${window.location.origin}/api/xray/subscribe?token=${encodeURIComponent(link.token)}`;
@@ -337,7 +344,8 @@
             const subscribedCount = subscriptionNodes.filter(node => node.subscription_id).length;
             const independentCount = subscriptionNodes.length - subscribedCount;
             if (hint) {
-                hint.textContent = `${subscriptionLinks.length} 个订阅链接，${subscriptionNodes.length} 个节点链接，${independentCount} 个独立节点`;
+                const totalTraffic = subscriptionNodes.reduce((sum, node) => sum + (Number(node.traffic && node.traffic.total) || 0), 0);
+                hint.textContent = `${subscriptionLinks.length} 个订阅链接，${subscriptionNodes.length} 个节点链接，${independentCount} 个独立节点，累计 ${formatBytes(totalTraffic)}`;
             }
             
             
@@ -351,6 +359,7 @@
                 const outboundText = routedOutboundIds.length
                     ? routedOutboundIds.map(outboundLabelById).join(",")
                     : (node.outbound_node_id ? outboundLabelById(node.outbound_node_id) : "未绑定");
+                const trafficText = trafficLine(node.traffic);
 
                 const actionsHtml = [
                     actionButton("复制链接", "copy", `copySubscriptionNodeUrl(${jsArg(node.id)})`),
@@ -370,6 +379,7 @@
                                 <span class="px-1.5 py-0.5 rounded bg-[rgba(255,255,255,0.06)] border border-[color-mix(in_srgb,var(--border)_20%,transparent)] text-muted text-[11px] font-mono leading-none">${esc(protocolName)}</span>
                                 <span class="text-muted text-[12px] font-mono">端口: ${esc(node.port || "-")}</span>
                                 <span class="text-muted text-[12px]">(出站: <span class="text-text font-medium">${esc(outboundText)}</span>)</span>
+                                <span class="subscription-traffic-pill" title="节点流量">${esc(trafficText)}</span>
                                 ${!nested ? `<span class="text-muted text-[12px]">归属: <span class="text-text">${esc(linkName)}</span></span>` : ''}
                             </div>
                         </div>
@@ -386,6 +396,7 @@
                 const statusText = enabled ? "已启动" : "已停止";
                 const childNodes = subscriptionNodesForLink(link.id);
                 const expanded = expandedSubscriptionLinks.has(link.id);
+                const trafficText = trafficLine(link.traffic);
                 
                 const actionsHtml = [
                     actionButton("添加节点", "add", `openSubscriptionNodeModal('', '${esc(link.id)}', '${esc(link.protocol)}')`),
@@ -415,6 +426,7 @@
                                 <span class="font-bold text-[14.5px] text-text truncate max-w-[200px]" title="${esc(link.name || '-')}">${esc(link.name || "-")}</span>
                                 
                                 <span class="text-[12px] font-semibold ${enabled ? 'text-success' : 'text-muted'} flex-none">${statusText}</span>
+                                <span class="subscription-traffic-pill flex-none" title="订阅下所有节点流量">${esc(trafficText)}</span>
                             </div>
                             
                             <div class="flex items-center gap-1 flex-none" onclick="event.stopPropagation()">
